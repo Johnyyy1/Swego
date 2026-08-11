@@ -28,6 +28,10 @@ export type {
   BuildRepositoryMemoryResult,
 } from "./build-repository-memory";
 export type {
+  SourceExclusionReason,
+  SourceFileClassificationOptions,
+} from "./source-file-classification";
+export type {
   GitSynchronizationCounts,
   GitSynchronizationOptions,
   GitSynchronizationResult,

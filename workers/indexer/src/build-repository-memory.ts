@@ -32,6 +32,13 @@ import {
   type MemoryPersistenceResult,
 } from "./repository-memory-persistence";
 import { decodeSourceFile } from "./source-file";
+import {
+  classifySourceFileHeader,
+  classifySourceFilePaths,
+  sourceExclusionReasons,
+  type SourceExclusionReason,
+  type SourceFileClassificationOptions,
+} from "./source-file-classification";
 
 const DEFAULT_MAX_SOURCE_FILE_BYTES = 512 * 1024;
 
@@ -44,10 +51,16 @@ export interface BuildRepositoryMemoryOptions {
   logger: Logger;
   repositoryId: string;
   maxSourceFileBytes?: number;
+  sourceFileClassification?: SourceFileClassificationOptions;
 }
 
 export interface BuildRepositoryMemoryResult extends MemoryPersistenceResult {
   repositoryId: string;
+  admittedSourceFiles: number;
+  excludedSourceFiles: number;
+  admittedSourceChunks: number;
+  sourceFileExclusions: Readonly<Record<SourceExclusionReason, number>>;
+  /** @deprecated Use excludedSourceFiles. */
   skippedSourceFiles: number;
   durationMs: number;
 }
@@ -108,6 +121,9 @@ export async function buildRepositoryMemory(
         files: sources.files,
         maxSourceFileBytes:
           options.maxSourceFileBytes ?? DEFAULT_MAX_SOURCE_FILE_BYTES,
+        ...(options.sourceFileClassification
+          ? { classification: options.sourceFileClassification }
+          : {}),
       }),
   );
   const persisted = await runStage(
@@ -119,18 +135,27 @@ export async function buildRepositoryMemory(
         options.database,
         [...metadataDocuments, ...sourceCode.documents],
         new Date(),
+        { reconcileSourceCodeForRepositoryId: repositoryId },
       ),
   );
   const result: BuildRepositoryMemoryResult = {
     repositoryId,
     ...persisted,
-    skippedSourceFiles: sourceCode.skipped,
+    admittedSourceFiles: sourceCode.admitted,
+    excludedSourceFiles: sourceCode.excluded,
+    admittedSourceChunks: sourceCode.chunks,
+    sourceFileExclusions: sourceCode.exclusions,
+    skippedSourceFiles: sourceCode.excluded,
     durationMs: Math.round(performance.now() - startedAt),
   };
   repositoryLogger.info("repository_memory.completed", {
     documents: result.documents,
     chunks: result.chunks,
-    skippedSourceFiles: result.skippedSourceFiles,
+    admittedSourceFiles: result.admittedSourceFiles,
+    excludedSourceFiles: result.excludedSourceFiles,
+    admittedSourceChunks: result.admittedSourceChunks,
+    sourceFileExclusions: result.sourceFileExclusions,
+    reconciliation: result.reconciliation,
     durationMs: result.durationMs,
   });
   return result;
@@ -376,6 +401,7 @@ interface NormalizeSourceFilesOptions {
   repository: Awaited<ReturnType<typeof loadSources>>["repository"];
   files: Awaited<ReturnType<typeof loadSources>>["files"];
   maxSourceFileBytes: number;
+  classification?: SourceFileClassificationOptions;
 }
 
 async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
@@ -386,19 +412,68 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
   await options.git.updateRepository(managedRepository);
   const commitTimes = new Map<string, Date>();
   const documents: GeneratedMemoryDocument[] = [];
-  let skipped = 0;
+  const pathClassifications = classifySourceFilePaths(
+    options.files,
+    options.classification,
+  );
+  const exclusions = emptyExclusionCounts();
+  let admitted = 0;
+  let excluded = 0;
 
   for (const file of options.files) {
-    const contents = await readTextFile(
+    const pathClassification = pathClassifications.get(file.path);
+    if (pathClassification?.status === "excluded") {
+      recordExclusion(
+        options.logger,
+        file.path,
+        file.size,
+        pathClassification.reason,
+        exclusions,
+      );
+      excluded += 1;
+      continue;
+    }
+
+    const readResult = await readTextFile(
       options.git,
       managedRepository,
       file.path,
       file.lastKnownCommitSha,
       options.maxSourceFileBytes,
-      options.logger,
     );
-    if (contents === null || !contents.trim()) {
-      skipped += 1;
+    if (readResult.status === "excluded") {
+      recordExclusion(
+        options.logger,
+        file.path,
+        file.size,
+        readResult.reason,
+        exclusions,
+      );
+      excluded += 1;
+      continue;
+    }
+    const contents = readResult.content;
+    if (!contents.trim()) {
+      recordExclusion(
+        options.logger,
+        file.path,
+        file.size,
+        "empty",
+        exclusions,
+      );
+      excluded += 1;
+      continue;
+    }
+    const headerClassification = classifySourceFileHeader(contents);
+    if (headerClassification.status === "excluded") {
+      recordExclusion(
+        options.logger,
+        file.path,
+        file.size,
+        headerClassification.reason,
+        exclusions,
+      );
+      excluded += 1;
       continue;
     }
 
@@ -428,10 +503,24 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
         sourceReference: `git:${file.lastKnownCommitSha}:${file.path}`,
       }),
     );
+    admitted += 1;
   }
 
-  return { documents, skipped };
+  return {
+    documents,
+    admitted,
+    excluded,
+    exclusions,
+    chunks: documents.reduce(
+      (total, document) => total + document.chunks.length,
+      0,
+    ),
+  };
 }
+
+type SourceFileReadResult =
+  | { status: "admitted"; content: string }
+  | { status: "excluded"; reason: SourceExclusionReason };
 
 async function readTextFile(
   git: GitRepositoryManager,
@@ -439,31 +528,43 @@ async function readTextFile(
   path: string,
   revision: string,
   maxBytes: number,
-  logger: Logger,
-): Promise<string | null> {
+): Promise<SourceFileReadResult> {
   let bytes: Uint8Array;
   try {
     bytes = await git.readFile(repository, path, { revision, maxBytes });
   } catch (error) {
     if (error instanceof GitFileTooLargeError) {
-      logger.warn("repository_memory.source_file.skipped", {
-        path,
-        reason: "too_large",
-      });
-      return null;
+      return { status: "excluded", reason: "oversized" };
     }
     throw error;
   }
 
   const decoded = decodeSourceFile(bytes);
   if (decoded.kind === "skipped") {
-    logger.warn("repository_memory.source_file.skipped", {
-      path,
-      reason: decoded.reason,
-    });
-    return null;
+    return { status: "excluded", reason: decoded.reason };
   }
-  return decoded.content;
+  return { status: "admitted", content: decoded.content };
+}
+
+function emptyExclusionCounts(): Record<SourceExclusionReason, number> {
+  return Object.fromEntries(
+    sourceExclusionReasons.map((reason) => [reason, 0]),
+  ) as Record<SourceExclusionReason, number>;
+}
+
+function recordExclusion(
+  logger: Logger,
+  path: string,
+  size: number,
+  reason: SourceExclusionReason,
+  exclusions: Record<SourceExclusionReason, number>,
+): void {
+  exclusions[reason] += 1;
+  logger.info("repository_memory.source_file.excluded", {
+    path,
+    size,
+    reason,
+  });
 }
 
 function versionAt(sourceUpdatedAt: Date | null, createdAt: Date): string {

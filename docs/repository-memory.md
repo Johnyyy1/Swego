@@ -61,9 +61,26 @@ The source-code builder:
 - reads blobs through the Git abstraction at the recorded revision
 - never executes repository code
 - skips empty, binary, non-UTF-8, and oversized files
+- classifies low-value tracked files at the derived-memory boundary without deleting their `repository_files` rows
+- records a stable reason for every excluded source file and summarizes reasons in build logs
 - stores current indexed snapshot chunks as derived data while Git remains authoritative
 
 It does not walk every historical file version.
+
+## Source-file classification
+
+The default policy excludes only strong, repository-independent signals:
+
+- lock/cache metadata and conventional dependency or generated-output trees
+- conventional snapshots and minified JavaScript/CSS assets
+- SVG assets
+- files with strong generated/do-not-edit markers in the first 2 KiB
+- generated OpenAPI bundles only when a sibling modular `src` source of truth is tracked
+- translated locale catalogs when exactly one `en-US` catalog is present in the same catalog group
+
+Ambiguous files remain admitted. Package/workspace and deployment configuration, authored JSON/YAML and documentation, API specifications without source-of-truth evidence, tests, migrations, SQL, large authored source files, and repository instructions are kept by default. The classifier accepts a canonical-locale option so a future repository-level configuration can override `en-US` without changing Git ingestion or document normalization.
+
+Rebuilding atomically reconciles the current source-code projection: source documents no longer admitted by the classifier are deleted, and database cascades remove their chunks and embeddings. Historical issue, pull-request, review, comment, and commit documents are not part of this reconciliation. Repeating an unchanged rebuild retains deterministic IDs and removes nothing.
 
 ## Build flow
 

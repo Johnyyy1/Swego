@@ -2,13 +2,18 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
 
 import {
+  chunkEmbeddings,
   createDatabase,
   documentChunks,
   documents,
   repositories,
   type Database,
 } from "@swega/db";
-import { normalizeIssueDocument } from "@swega/documents";
+import {
+  normalizeIssueDocument,
+  normalizeSourceCodeDocument,
+} from "@swega/documents";
+import { EMBEDDING_DIMENSIONS } from "@swega/shared";
 
 import { persistMemoryDocuments } from "./repository-memory-persistence";
 
@@ -146,5 +151,91 @@ describeWithDatabase("repository-memory persistence", () => {
     expect(versionedDocuments).toHaveLength(2);
     expect(previous?.supersededAt).toEqual(nextAvailableAt);
     expect(current?.supersededAt).toBeNull();
+  });
+
+  test("rebuild removes stale source documents, chunks, and embeddings idempotently", async () => {
+    const committedAt = new Date("2025-05-01T10:00:00.000Z");
+    const commitSha = "d".repeat(40);
+    const retained = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "src/retained.ts",
+      commitSha,
+      committedAt,
+      content: "export const retained = true;",
+      sourceReference: `git:${commitSha}:src/retained.ts`,
+    });
+    const excluded = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "dist/generated.js",
+      commitSha,
+      committedAt,
+      content: "export const generated = true;",
+      sourceReference: `git:${commitSha}:dist/generated.js`,
+    });
+    const persistenceOptions = {
+      reconcileSourceCodeForRepositoryId: repositoryId,
+    } as const;
+
+    await persistMemoryDocuments(
+      database,
+      [retained, excluded],
+      new Date(),
+      persistenceOptions,
+    );
+    const excludedChunk = excluded.chunks[0];
+    if (!excludedChunk) {
+      throw new Error("Expected excluded source fixture chunk");
+    }
+    await database.insert(chunkEmbeddings).values({
+      repositoryId,
+      chunkId: excludedChunk.id,
+      provider: "test",
+      model: "test-model",
+      dimensions: EMBEDDING_DIMENSIONS,
+      contentHash: excludedChunk.contentHash,
+      embedding: Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0),
+    });
+
+    const rebuilt = await persistMemoryDocuments(
+      database,
+      [retained],
+      new Date(),
+      persistenceOptions,
+    );
+    expect(rebuilt.reconciliation).toEqual({
+      documentsRemoved: 1,
+      chunksRemoved: excluded.chunks.length,
+      embeddingsRemoved: 1,
+    });
+
+    const storedSourceDocuments = await database
+      .select({ id: documents.id })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.repositoryId, repositoryId),
+          eq(documents.sourceType, "source_code"),
+        ),
+      );
+    const staleEmbeddings = await database
+      .select({ chunkId: chunkEmbeddings.chunkId })
+      .from(chunkEmbeddings)
+      .where(eq(chunkEmbeddings.chunkId, excludedChunk.id));
+    expect(storedSourceDocuments).toEqual([{ id: retained.document.id }]);
+    expect(staleEmbeddings).toHaveLength(0);
+
+    const repeated = await persistMemoryDocuments(
+      database,
+      [retained],
+      new Date(),
+      persistenceOptions,
+    );
+    expect(repeated.reconciliation).toEqual({
+      documentsRemoved: 0,
+      chunksRemoved: 0,
+      embeddingsRemoved: 0,
+    });
   });
 });

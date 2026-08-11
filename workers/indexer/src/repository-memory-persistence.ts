@@ -1,19 +1,41 @@
 import { and, asc, eq, gt, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 
-import { documentChunks, documents, type Database } from "@swega/db";
+import {
+  chunkEmbeddings,
+  documentChunks,
+  documents,
+  type Database,
+} from "@swega/db";
 import type { GeneratedMemoryDocument } from "@swega/documents";
+
+export interface MemoryReconciliationResult {
+  documentsRemoved: number;
+  chunksRemoved: number;
+  embeddingsRemoved: number;
+}
 
 export interface MemoryPersistenceResult {
   documents: number;
   chunks: number;
+  reconciliation: MemoryReconciliationResult;
+}
+
+export interface MemoryPersistenceOptions {
+  reconcileSourceCodeForRepositoryId?: string;
 }
 
 export async function persistMemoryDocuments(
   database: Database,
   generatedDocuments: readonly GeneratedMemoryDocument[],
   indexedAt: Date,
+  options: MemoryPersistenceOptions = {},
 ): Promise<MemoryPersistenceResult> {
   let chunkCount = 0;
+  let reconciliation: MemoryReconciliationResult = {
+    documentsRemoved: 0,
+    chunksRemoved: 0,
+    embeddingsRemoved: 0,
+  };
 
   await database.transaction(async (transaction) => {
     for (const generated of generatedDocuments) {
@@ -146,7 +168,82 @@ export async function persistMemoryDocuments(
 
       chunkCount += chunks.length;
     }
+
+    if (options.reconcileSourceCodeForRepositoryId) {
+      reconciliation = await reconcileSourceCodeDocuments(
+        transaction,
+        options.reconcileSourceCodeForRepositoryId,
+        generatedDocuments,
+      );
+    }
   });
 
-  return { documents: generatedDocuments.length, chunks: chunkCount };
+  return {
+    documents: generatedDocuments.length,
+    chunks: chunkCount,
+    reconciliation,
+  };
+}
+
+async function reconcileSourceCodeDocuments(
+  transaction: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  repositoryId: string,
+  generatedDocuments: readonly GeneratedMemoryDocument[],
+): Promise<MemoryReconciliationResult> {
+  const currentDocumentIds = generatedDocuments
+    .filter(
+      ({ document }) =>
+        document.repositoryId === repositoryId &&
+        document.sourceType === "source_code",
+    )
+    .map(({ document }) => document.id);
+  const staleDocuments = and(
+    eq(documents.repositoryId, repositoryId),
+    eq(documents.sourceType, "source_code"),
+    ...(currentDocumentIds.length > 0
+      ? [notInArray(documents.id, currentDocumentIds)]
+      : []),
+  );
+
+  const documentCountRows = await transaction
+    .select({ count: sql<number>`count(*)::int` })
+    .from(documents)
+    .where(staleDocuments);
+  const chunkCountRows = await transaction
+    .select({ count: sql<number>`count(*)::int` })
+    .from(documentChunks)
+    .innerJoin(
+      documents,
+      and(
+        eq(documentChunks.repositoryId, documents.repositoryId),
+        eq(documentChunks.documentId, documents.id),
+      ),
+    )
+    .where(staleDocuments);
+  const embeddingCountRows = await transaction
+    .select({ count: sql<number>`count(*)::int` })
+    .from(chunkEmbeddings)
+    .innerJoin(
+      documentChunks,
+      and(
+        eq(chunkEmbeddings.repositoryId, documentChunks.repositoryId),
+        eq(chunkEmbeddings.chunkId, documentChunks.id),
+      ),
+    )
+    .innerJoin(
+      documents,
+      and(
+        eq(documentChunks.repositoryId, documents.repositoryId),
+        eq(documentChunks.documentId, documents.id),
+      ),
+    )
+    .where(staleDocuments);
+
+  await transaction.delete(documents).where(staleDocuments);
+
+  return {
+    documentsRemoved: documentCountRows[0]?.count ?? 0,
+    chunksRemoved: chunkCountRows[0]?.count ?? 0,
+    embeddingsRemoved: embeddingCountRows[0]?.count ?? 0,
+  };
 }
