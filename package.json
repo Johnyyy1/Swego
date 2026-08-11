@@ -12,8 +12,8 @@
     "workers/*"
   ],
   "scripts": {
-    "dev": "bun run --filter @swega/web dev",
-    "build": "bun run --filter @swega/web build",
+    "dev": "bun --env-file=.env run --filter @swega/web dev",
+    "build": "bun --env-file=.env run --filter @swega/web build",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -21,8 +21,8 @@
     "test": "bun test",
     "db:check": "bun run --cwd packages/db db:check",
     "db:generate": "bun run --cwd packages/db db:generate",
-    "db:migrate": "bun run --cwd packages/db db:migrate",
-    "swega": "bun run --cwd apps/cli start"
+    "db:migrate": "bun --env-file=.env run --cwd packages/db db:migrate",
+    "swega": "bun --env-file=.env run --cwd apps/cli start"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -1,5 +1,9 @@
-import { parseServerEnvironment } from "@swega/shared/environment";
+import {
+  loadRootEnvironment,
+  parseServerEnvironment,
+} from "@swega/shared/environment";
 
 export function getWebEnvironment() {
+  loadRootEnvironment();
   return parseServerEnvironment(process.env);
 }

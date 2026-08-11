@@ -18,6 +18,8 @@ bun run db:migrate
 bun run dev
 ```
 
+The repository-root `.env` is the single local environment file. SWEGA's runtime entry points load it explicitly; workspace-local `.env` copies are neither needed nor supported. Values already exported by the shell take precedence.
+
 The web application runs at `http://localhost:3000` by default.
 
 Run a bounded GitHub metadata ingestion with:

@@ -2,10 +2,14 @@ import { fileURLToPath } from "node:url";
 
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
-import { parseServerEnvironment } from "@swega/shared/environment";
+import {
+  loadRootEnvironment,
+  parseServerEnvironment,
+} from "@swega/shared/environment";
 
 import { createDatabase } from "./index";
 
+loadRootEnvironment();
 const environment = parseServerEnvironment(process.env);
 const database = createDatabase({
   url: environment.DATABASE_URL,

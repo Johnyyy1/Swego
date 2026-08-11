@@ -17,7 +17,10 @@ import {
   synchronizeGitRepository,
 } from "@swega/indexer";
 import { PgVectorRepositoryMemory } from "@swega/retrieval";
-import { parseServerEnvironment } from "@swega/shared/environment";
+import {
+  loadRootEnvironment,
+  parseServerEnvironment,
+} from "@swega/shared/environment";
 import { createJsonLogger, errorFields } from "@swega/shared/logging";
 
 import { helpText, parseCliArguments } from "./arguments";
@@ -29,6 +32,7 @@ async function main(): Promise<void> {
     return;
   }
 
+  loadRootEnvironment();
   const environment = parseServerEnvironment(process.env);
   const logger = createJsonLogger({ application: "swega-cli" });
   const database = createDatabase({ url: environment.DATABASE_URL });
