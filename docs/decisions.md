@@ -28,6 +28,10 @@ Every source entity has a SWEGA UUID and a repository ID. Nested entities repeat
 
 The GitHub adapter uses Octokit's REST client, pagination iterator, retry plugin, and throttling plugin. It emits normalized values rather than raw API response types. Development ingestion defaults to bounded collections and sends requests sequentially to reduce secondary rate-limit pressure. The indexer owns stage orchestration and database upserts; the CLI is only a process adapter.
 
+## Git repositories remain the source of truth for source contents
+
+SWEGA stores managed clones by internal repository UUID. PostgreSQL contains only current tracked-file metadata and the revision that produced it; file bytes and historical versions are read from Git objects. The Git package wraps the installed Git CLI because it provides complete object and history semantics without adding a second Git implementation. All invocations use argument arrays, non-interactive configuration, disabled hooks and submodule recursion, and no repository code execution.
+
 ## Retrieval is a contract, not a technology choice
 
 The retrieval package defines queries and results but no vector store, embedding provider, or ranking approach. Those choices should follow from a working ingestion slice and observed query needs.

@@ -15,9 +15,17 @@ export interface HelpArguments {
   command: "help";
 }
 
-export type CliArguments = IngestArguments | HelpArguments;
+export interface IngestGitArguments {
+  command: "ingest-git";
+  repositoryId: string;
+  limit: number;
+  since?: Date;
+}
+
+export type CliArguments = IngestArguments | IngestGitArguments | HelpArguments;
 
 const limitSchema = z.coerce.number().int().positive().max(1_000);
+const repositoryIdSchema = z.string().uuid();
 
 function parseSince(value: string | undefined): Date | undefined {
   if (!value) {
@@ -50,11 +58,9 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
     return { command: "help" };
   }
 
-  const [command, repositoryUrl, ...unexpected] = parsed.positionals;
-  if (command !== "ingest" || !repositoryUrl || unexpected.length > 0) {
-    throw new Error(
-      "Usage: swega ingest <github-repository-url> [--limit N] [--since ISO_DATE]",
-    );
+  const [command, target, ...unexpected] = parsed.positionals;
+  if (!target || unexpected.length > 0) {
+    throw new Error("Run 'swega --help' for usage");
   }
 
   const limit = limitSchema.parse(
@@ -62,23 +68,37 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   );
   const since = parseSince(parsed.values.since);
 
-  return {
-    command: "ingest",
-    repositoryUrl,
-    limit,
-    ...(since ? { since } : {}),
-  };
+  if (command === "ingest") {
+    return {
+      command,
+      repositoryUrl: target,
+      limit,
+      ...(since ? { since } : {}),
+    };
+  }
+
+  if (command === "ingest-git") {
+    return {
+      command,
+      repositoryId: repositoryIdSchema.parse(target),
+      limit,
+      ...(since ? { since } : {}),
+    };
+  }
+
+  throw new Error("Run 'swega --help' for usage");
 }
 
 export function helpText(): string {
   return [
-    "SWEGA repository metadata ingestion",
+    "SWEGA repository ingestion",
     "",
     "Usage:",
     "  swega ingest <github-repository-url> [--limit N] [--since ISO_DATE]",
+    "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
     "",
     "Options:",
-    `  --limit N        Maximum records per collection (default: ${DEFAULT_INGESTION_LIMIT})`,
+    `  --limit N        Maximum records per collection/history (default: ${DEFAULT_INGESTION_LIMIT})`,
     "  --since DATE     Only ingest records updated at or after an ISO-8601 date",
     "  -h, --help       Show this help",
   ].join("\n");

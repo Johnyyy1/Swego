@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 
 import {
   commits,
@@ -7,6 +7,7 @@ import {
   pullRequestFiles,
   pullRequests,
   repositories,
+  repositoryFiles,
   reviews,
   type Database,
 } from "@swega/db";
@@ -19,6 +20,7 @@ import type {
   NormalizedRepository,
   NormalizedReview,
 } from "@swega/github";
+import type { GitCommit, GitTrackedFile } from "@swega/git";
 
 function requireReturnedRow<T>(rows: readonly T[], entity: string): T {
   const row = rows[0];
@@ -391,6 +393,91 @@ export async function upsertCommits(
   return values.length;
 }
 
+export async function upsertGitCommits(
+  database: Database,
+  repositoryId: string,
+  values: readonly GitCommit[],
+): Promise<number> {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  await database
+    .insert(commits)
+    .values(
+      values.map((commit) => ({
+        repositoryId,
+        sha: commit.hash,
+        message: commit.body
+          ? `${commit.subject}\n\n${commit.body}`
+          : commit.subject,
+        author: commit.authorName,
+        authorEmail: commit.authorEmail || null,
+        authoredAt: commit.authoredAt,
+        committedAt: commit.committedAt,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [commits.repositoryId, commits.sha],
+      set: {
+        message: sql`excluded.message`,
+        author: sql`excluded.author`,
+        authorEmail: sql`excluded.author_email`,
+        authoredAt: sql`excluded.authored_at`,
+        committedAt: sql`excluded.committed_at`,
+      },
+    });
+
+  return values.length;
+}
+
+export async function synchronizeRepositoryFiles(
+  database: Database,
+  repositoryId: string,
+  values: readonly GitTrackedFile[],
+  syncedAt: Date,
+): Promise<number> {
+  await database.transaction(async (transaction) => {
+    for (let offset = 0; offset < values.length; offset += 500) {
+      const chunk = values.slice(offset, offset + 500);
+      await transaction
+        .insert(repositoryFiles)
+        .values(
+          chunk.map((file) => ({
+            repositoryId,
+            path: file.path,
+            language: file.language,
+            extension: file.extension,
+            size: file.size,
+            lastKnownCommitSha: file.lastKnownCommitSha,
+            lastSyncedAt: syncedAt,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [repositoryFiles.repositoryId, repositoryFiles.path],
+          set: {
+            language: sql`excluded.language`,
+            extension: sql`excluded.extension`,
+            size: sql`excluded.size`,
+            lastKnownCommitSha: sql`excluded.last_known_commit_sha`,
+            lastSyncedAt: syncedAt,
+          },
+        });
+    }
+
+    await transaction
+      .delete(repositoryFiles)
+      .where(
+        and(
+          eq(repositoryFiles.repositoryId, repositoryId),
+          ne(repositoryFiles.lastSyncedAt, syncedAt),
+        ),
+      );
+  });
+
+  return values.length;
+}
+
 export async function markRepositoryIndexed(
   database: Database,
   repositoryId: string,
@@ -399,5 +486,16 @@ export async function markRepositoryIndexed(
   await database
     .update(repositories)
     .set({ indexedAt })
+    .where(eq(repositories.id, repositoryId));
+}
+
+export async function markRepositoryGitIndexed(
+  database: Database,
+  repositoryId: string,
+  indexedAt: Date,
+): Promise<void> {
+  await database
+    .update(repositories)
+    .set({ gitIndexedAt: indexedAt })
     .where(eq(repositories.id, repositoryId));
 }

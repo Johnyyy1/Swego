@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const optionalSecret = z.preprocess(
+const optionalNonEmptyString = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().min(1).optional(),
 );
@@ -12,7 +12,8 @@ export const serverEnvironmentSchema = z.object({
     .refine((value) => /^postgres(?:ql)?:\/\//u.test(value), {
       message: "DATABASE_URL must be a PostgreSQL connection URL",
     }),
-  GITHUB_TOKEN: optionalSecret,
+  GITHUB_TOKEN: optionalNonEmptyString,
+  SWEGA_REPOSITORY_DIR: optionalNonEmptyString,
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),

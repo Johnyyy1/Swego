@@ -2,6 +2,7 @@ node_modules/
 .next/
 dist/
 coverage/
+.swega/
 
 .env
 .env.local

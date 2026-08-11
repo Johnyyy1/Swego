@@ -8,10 +8,12 @@
   },
   "scripts": {
     "start": "bun src/index.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@swega/db": "workspace:*",
+    "@swega/git": "workspace:*",
     "@swega/github": "workspace:*",
     "@swega/indexer": "workspace:*",
     "@swega/shared": "workspace:*",

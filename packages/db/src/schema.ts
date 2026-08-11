@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   check,
   foreignKey,
   index,
@@ -50,6 +51,7 @@ export const repositories = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }),
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     indexedAt: timestamp("indexed_at", { withTimezone: true }),
+    gitIndexedAt: timestamp("git_indexed_at", { withTimezone: true }),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -66,6 +68,7 @@ export const repositories = pgTable(
     ),
     index("repositories_url_index").on(table.url),
     index("repositories_indexed_at_index").on(table.indexedAt),
+    index("repositories_git_indexed_at_index").on(table.gitIndexedAt),
   ],
 );
 
@@ -96,6 +99,43 @@ export const commits = pgTable(
       table.repositoryId,
       table.committedAt,
     ),
+  ],
+);
+
+export const repositoryFiles = pgTable(
+  "repository_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    repositoryId: uuid("repository_id")
+      .notNull()
+      .references(() => repositories.id, { onDelete: "cascade" }),
+    path: text("path").notNull(),
+    language: text("language"),
+    extension: text("extension"),
+    size: bigint("size", { mode: "number" }).notNull(),
+    lastKnownCommitSha: text("last_known_commit_sha").notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("repository_files_repository_path_unique").on(
+      table.repositoryId,
+      table.path,
+    ),
+    index("repository_files_repository_language_index").on(
+      table.repositoryId,
+      table.language,
+    ),
+    index("repository_files_repository_extension_index").on(
+      table.repositoryId,
+      table.extension,
+    ),
+    index("repository_files_repository_commit_sha_index").on(
+      table.repositoryId,
+      table.lastKnownCommitSha,
+    ),
+    check("repository_files_size_check", sql`${table.size} >= 0`),
   ],
 );
 
@@ -332,6 +372,8 @@ export type Repository = typeof repositories.$inferSelect;
 export type NewRepository = typeof repositories.$inferInsert;
 export type Commit = typeof commits.$inferSelect;
 export type NewCommit = typeof commits.$inferInsert;
+export type RepositoryFile = typeof repositoryFiles.$inferSelect;
+export type NewRepositoryFile = typeof repositoryFiles.$inferInsert;
 export type Issue = typeof issues.$inferSelect;
 export type NewIssue = typeof issues.$inferInsert;
 export type IssueComment = typeof issueComments.$inferSelect;

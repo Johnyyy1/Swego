@@ -2,7 +2,7 @@
 
 SWEGA is a repository-agnostic memory and intelligence layer for AI coding agents. It is intended to ingest source-code and development history, preserve it as searchable repository memory, and provide relevant historical context to downstream tools.
 
-This repository currently contains the initial architecture only. GitHub ingestion, indexing, retrieval implementations, and agent integrations will be added incrementally.
+The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, and managed Git/source synchronization. Retrieval, indexing, and agent integrations will be added incrementally.
 
 ## Prerequisites
 
@@ -28,6 +28,14 @@ bun run swega ingest https://github.com/octocat/Hello-World --limit 10
 
 `GITHUB_TOKEN` is optional for public repositories but recommended for a higher API rate limit. Running `bun link` from the repository root makes the equivalent `swega ingest ...` command available directly.
 
+After metadata ingestion returns the repository UUID, synchronize its Git history and tracked files with:
+
+```bash
+bun run swega ingest-git <repository-id> --limit 100
+```
+
+Managed clones default to `.swega/repositories`. Set `SWEGA_REPOSITORY_DIR` to use another location.
+
 ## Common commands
 
 ```bash
@@ -42,4 +50,4 @@ bun run db:generate  # Generate migrations after schema changes
 bun run db:migrate   # Apply pending PostgreSQL migrations
 ```
 
-See [the architecture overview](docs/architecture.md), [ingestion flow](docs/ingestion.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.
+See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.

@@ -1,0 +1,2 @@
+ALTER TABLE "repositories" ADD COLUMN "git_indexed_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "repositories_git_indexed_at_index" ON "repositories" USING btree ("git_indexed_at");

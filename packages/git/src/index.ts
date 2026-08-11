@@ -1,16 +1,17 @@
-import type { RepositoryLocator } from "@swega/shared";
-
-export interface GitCommit {
-  hash: string;
-  parents: readonly string[];
-  authorName: string;
-  authorEmail: string;
-  authoredAt: Date;
-  committedAt: Date;
-  subject: string;
-  body: string;
-}
-
-export interface GitHistorySource {
-  streamCommits(repository: RepositoryLocator): AsyncIterable<GitCommit>;
-}
+export {
+  GitCommandError,
+  GitFileTooLargeError,
+  GitRepositoryError,
+} from "./errors";
+export { detectLanguage, getFileExtension } from "./language";
+export { GitCliRepositoryManager } from "./manager";
+export type {
+  CheckoutOptions,
+  GitCommit,
+  GitHistoryOptions,
+  GitRepositoryManager,
+  GitTrackedFile,
+  ManagedGitRepository,
+  ManagedRepositoryInput,
+  ReadFileOptions,
+} from "./types";
