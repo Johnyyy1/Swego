@@ -27,6 +27,7 @@ describe("OllamaEmbeddingProvider", () => {
       input: ["first", "second"],
       dimensions: EMBEDDING_DIMENSIONS,
       truncate: false,
+      options: { num_ctx: 32_768 },
     });
     expect(vectors[0]?.[0]).toBe(1);
     expect(vectors[1]?.[1]).toBe(1);
@@ -70,6 +71,22 @@ describe("OllamaEmbeddingProvider", () => {
     expect(error.message).not.toContain("socket details");
   });
 
+  test("distinguishes an embedding timeout from an unavailable server", async () => {
+    const fakeFetch: OllamaFetch = async () => {
+      throw new DOMException("request timed out", "TimeoutError");
+    };
+    const provider = new OllamaEmbeddingProvider({
+      fetch: fakeFetch,
+      timeoutMs: 1_000,
+    });
+
+    const error = await captureError(provider.embed(["query"]));
+
+    expect(error.code).toBe("request_failed");
+    expect(error.message).toContain("request timed out after 1000ms");
+    expect(error.message).not.toContain("is Ollama running?");
+  });
+
   test("reports a missing Ollama model with a pull command", async () => {
     const fakeFetch: OllamaFetch = async () =>
       new Response('{"error":"model not found"}', { status: 404 });
@@ -78,7 +95,72 @@ describe("OllamaEmbeddingProvider", () => {
     const error = await captureError(provider.embed(["query"]));
 
     expect(error.code).toBe("model_unavailable");
+    expect(error.message).toContain("request failed with status 404");
     expect(error.message).toContain("ollama pull qwen3-embedding:0.6b");
+  });
+
+  test("reports a safe Ollama error body and batch diagnostics", async () => {
+    const rawInput = "secret source contents that must not be logged";
+    const fakeFetch: OllamaFetch = async () =>
+      new Response(
+        JSON.stringify({
+          error: "the input length exceeds the context length",
+        }),
+        { status: 400 },
+      );
+    const provider = new OllamaEmbeddingProvider({ fetch: fakeFetch });
+
+    const error = await captureError(provider.embed([rawInput, "short"]));
+
+    expect(error.code).toBe("request_failed");
+    expect(error.message).toContain(
+      "request failed with status 400: the input length exceeds the context length",
+    );
+    expect(error.message).toContain("batchSize=2");
+    expect(error.message).toContain("minInputCharacters=5");
+    expect(error.message).toContain(`maxInputCharacters=${rawInput.length}`);
+    expect(error.message).toContain(
+      `totalInputCharacters=${rawInput.length + 5}`,
+    );
+    expect(error.message).toContain("requestedDimensions=512");
+    expect(error.message).toContain("model=qwen3-embedding:0.6b");
+    expect(error.message).not.toContain(rawInput);
+  });
+
+  test("redacts source text echoed by an Ollama error", async () => {
+    const rawInput = "repository source text with a private value";
+    const fakeFetch: OllamaFetch = async () =>
+      new Response(
+        JSON.stringify({ error: `invalid input '${rawInput}' for embedding` }),
+        { status: 400 },
+      );
+    const provider = new OllamaEmbeddingProvider({ fetch: fakeFetch });
+
+    const error = await captureError(provider.embed([rawInput]));
+
+    expect(error.message).toContain("invalid input [redacted] for embedding");
+    expect(error.message).not.toContain(rawInput);
+  });
+
+  test("requests the full Qwen context for inputs above Ollama's 4K default", async () => {
+    let requestedContext: unknown;
+    const fakeFetch: OllamaFetch = async (_input, init) => {
+      const body: unknown = JSON.parse(String(init?.body));
+      if (!isRecord(body) || !isRecord(body.options)) {
+        return Response.json(
+          { error: "the input length exceeds the context length" },
+          { status: 400 },
+        );
+      }
+      requestedContext = body.options.num_ctx;
+      return Response.json({ embeddings: [unitVector(0)] });
+    };
+    const provider = new OllamaEmbeddingProvider({ fetch: fakeFetch });
+
+    const vectors = await provider.embed(["safe synthetic long input"]);
+
+    expect(requestedContext).toBe(32_768);
+    expect(vectors).toHaveLength(1);
   });
 
   test("rejects a malformed Ollama response", async () => {

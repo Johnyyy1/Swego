@@ -85,6 +85,12 @@ export async function embedRepositoryMemory(
         chunkId: documentChunks.id,
         content: documentChunks.content,
         contentHash: documentChunks.contentHash,
+        path: documentChunks.path,
+        sourceType: documentChunks.sourceType,
+        sourceReference: documentChunks.sourceReference,
+        chunkIndex: documentChunks.chunkIndex,
+        startLine: documentChunks.startLine,
+        endLine: documentChunks.endLine,
         embeddedProvider: chunkEmbeddings.provider,
         embeddedModel: chunkEmbeddings.model,
         embeddedDimensions: chunkEmbeddings.dimensions,
@@ -109,10 +115,51 @@ export async function embedRepositoryMemory(
 
     for (let offset = 0; offset < stale.length; offset += batchSize) {
       const batch = stale.slice(offset, offset + batchSize);
+      const lengths = batch.map((row) => row.content.length);
+      const maxInputCharacters = Math.max(...lengths);
+      const longestChunk = batch.find(
+        (row) => row.content.length === maxInputCharacters,
+      );
+      const batchDiagnostics = {
+        batchSize: batch.length,
+        minInputCharacters: Math.min(...lengths),
+        maxInputCharacters,
+        totalInputCharacters: lengths.reduce((sum, length) => sum + length, 0),
+        requestedDimensions: options.embeddings.dimensions,
+        model: options.embeddings.model,
+      };
+      logger.info("memory_embeddings.batch.started", {
+        offset,
+        ...batchDiagnostics,
+      });
+      let generated: readonly (readonly number[])[];
+      try {
+        generated = await options.embeddings.embed(
+          batch.map((row) => row.content),
+        );
+      } catch (error) {
+        logger.error("memory_embeddings.batch.failed", {
+          offset,
+          ...batchDiagnostics,
+          ...(longestChunk
+            ? {
+                longestChunkId: longestChunk.chunkId,
+                longestChunkPath: longestChunk.path,
+                longestChunkSourceType: longestChunk.sourceType,
+                longestChunkSourceReference: longestChunk.sourceReference,
+                longestChunkIndex: longestChunk.chunkIndex,
+                longestChunkStartLine: longestChunk.startLine,
+                longestChunkEndLine: longestChunk.endLine,
+              }
+            : {}),
+          ...errorFields(error),
+        });
+        throw error;
+      }
       const vectors = validateEmbeddings(
         options.embeddings,
         batch.map((row) => row.content),
-        await options.embeddings.embed(batch.map((row) => row.content)),
+        generated,
       );
       const embeddedAt = new Date();
       const values = batch.map((row, index) => {

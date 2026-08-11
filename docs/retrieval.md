@@ -4,7 +4,7 @@
 
 Retrieval v1 embeds normalized `DocumentChunk` text, stores vectors in PostgreSQL through pgvector, and returns cosine-ranked chunks with their original repository, entity, relationship, path, commit, and temporal provenance. It does not generate an answer or call an LLM.
 
-The provider-neutral `EmbeddingProvider` contract lives in `packages/embeddings`. Ollama is the default local adapter and calls `/api/embed` in bounded batches with `qwen3-embedding:0.6b`. It explicitly requests 512 dimensions to match the existing pgvector column. OpenAI remains an optional adapter using `text-embedding-3-small` by default. The indexer and retrieval package import only the provider contract and never import a vendor SDK or response type.
+The provider-neutral `EmbeddingProvider` contract lives in `packages/embeddings`. Ollama is the default local adapter and calls `/api/embed` in bounded batches with `qwen3-embedding:0.6b`. It explicitly requests 512 dimensions to match the existing pgvector column and a 32,768-token context while keeping truncation disabled, so repository chunks are not silently shortened by Ollama's lower runtime default. OpenAI remains an optional adapter using `text-embedding-3-small` by default. The indexer and retrieval package import only the provider contract and never import a vendor SDK or response type.
 
 ## Pipeline
 

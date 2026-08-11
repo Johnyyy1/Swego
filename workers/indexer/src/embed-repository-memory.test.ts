@@ -27,6 +27,12 @@ describe("embedRepositoryMemory", () => {
         chunkId: "stale",
         content: "embed this chunk",
         contentHash: "hash-stale",
+        path: "src/stale.ts",
+        sourceType: "source_code",
+        sourceReference: "git:test:src/stale.ts",
+        chunkIndex: 0,
+        startLine: 1,
+        endLine: 10,
         embeddedProvider: null,
         embeddedModel: null,
         embeddedDimensions: null,
@@ -36,6 +42,12 @@ describe("embedRepositoryMemory", () => {
         chunkId: "current",
         content: "skip this chunk",
         contentHash: "hash-current",
+        path: "src/current.ts",
+        sourceType: "source_code",
+        sourceReference: "git:test:src/current.ts",
+        chunkIndex: 0,
+        startLine: 1,
+        endLine: 10,
         embeddedProvider: provider.provider,
         embeddedModel: provider.model,
         embeddedDimensions: provider.dimensions,
@@ -91,6 +103,21 @@ describe("embedRepositoryMemory", () => {
         skipped: 1,
       },
     });
+    expect(
+      logEntries.find(
+        (entry) => entry.event === "memory_embeddings.batch.started",
+      ),
+    ).toMatchObject({
+      fields: {
+        batchSize: 1,
+        minInputCharacters: 16,
+        maxInputCharacters: 16,
+        totalInputCharacters: 16,
+        requestedDimensions: EMBEDDING_DIMENSIONS,
+        model: "test-model",
+      },
+    });
+    expect(JSON.stringify(logEntries)).not.toContain("embed this chunk");
   });
 });
 
