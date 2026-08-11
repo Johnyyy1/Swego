@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@swega/shared": "workspace:*"
+    "@swega/db": "workspace:*",
+    "@swega/embeddings": "workspace:*",
+    "@swega/shared": "workspace:*",
+    "drizzle-orm": "0.45.2"
   }
 }

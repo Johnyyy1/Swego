@@ -1,0 +1,124 @@
+import { and, cosineDistance, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
+
+import { chunkEmbeddings, documentChunks, type Database } from "@swega/db";
+import { validateEmbeddings, type EmbeddingProvider } from "@swega/embeddings";
+import { EMBEDDING_DIMENSIONS, repositoryIdSchema } from "@swega/shared";
+
+import type {
+  MemorySearchResult,
+  RepositoryMemory,
+  SearchMemoryInput,
+} from "./types";
+
+const DEFAULT_SEARCH_LIMIT = 10;
+const MAX_SEARCH_LIMIT = 100;
+
+export class PgVectorRepositoryMemory implements RepositoryMemory {
+  constructor(
+    private readonly database: Database,
+    private readonly embeddings: EmbeddingProvider,
+  ) {
+    if (embeddings.dimensions !== EMBEDDING_DIMENSIONS) {
+      throw new Error(
+        `Embedding provider dimensions must be ${EMBEDDING_DIMENSIONS}`,
+      );
+    }
+  }
+
+  async searchMemory(
+    input: SearchMemoryInput,
+  ): Promise<readonly MemorySearchResult[]> {
+    const repositoryId = repositoryIdSchema.parse(input.repositoryId);
+    const query = input.query.trim();
+    if (!query) {
+      throw new Error("Memory search query must not be empty");
+    }
+    const limit = input.limit ?? DEFAULT_SEARCH_LIMIT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_SEARCH_LIMIT) {
+      throw new Error(
+        `Memory search limit must be between 1 and ${MAX_SEARCH_LIMIT}`,
+      );
+    }
+    const before = input.before ?? new Date();
+    if (Number.isNaN(before.getTime())) {
+      throw new Error("Memory search cutoff must be a valid date");
+    }
+
+    const queryVectors = validateEmbeddings(
+      this.embeddings,
+      [query],
+      await this.embeddings.embed([query]),
+    );
+    const queryVector = queryVectors[0];
+    if (!queryVector) {
+      throw new Error("Embedding provider returned no query vector");
+    }
+    const distance = cosineDistance(chunkEmbeddings.embedding, queryVector);
+    const similarity = sql<number>`1 - (${distance})`;
+    const rows = await this.database
+      .select({
+        repositoryId: documentChunks.repositoryId,
+        documentId: documentChunks.documentId,
+        chunkId: documentChunks.id,
+        content: documentChunks.content,
+        similarity,
+        sourceType: documentChunks.sourceType,
+        sourceId: documentChunks.sourceEntityId,
+        sourceReference: documentChunks.sourceReference,
+        parentSourceType: documentChunks.parentSourceType,
+        parentSourceEntityId: documentChunks.parentSourceEntityId,
+        occurredAt: documentChunks.occurredAt,
+        availableAt: documentChunks.availableAt,
+        path: documentChunks.path,
+        commitSha: documentChunks.commitSha,
+        startLine: documentChunks.startLine,
+        endLine: documentChunks.endLine,
+      })
+      .from(chunkEmbeddings)
+      .innerJoin(
+        documentChunks,
+        and(
+          eq(chunkEmbeddings.repositoryId, documentChunks.repositoryId),
+          eq(chunkEmbeddings.chunkId, documentChunks.id),
+        ),
+      )
+      .where(
+        and(
+          eq(chunkEmbeddings.repositoryId, repositoryId),
+          eq(chunkEmbeddings.provider, this.embeddings.provider),
+          eq(chunkEmbeddings.model, this.embeddings.model),
+          eq(chunkEmbeddings.dimensions, this.embeddings.dimensions),
+          lte(documentChunks.availableAt, before),
+          or(
+            isNull(documentChunks.supersededAt),
+            gt(documentChunks.supersededAt, before),
+          ),
+        ),
+      )
+      .orderBy(distance)
+      .limit(limit);
+
+    return rows.map((row) => ({
+      repositoryId: row.repositoryId,
+      content: row.content,
+      similarity: row.similarity,
+      sourceType: row.sourceType,
+      sourceId: row.sourceId,
+      timestamp: row.availableAt,
+      path: row.path,
+      sourceMetadata: {
+        documentId: row.documentId,
+        chunkId: row.chunkId,
+        sourceReference: row.sourceReference,
+        parentSourceType: row.parentSourceType,
+        parentSourceEntityId: row.parentSourceEntityId,
+        occurredAt: row.occurredAt,
+        availableAt: row.availableAt,
+        path: row.path,
+        commitSha: row.commitSha,
+        startLine: row.startLine,
+        endLine: row.endLine,
+      },
+    }));
+  }
+}

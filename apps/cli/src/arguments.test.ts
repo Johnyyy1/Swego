@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { DEFAULT_INGESTION_LIMIT, parseCliArguments } from "./arguments";
+import {
+  DEFAULT_INGESTION_LIMIT,
+  DEFAULT_SEARCH_LIMIT,
+  parseCliArguments,
+} from "./arguments";
 
 describe("CLI arguments", () => {
   test("parses bounded GitHub metadata ingestion", () => {
@@ -56,5 +60,41 @@ describe("CLI arguments", () => {
         "10",
       ]),
     ).toThrow("do not apply");
+  });
+
+  test("parses repository-memory embedding", () => {
+    expect(
+      parseCliArguments([
+        "embed-memory",
+        "123e4567-e89b-42d3-a456-426614174000",
+      ]),
+    ).toEqual({
+      command: "embed-memory",
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+    });
+  });
+
+  test("parses temporally constrained memory search", () => {
+    expect(
+      parseCliArguments([
+        "search",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "authentication redirect",
+        "--before",
+        "2025-03-15",
+      ]),
+    ).toEqual({
+      command: "search",
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+      query: "authentication redirect",
+      limit: DEFAULT_SEARCH_LIMIT,
+      before: new Date("2025-03-15"),
+    });
+  });
+
+  test("rejects search without a query", () => {
+    expect(() =>
+      parseCliArguments(["search", "123e4567-e89b-42d3-a456-426614174000"]),
+    ).toThrow("Usage");
   });
 });

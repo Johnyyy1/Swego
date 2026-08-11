@@ -23,3 +23,5 @@ export const memorySourceTypes = [
 ] as const;
 
 export type MemorySourceType = (typeof memorySourceTypes)[number];
+
+export const EMBEDDING_DIMENSIONS = 512;

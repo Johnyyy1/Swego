@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDatabase } from "@swega/db";
+import { OpenAIEmbeddingProvider } from "@swega/embeddings";
 import { GitCliRepositoryManager } from "@swega/git";
 import { GitHubClient } from "@swega/github";
 import {
@@ -11,9 +12,11 @@ import {
   GitSynchronizationStageError,
   RepositoryMemoryBuildError,
   buildRepositoryMemory,
+  embedRepositoryMemory,
   ingestGitHubRepository,
   synchronizeGitRepository,
 } from "@swega/indexer";
+import { PgVectorRepositoryMemory } from "@swega/retrieval";
 import { parseServerEnvironment } from "@swega/shared/environment";
 import { createJsonLogger, errorFields } from "@swega/shared/logging";
 
@@ -46,6 +49,43 @@ async function main(): Promise<void> {
         limit: arguments_.limit,
         ...(arguments_.since ? { since: arguments_.since } : {}),
       });
+      return;
+    }
+
+    if (
+      arguments_.command === "embed-memory" ||
+      arguments_.command === "search"
+    ) {
+      if (!environment.OPENAI_API_KEY) {
+        throw new Error(
+          "OPENAI_API_KEY is required for memory embedding and search",
+        );
+      }
+      const embeddings = new OpenAIEmbeddingProvider({
+        apiKey: environment.OPENAI_API_KEY,
+        ...(environment.SWEGA_EMBEDDING_MODEL
+          ? { model: environment.SWEGA_EMBEDDING_MODEL }
+          : {}),
+      });
+
+      if (arguments_.command === "embed-memory") {
+        await embedRepositoryMemory({
+          database: database.db,
+          embeddings,
+          logger,
+          repositoryId: arguments_.repositoryId,
+        });
+        return;
+      }
+
+      const memory = new PgVectorRepositoryMemory(database.db, embeddings);
+      const results = await memory.searchMemory({
+        repositoryId: arguments_.repositoryId,
+        query: arguments_.query,
+        limit: arguments_.limit,
+        ...(arguments_.before ? { before: arguments_.before } : {}),
+      });
+      console.log(JSON.stringify(results, null, 2));
       return;
     }
 

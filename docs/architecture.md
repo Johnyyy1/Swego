@@ -11,9 +11,10 @@ apps/cli/           Command-line delivery layer
 apps/web/           Next.js delivery layer
 packages/db/        PostgreSQL schema and Drizzle integration
 packages/documents/ Provider-independent document normalization and chunking
+packages/embeddings/Embedding-provider contract and concrete adapters
 packages/github/    GitHub development-history source boundary
 packages/git/       Managed clones and Git object/history inspection
-packages/retrieval/ Repository-memory query contracts
+packages/retrieval/ Repository-memory query contracts and PostgreSQL adapter
 packages/shared/    Framework-neutral schemas and shared primitives
 workers/indexer/    Background ingestion composition root
 docs/               Architecture and decision documentation
@@ -39,7 +40,8 @@ The database package accepts connection configuration instead of reading global 
 2. The Git and GitHub adapters collect source and development history.
 3. The indexer normalizes provider metadata, synchronizes Git commits, and persists current file metadata through the database package.
 4. The document package converts normalized sources into versioned repository-memory documents and conservative text chunks; the indexer persists them as rebuildable derived data.
-5. Retrieval implementations query that memory through contracts in `packages/retrieval`, applying repository and temporal filters before returning context.
-6. Delivery layers expose results without owning ingestion or retrieval logic.
+5. The indexer generates embeddings through `packages/embeddings` and stores the current vector projection for each chunk in pgvector.
+6. The PostgreSQL retrieval adapter embeds a query through the same provider/model and applies repository and temporal filters in SQL before returning ranked context.
+7. Delivery layers expose results without owning ingestion or retrieval logic.
 
-The process boundaries, normalized source-data model, database foundation, GitHub metadata ingestion, managed Git/source ingestion, and repository-memory document generation exist today. Repository contents and historical file versions remain authoritative in Git; stored code chunks are rebuildable derived snapshots. Retrieval implementations do not yet exist. No agent, embedding, vector-search, parser, sandbox, authentication, or billing design is implied by this setup.
+The process boundaries, normalized source-data model, ingestion layers, repository-memory documents, embedding projection, and semantic retrieval exist today. Repository contents and historical file versions remain authoritative in Git; documents, chunks, and embeddings are rebuildable derived data. No agent, answer-generation, parser, sandbox, authentication, or billing design is implied by this setup.

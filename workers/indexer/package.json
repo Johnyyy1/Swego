@@ -12,9 +12,13 @@
   "dependencies": {
     "@swega/db": "workspace:*",
     "@swega/documents": "workspace:*",
+    "@swega/embeddings": "workspace:*",
     "@swega/git": "workspace:*",
     "@swega/github": "workspace:*",
     "@swega/shared": "workspace:*",
     "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "@swega/retrieval": "workspace:*"
   }
 }

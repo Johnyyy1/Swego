@@ -24,9 +24,11 @@
       },
       "dependencies": {
         "@swega/db": "workspace:*",
+        "@swega/embeddings": "workspace:*",
         "@swega/git": "workspace:*",
         "@swega/github": "workspace:*",
         "@swega/indexer": "workspace:*",
+        "@swega/retrieval": "workspace:*",
         "@swega/shared": "workspace:*",
         "zod": "4.4.3",
       },
@@ -64,6 +66,13 @@
         "@swega/shared": "workspace:*",
       },
     },
+    "packages/embeddings": {
+      "name": "@swega/embeddings",
+      "version": "0.0.0",
+      "dependencies": {
+        "@swega/shared": "workspace:*",
+      },
+    },
     "packages/git": {
       "name": "@swega/git",
       "version": "0.0.0",
@@ -84,7 +93,10 @@
       "name": "@swega/retrieval",
       "version": "0.0.0",
       "dependencies": {
+        "@swega/db": "workspace:*",
+        "@swega/embeddings": "workspace:*",
         "@swega/shared": "workspace:*",
+        "drizzle-orm": "0.45.2",
       },
     },
     "packages/shared": {
@@ -100,10 +112,14 @@
       "dependencies": {
         "@swega/db": "workspace:*",
         "@swega/documents": "workspace:*",
+        "@swega/embeddings": "workspace:*",
         "@swega/git": "workspace:*",
         "@swega/github": "workspace:*",
         "@swega/shared": "workspace:*",
         "drizzle-orm": "0.45.2",
+      },
+      "devDependencies": {
+        "@swega/retrieval": "workspace:*",
       },
     },
   },
@@ -385,6 +401,8 @@
     "@swega/db": ["@swega/db@workspace:packages/db"],
 
     "@swega/documents": ["@swega/documents@workspace:packages/documents"],
+
+    "@swega/embeddings": ["@swega/embeddings@workspace:packages/embeddings"],
 
     "@swega/git": ["@swega/git@workspace:packages/git"],
 

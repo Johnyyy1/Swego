@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { z } from "zod";
 
 export const DEFAULT_INGESTION_LIMIT = 100;
+export const DEFAULT_SEARCH_LIMIT = 10;
 
 export interface IngestArguments {
   command: "ingest";
@@ -27,26 +28,30 @@ export interface BuildMemoryArguments {
   repositoryId: string;
 }
 
-export type CliArguments =
-  IngestArguments | IngestGitArguments | BuildMemoryArguments | HelpArguments;
-
-const limitSchema = z.coerce.number().int().positive().max(1_000);
-const repositoryIdSchema = z.string().uuid();
-
-function parseSince(value: string | undefined): Date | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(
-      `Invalid --since value '${value}'; expected an ISO-8601 date`,
-    );
-  }
-
-  return date;
+export interface EmbedMemoryArguments {
+  command: "embed-memory";
+  repositoryId: string;
 }
+
+export interface SearchMemoryArguments {
+  command: "search";
+  repositoryId: string;
+  query: string;
+  limit: number;
+  before?: Date;
+}
+
+export type CliArguments =
+  | IngestArguments
+  | IngestGitArguments
+  | BuildMemoryArguments
+  | EmbedMemoryArguments
+  | SearchMemoryArguments
+  | HelpArguments;
+
+const ingestionLimitSchema = z.coerce.number().int().positive().max(1_000);
+const searchLimitSchema = z.coerce.number().int().positive().max(100);
+const repositoryIdSchema = z.string().uuid();
 
 export function parseCliArguments(args: readonly string[]): CliArguments {
   const parsed = parseArgs({
@@ -57,6 +62,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       help: { type: "boolean", short: "h", default: false },
       limit: { type: "string" },
       since: { type: "string" },
+      before: { type: "string" },
     },
   });
 
@@ -64,37 +70,58 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
     return { command: "help" };
   }
 
-  const [command, target, ...unexpected] = parsed.positionals;
-  if (!target || unexpected.length > 0) {
-    throw new Error("Run 'swega --help' for usage");
-  }
-
-  const limit = limitSchema.parse(
-    parsed.values.limit ?? DEFAULT_INGESTION_LIMIT,
-  );
-  const since = parseSince(parsed.values.since);
-
-  if (command === "ingest") {
-    return {
-      command,
-      repositoryUrl: target,
-      limit,
-      ...(since ? { since } : {}),
-    };
-  }
-
-  if (command === "ingest-git") {
+  const [command, target, query, ...unexpected] = parsed.positionals;
+  if (command === "search") {
+    if (!target || !query || unexpected.length > 0 || parsed.values.since) {
+      throw new Error(
+        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE]",
+      );
+    }
     return {
       command,
       repositoryId: repositoryIdSchema.parse(target),
-      limit,
-      ...(since ? { since } : {}),
+      query,
+      limit: searchLimitSchema.parse(
+        parsed.values.limit ?? DEFAULT_SEARCH_LIMIT,
+      ),
+      ...(parsed.values.before
+        ? { before: parseDate(parsed.values.before, "before") }
+        : {}),
     };
   }
 
-  if (command === "build-memory") {
+  if (!target || query || unexpected.length > 0) {
+    throw new Error("Run 'swega --help' for usage");
+  }
+  if (parsed.values.before) {
+    throw new Error("--before applies only to search");
+  }
+
+  if (command === "ingest" || command === "ingest-git") {
+    const limit = ingestionLimitSchema.parse(
+      parsed.values.limit ?? DEFAULT_INGESTION_LIMIT,
+    );
+    const since = parsed.values.since
+      ? parseDate(parsed.values.since, "since")
+      : undefined;
+    return command === "ingest"
+      ? {
+          command,
+          repositoryUrl: target,
+          limit,
+          ...(since ? { since } : {}),
+        }
+      : {
+          command,
+          repositoryId: repositoryIdSchema.parse(target),
+          limit,
+          ...(since ? { since } : {}),
+        };
+  }
+
+  if (command === "build-memory" || command === "embed-memory") {
     if (parsed.values.limit || parsed.values.since) {
-      throw new Error("--limit and --since do not apply to build-memory");
+      throw new Error(`Ingestion options do not apply to ${command}`);
     }
     return {
       command,
@@ -107,16 +134,29 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
 
 export function helpText(): string {
   return [
-    "SWEGA repository ingestion",
+    "SWEGA repository memory",
     "",
     "Usage:",
     "  swega ingest <github-repository-url> [--limit N] [--since ISO_DATE]",
     "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
     "  swega build-memory <repository-id>",
+    "  swega embed-memory <repository-id>",
+    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE]',
     "",
     "Options:",
-    `  --limit N        Maximum records per collection/history (default: ${DEFAULT_INGESTION_LIMIT})`,
-    "  --since DATE     Only ingest records updated at or after an ISO-8601 date",
+    "  --limit N        Bound ingestion or the number of search results",
+    "  --since DATE     Ingest records updated at or after an ISO-8601 date",
+    "  --before DATE    Exclude memory unavailable at this historical cutoff",
     "  -h, --help       Show this help",
   ].join("\n");
+}
+
+function parseDate(value: string, option: "before" | "since"): Date {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(
+      `Invalid --${option} value '${value}'; expected an ISO-8601 date`,
+    );
+  }
+  return date;
 }

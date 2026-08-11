@@ -4,7 +4,7 @@
 
 Repository memory is a provider-independent, rebuildable layer between normalized source data and future retrieval implementations. It represents issues, issue comments, pull requests, reviews, commits, and source code through one document/chunk contract without discarding their original identity.
 
-No embeddings or retrieval ranking are part of this layer.
+Embeddings and retrieval ranking are downstream projections and are not part of this normalization layer.
 
 ## Model
 
@@ -74,3 +74,5 @@ swega build-memory <repository-id>
 ```
 
 The indexer loads normalized repository-scoped entities, normalizes metadata documents, reads safe text blobs through `GitRepositoryManager`, creates deterministic chunks, and persists them transactionally. The worker API is also available directly as `buildRepositoryMemory()`.
+
+Once built, the memory can be embedded and searched as described in [Repository Memory Retrieval](retrieval.md).

@@ -6,14 +6,16 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
   uniqueIndex,
   uuid,
+  vector,
 } from "drizzle-orm/pg-core";
 
-import type { MemorySourceType } from "@swega/shared";
+import { EMBEDDING_DIMENSIONS, type MemorySourceType } from "@swega/shared";
 
 export const issueStates = ["open", "closed"] as const;
 export type IssueState = (typeof issueStates)[number];
@@ -489,6 +491,10 @@ export const documentChunks = pgTable(
       table.documentId,
       table.chunkIndex,
     ),
+    unique("document_chunks_repository_id_unique").on(
+      table.repositoryId,
+      table.id,
+    ),
     index("document_chunks_repository_available_at_index").on(
       table.repositoryId,
       table.availableAt,
@@ -539,6 +545,48 @@ export const documentChunks = pgTable(
   ],
 );
 
+export const chunkEmbeddings = pgTable(
+  "chunk_embeddings",
+  {
+    chunkId: text("chunk_id").notNull(),
+    repositoryId: uuid("repository_id").notNull(),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    dimensions: integer("dimensions").notNull(),
+    contentHash: text("content_hash").notNull(),
+    embedding: vector("embedding", {
+      dimensions: EMBEDDING_DIMENSIONS,
+    }).notNull(),
+    embeddedAt: timestamp("embedded_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.repositoryId, table.chunkId],
+      name: "chunk_embeddings_repository_chunk_primary_key",
+    }),
+    foreignKey({
+      columns: [table.repositoryId, table.chunkId],
+      foreignColumns: [documentChunks.repositoryId, documentChunks.id],
+      name: "chunk_embeddings_repository_chunk_foreign_key",
+    }).onDelete("cascade"),
+    index("chunk_embeddings_repository_provider_model_index").on(
+      table.repositoryId,
+      table.provider,
+      table.model,
+    ),
+    index("chunk_embeddings_embedding_hnsw_index").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops"),
+    ),
+    check(
+      "chunk_embeddings_dimensions_check",
+      sql`${table.dimensions} = ${sql.raw(String(EMBEDDING_DIMENSIONS))}`,
+    ),
+  ],
+);
+
 export type Repository = typeof repositories.$inferSelect;
 export type NewRepository = typeof repositories.$inferInsert;
 export type Commit = typeof commits.$inferSelect;
@@ -559,3 +607,5 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type DocumentChunk = typeof documentChunks.$inferSelect;
 export type NewDocumentChunk = typeof documentChunks.$inferInsert;
+export type ChunkEmbedding = typeof chunkEmbeddings.$inferSelect;
+export type NewChunkEmbedding = typeof chunkEmbeddings.$inferInsert;

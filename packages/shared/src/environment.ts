@@ -13,6 +13,8 @@ export const serverEnvironmentSchema = z.object({
       message: "DATABASE_URL must be a PostgreSQL connection URL",
     }),
   GITHUB_TOKEN: optionalNonEmptyString,
+  OPENAI_API_KEY: optionalNonEmptyString,
+  SWEGA_EMBEDDING_MODEL: optionalNonEmptyString,
   SWEGA_REPOSITORY_DIR: optionalNonEmptyString,
   NODE_ENV: z
     .enum(["development", "test", "production"])

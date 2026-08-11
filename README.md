@@ -2,12 +2,12 @@
 
 SWEGA is a repository-agnostic memory and intelligence layer for AI coding agents. It is intended to ingest source-code and development history, preserve it as searchable repository memory, and provide relevant historical context to downstream tools.
 
-The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, and repository-memory document generation. Embeddings, retrieval implementations, and agent integrations will be added incrementally.
+The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, repository-memory document generation, and repository-scoped semantic retrieval with temporal cutoffs. Agent integrations will be added incrementally.
 
 ## Prerequisites
 
 - [Bun](https://bun.sh/) 1.3 or newer
-- PostgreSQL
+- PostgreSQL with the `pgvector` extension available
 
 ## Getting started
 
@@ -42,6 +42,16 @@ Build versioned repository-memory documents and text chunks after metadata and G
 bun run swega build-memory <repository-id>
 ```
 
+Generate embeddings, then inspect semantic retrieval directly:
+
+```bash
+bun run swega embed-memory <repository-id>
+bun run swega search <repository-id> "authentication redirect"
+bun run swega search <repository-id> "authentication redirect" --before 2025-03-15
+```
+
+The current CLI adapter uses OpenAI embeddings and requires `OPENAI_API_KEY`. The core embedding contract is vendor-neutral. `--before` is enforced in PostgreSQL against each chunk's temporal validity interval.
+
 ## Common commands
 
 ```bash
@@ -56,4 +66,4 @@ bun run db:generate  # Generate migrations after schema changes
 bun run db:migrate   # Apply pending PostgreSQL migrations
 ```
 
-See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.
+See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [retrieval design and evaluation](docs/retrieval.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.

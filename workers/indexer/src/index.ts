@@ -15,6 +15,14 @@ export {
   buildRepositoryMemory,
   RepositoryMemoryBuildError,
 } from "./build-repository-memory";
+export {
+  embedRepositoryMemory,
+  RepositoryMemoryEmbeddingError,
+} from "./embed-repository-memory";
+export type {
+  EmbedRepositoryMemoryOptions,
+  EmbedRepositoryMemoryResult,
+} from "./embed-repository-memory";
 export type {
   BuildRepositoryMemoryOptions,
   BuildRepositoryMemoryResult,

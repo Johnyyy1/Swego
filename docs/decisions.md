@@ -32,9 +32,15 @@ The GitHub adapter uses Octokit's REST client, pagination iterator, retry plugin
 
 SWEGA stores managed clones by internal repository UUID. PostgreSQL contains only current tracked-file metadata and the revision that produced it; file bytes and historical versions are read from Git objects. The Git package wraps the installed Git CLI because it provides complete object and history semantics without adding a second Git implementation. All invocations use argument arrays, non-interactive configuration, disabled hooks and submodule recursion, and no repository code execution.
 
-## Retrieval is a contract, not a technology choice
+## Embeddings remain behind a provider contract
 
-The retrieval package defines queries and results but no vector store, embedding provider, or ranking approach. Those choices should follow from a working ingestion slice and observed query needs.
+`EmbeddingProvider` exposes provider identity, model identity, dimensions, and batch embedding without exposing a vendor SDK to the indexer or retrieval package. The first adapter calls OpenAI's embeddings API, while deterministic lexical vectors are exported only from a testing entry point. The database stores provider/model metadata so query vectors are never compared with incompatible chunk vectors.
+
+## Retrieval v1 uses a rebuildable pgvector projection
+
+PostgreSQL remains the data system of record and pgvector supplies cosine search. One current embedding is stored per deterministic chunk. A content, provider, model, or dimensions change makes that projection stale and causes an idempotent upsert; changing models intentionally rebuilds the projection instead of mixing vector spaces.
+
+Repository ID and the complete temporal validity interval are mandatory SQL predicates. Temporal safety is a data-access invariant, not an instruction delegated to a future language model.
 
 ## Repository memory uses versioned temporal documents
 
