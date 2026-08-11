@@ -8,9 +8,12 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+import type { MemorySourceType } from "@swega/shared";
 
 export const issueStates = ["open", "closed"] as const;
 export type IssueState = (typeof issueStates)[number];
@@ -368,6 +371,174 @@ export const reviews = pgTable(
   ],
 );
 
+export const documents = pgTable(
+  "documents",
+  {
+    id: text("id").primaryKey(),
+    repositoryId: uuid("repository_id")
+      .notNull()
+      .references(() => repositories.id, { onDelete: "cascade" }),
+    sourceType: text("source_type").$type<MemorySourceType>().notNull(),
+    sourceEntityId: uuid("source_entity_id").notNull(),
+    parentSourceType: text("parent_source_type").$type<MemorySourceType>(),
+    parentSourceEntityId: uuid("parent_source_entity_id"),
+    sourceVersion: text("source_version").notNull(),
+    sourceReference: text("source_reference").notNull(),
+    title: text("title"),
+    contentHash: text("content_hash").notNull(),
+    chunkingStrategy: text("chunking_strategy").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true }).notNull(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+    path: text("path"),
+    commitSha: text("commit_sha"),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    unique("documents_repository_id_id_unique").on(
+      table.repositoryId,
+      table.id,
+    ),
+    uniqueIndex("documents_repository_source_version_unique").on(
+      table.repositoryId,
+      table.sourceType,
+      table.sourceEntityId,
+      table.sourceVersion,
+    ),
+    index("documents_repository_available_at_index").on(
+      table.repositoryId,
+      table.availableAt,
+      table.supersededAt,
+    ),
+    index("documents_repository_source_type_index").on(
+      table.repositoryId,
+      table.sourceType,
+    ),
+    index("documents_repository_parent_source_index").on(
+      table.repositoryId,
+      table.parentSourceType,
+      table.parentSourceEntityId,
+    ),
+    index("documents_repository_path_index").on(table.repositoryId, table.path),
+    index("documents_repository_commit_sha_index").on(
+      table.repositoryId,
+      table.commitSha,
+    ),
+    check(
+      "documents_source_type_check",
+      sql`${table.sourceType} in ('issue', 'issue_comment', 'pull_request', 'review', 'commit', 'source_code')`,
+    ),
+    check(
+      "documents_temporal_range_check",
+      sql`${table.supersededAt} is null or ${table.supersededAt} >= ${table.availableAt}`,
+    ),
+    check(
+      "documents_source_code_provenance_check",
+      sql`${table.sourceType} <> 'source_code' or (${table.path} is not null and ${table.commitSha} is not null)`,
+    ),
+    check(
+      "documents_commit_provenance_check",
+      sql`${table.sourceType} <> 'commit' or ${table.commitSha} is not null`,
+    ),
+    check(
+      "documents_parent_source_check",
+      sql`(${table.parentSourceType} is null and ${table.parentSourceEntityId} is null) or (${table.parentSourceType} is not null and ${table.parentSourceEntityId} is not null)`,
+    ),
+    check(
+      "documents_parent_source_type_check",
+      sql`${table.parentSourceType} is null or ${table.parentSourceType} in ('issue', 'pull_request')`,
+    ),
+  ],
+);
+
+export const documentChunks = pgTable(
+  "document_chunks",
+  {
+    id: text("id").primaryKey(),
+    documentId: text("document_id").notNull(),
+    repositoryId: uuid("repository_id").notNull(),
+    sourceType: text("source_type").$type<MemorySourceType>().notNull(),
+    sourceEntityId: uuid("source_entity_id").notNull(),
+    parentSourceType: text("parent_source_type").$type<MemorySourceType>(),
+    parentSourceEntityId: uuid("parent_source_entity_id"),
+    sourceReference: text("source_reference").notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true }).notNull(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+    path: text("path"),
+    commitSha: text("commit_sha"),
+    startLine: integer("start_line"),
+    endLine: integer("end_line"),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.repositoryId, table.documentId],
+      foreignColumns: [documents.repositoryId, documents.id],
+      name: "document_chunks_repository_document_foreign_key",
+    }).onDelete("cascade"),
+    uniqueIndex("document_chunks_repository_document_index_unique").on(
+      table.repositoryId,
+      table.documentId,
+      table.chunkIndex,
+    ),
+    index("document_chunks_repository_available_at_index").on(
+      table.repositoryId,
+      table.availableAt,
+      table.supersededAt,
+    ),
+    index("document_chunks_repository_source_type_index").on(
+      table.repositoryId,
+      table.sourceType,
+    ),
+    index("document_chunks_repository_parent_source_index").on(
+      table.repositoryId,
+      table.parentSourceType,
+      table.parentSourceEntityId,
+    ),
+    index("document_chunks_repository_path_index").on(
+      table.repositoryId,
+      table.path,
+    ),
+    index("document_chunks_repository_commit_sha_index").on(
+      table.repositoryId,
+      table.commitSha,
+    ),
+    check(
+      "document_chunks_source_type_check",
+      sql`${table.sourceType} in ('issue', 'issue_comment', 'pull_request', 'review', 'commit', 'source_code')`,
+    ),
+    check("document_chunks_chunk_index_check", sql`${table.chunkIndex} >= 0`),
+    check(
+      "document_chunks_temporal_range_check",
+      sql`${table.supersededAt} is null or ${table.supersededAt} >= ${table.availableAt}`,
+    ),
+    check(
+      "document_chunks_line_range_check",
+      sql`(${table.startLine} is null and ${table.endLine} is null) or (${table.startLine} >= 1 and ${table.endLine} >= ${table.startLine})`,
+    ),
+    check(
+      "document_chunks_source_code_provenance_check",
+      sql`${table.sourceType} <> 'source_code' or (${table.path} is not null and ${table.commitSha} is not null)`,
+    ),
+    check(
+      "document_chunks_parent_source_check",
+      sql`(${table.parentSourceType} is null and ${table.parentSourceEntityId} is null) or (${table.parentSourceType} is not null and ${table.parentSourceEntityId} is not null)`,
+    ),
+    check(
+      "document_chunks_parent_source_type_check",
+      sql`${table.parentSourceType} is null or ${table.parentSourceType} in ('issue', 'pull_request')`,
+    ),
+  ],
+);
+
 export type Repository = typeof repositories.$inferSelect;
 export type NewRepository = typeof repositories.$inferInsert;
 export type Commit = typeof commits.$inferSelect;
@@ -384,3 +555,7 @@ export type PullRequestFile = typeof pullRequestFiles.$inferSelect;
 export type NewPullRequestFile = typeof pullRequestFiles.$inferInsert;
 export type Review = typeof reviews.$inferSelect;
 export type NewReview = typeof reviews.$inferInsert;
+export type Document = typeof documents.$inferSelect;
+export type NewDocument = typeof documents.$inferInsert;
+export type DocumentChunk = typeof documentChunks.$inferSelect;
+export type NewDocumentChunk = typeof documentChunks.$inferInsert;

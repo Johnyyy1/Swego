@@ -11,6 +11,14 @@ export {
   GitSynchronizationStageError,
   synchronizeGitRepository,
 } from "./synchronize-git";
+export {
+  buildRepositoryMemory,
+  RepositoryMemoryBuildError,
+} from "./build-repository-memory";
+export type {
+  BuildRepositoryMemoryOptions,
+  BuildRepositoryMemoryResult,
+} from "./build-repository-memory";
 export type {
   GitSynchronizationCounts,
   GitSynchronizationOptions,

@@ -10,6 +10,7 @@ SWEGA will turn a repository's source-code history and development activity into
 apps/cli/           Command-line delivery layer
 apps/web/           Next.js delivery layer
 packages/db/        PostgreSQL schema and Drizzle integration
+packages/documents/ Provider-independent document normalization and chunking
 packages/github/    GitHub development-history source boundary
 packages/git/       Managed clones and Git object/history inspection
 packages/retrieval/ Repository-memory query contracts
@@ -37,7 +38,8 @@ The database package accepts connection configuration instead of reading global 
 1. A composition root accepts a repository reference.
 2. The Git and GitHub adapters collect source and development history.
 3. The indexer normalizes provider metadata, synchronizes Git commits, and persists current file metadata through the database package.
-4. Retrieval implementations query that memory through contracts in `packages/retrieval`.
-5. Delivery layers expose results without owning ingestion or retrieval logic.
+4. The document package converts normalized sources into versioned repository-memory documents and conservative text chunks; the indexer persists them as rebuildable derived data.
+5. Retrieval implementations query that memory through contracts in `packages/retrieval`, applying repository and temporal filters before returning context.
+6. Delivery layers expose results without owning ingestion or retrieval logic.
 
-The process boundaries, normalized source-data model, database foundation, GitHub metadata ingestion, and managed Git/source ingestion exist today. Repository contents and historical file versions remain in Git rather than PostgreSQL. Retrieval implementations do not. No agent, embedding, vector-search, parser, sandbox, authentication, or billing design is implied by this setup.
+The process boundaries, normalized source-data model, database foundation, GitHub metadata ingestion, managed Git/source ingestion, and repository-memory document generation exist today. Repository contents and historical file versions remain authoritative in Git; stored code chunks are rebuildable derived snapshots. Retrieval implementations do not yet exist. No agent, embedding, vector-search, parser, sandbox, authentication, or billing design is implied by this setup.

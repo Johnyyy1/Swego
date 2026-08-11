@@ -35,3 +35,7 @@ SWEGA stores managed clones by internal repository UUID. PostgreSQL contains onl
 ## Retrieval is a contract, not a technology choice
 
 The retrieval package defines queries and results but no vector store, embedding provider, or ranking approach. Those choices should follow from a working ingestion slice and observed query needs.
+
+## Repository memory uses versioned temporal documents
+
+Searchable documents are derived from normalized entities and Git rather than queried directly from provider-shaped tables. Each version carries both its event time and a conservative availability interval. Deterministic document and chunk IDs make unchanged re-indexing idempotent, while new source versions supersede older versions without destroying historical provenance.

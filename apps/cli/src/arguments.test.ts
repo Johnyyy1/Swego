@@ -34,4 +34,27 @@ describe("CLI arguments", () => {
   test("rejects a non-UUID Git synchronization target", () => {
     expect(() => parseCliArguments(["ingest-git", "not-an-id"])).toThrow();
   });
+
+  test("parses repository-memory generation", () => {
+    expect(
+      parseCliArguments([
+        "build-memory",
+        "123e4567-e89b-42d3-a456-426614174000",
+      ]),
+    ).toEqual({
+      command: "build-memory",
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+    });
+  });
+
+  test("rejects ingestion bounds for repository-memory generation", () => {
+    expect(() =>
+      parseCliArguments([
+        "build-memory",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "--limit",
+        "10",
+      ]),
+    ).toThrow("do not apply");
+  });
 });

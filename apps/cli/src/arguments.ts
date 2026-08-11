@@ -22,7 +22,13 @@ export interface IngestGitArguments {
   since?: Date;
 }
 
-export type CliArguments = IngestArguments | IngestGitArguments | HelpArguments;
+export interface BuildMemoryArguments {
+  command: "build-memory";
+  repositoryId: string;
+}
+
+export type CliArguments =
+  IngestArguments | IngestGitArguments | BuildMemoryArguments | HelpArguments;
 
 const limitSchema = z.coerce.number().int().positive().max(1_000);
 const repositoryIdSchema = z.string().uuid();
@@ -86,6 +92,16 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
     };
   }
 
+  if (command === "build-memory") {
+    if (parsed.values.limit || parsed.values.since) {
+      throw new Error("--limit and --since do not apply to build-memory");
+    }
+    return {
+      command,
+      repositoryId: repositoryIdSchema.parse(target),
+    };
+  }
+
   throw new Error("Run 'swega --help' for usage");
 }
 
@@ -96,6 +112,7 @@ export function helpText(): string {
     "Usage:",
     "  swega ingest <github-repository-url> [--limit N] [--since ISO_DATE]",
     "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
+    "  swega build-memory <repository-id>",
     "",
     "Options:",
     `  --limit N        Maximum records per collection/history (default: ${DEFAULT_INGESTION_LIMIT})`,

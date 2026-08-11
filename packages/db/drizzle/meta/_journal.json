@@ -36,6 +36,20 @@
       "when": 1786461110953,
       "tag": "0004_add_git_indexed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786462677976,
+      "tag": "0005_late_phantom_reporter",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786462873996,
+      "tag": "0006_perfect_ultimo",
+      "breakpoints": true
     }
   ]
 }

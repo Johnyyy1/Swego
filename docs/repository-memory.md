@@ -1,0 +1,76 @@
+# Repository memory
+
+## Purpose
+
+Repository memory is a provider-independent, rebuildable layer between normalized source data and future retrieval implementations. It represents issues, issue comments, pull requests, reviews, commits, and source code through one document/chunk contract without discarding their original identity.
+
+No embeddings or retrieval ranking are part of this layer.
+
+## Model
+
+A `Document` identifies one searchable version of one source entity. It stores:
+
+- `repositoryId`
+- `sourceType`
+- internal `sourceEntityId`
+- optional parent source type and entity ID for comment/review relationships
+- `sourceVersion`
+- original `sourceReference`
+- optional title, path, and commit SHA
+- content hash and chunking strategy
+- `occurredAt`, `availableAt`, and optional `supersededAt`
+
+The full searchable text is stored in `DocumentChunk` rows rather than duplicated on the document. Every chunk directly carries repository, source, parent-source, reference, temporal, path, and commit provenance in addition to its document relationship. Issue comments point to their normalized issue, and reviews point to their normalized pull request. This permits repository and temporal filtering or relationship expansion before any result reaches a future agent.
+
+Provider references currently use stable normalized references such as `provider:github:issue:<provider-id>`. Git sources use `git:<sha>` or `git:<sha>:<path>`. They complement, rather than replace, SWEGA's internal entity IDs.
+
+## Temporal identity
+
+`occurredAt` describes when the source event happened. `availableAt` describes when the exact indexed version is safe to expose. They intentionally differ:
+
+- Issues, comments, pull requests, and reviews use their provider creation time for `occurredAt` and their latest known provider update time for `availableAt`.
+- Commits use author time for `occurredAt` and committer time for `availableAt`.
+- Source-code snapshots use the snapshot commit time for both values.
+
+Using the latest provider update time for mutable content is conservative. If SWEGA does not possess an earlier edit version, it delays the current text rather than leaking edited text into an earlier benchmark.
+
+When a newer source version is indexed, the preceding document and chunks receive `supersededAt`. A historical query at cutoff `T` must use:
+
+```sql
+repository_id = :repository_id
+and available_at <= :before
+and (superseded_at is null or superseded_at > :before)
+```
+
+Repository filtering is mandatory. `createdAt` alone is never a safe historical-content filter for mutable entities.
+
+## Deterministic identity and re-indexing
+
+Document IDs are SHA-256 hashes of a versioned namespace, repository ID, source type, internal source entity ID, and source version. Chunk IDs additionally include the chunking strategy, chunk index, and content hash.
+
+Database uniqueness constraints enforce one document per repository/source/version and one chunk per document position. Re-indexing unchanged sources upserts the same IDs and removes only obsolete chunks belonging to that document. A changed source version creates a new document and closes the older validity interval, retaining historical provenance.
+
+## Chunking
+
+Natural-language provider content is normalized into small labeled sections and grouped at paragraph boundaries with a conservative character limit. Long paragraphs fall back to whitespace boundaries.
+
+Source code uses a deliberately simple line-based strategy with bounded character and line counts plus a small line overlap. It records line ranges but performs no parsing and makes no language-specific assumptions. Tree-sitter or another code-aware strategy can later replace it by introducing a new chunking-strategy version.
+
+The source-code builder:
+
+- reads blobs through the Git abstraction at the recorded revision
+- never executes repository code
+- skips empty, binary, non-UTF-8, and oversized files
+- stores current indexed snapshot chunks as derived data while Git remains authoritative
+
+It does not walk every historical file version.
+
+## Build flow
+
+After GitHub and Git synchronization, run:
+
+```bash
+swega build-memory <repository-id>
+```
+
+The indexer loads normalized repository-scoped entities, normalizes metadata documents, reads safe text blobs through `GitRepositoryManager`, creates deterministic chunks, and persists them transactionally. The worker API is also available directly as `buildRepositoryMemory()`.

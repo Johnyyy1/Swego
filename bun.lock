@@ -57,6 +57,13 @@
         "drizzle-kit": "0.31.10",
       },
     },
+    "packages/documents": {
+      "name": "@swega/documents",
+      "version": "0.0.0",
+      "dependencies": {
+        "@swega/shared": "workspace:*",
+      },
+    },
     "packages/git": {
       "name": "@swega/git",
       "version": "0.0.0",
@@ -92,6 +99,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@swega/db": "workspace:*",
+        "@swega/documents": "workspace:*",
         "@swega/git": "workspace:*",
         "@swega/github": "workspace:*",
         "@swega/shared": "workspace:*",
@@ -375,6 +383,8 @@
     "@swega/cli": ["@swega/cli@workspace:apps/cli"],
 
     "@swega/db": ["@swega/db@workspace:packages/db"],
+
+    "@swega/documents": ["@swega/documents@workspace:packages/documents"],
 
     "@swega/git": ["@swega/git@workspace:packages/git"],
 

@@ -12,3 +12,14 @@ export const repositoryLocatorSchema = z.object({
 });
 
 export type RepositoryLocator = z.infer<typeof repositoryLocatorSchema>;
+
+export const memorySourceTypes = [
+  "issue",
+  "issue_comment",
+  "pull_request",
+  "review",
+  "commit",
+  "source_code",
+] as const;
+
+export type MemorySourceType = (typeof memorySourceTypes)[number];

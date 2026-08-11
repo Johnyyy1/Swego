@@ -9,6 +9,8 @@ import { GitHubClient } from "@swega/github";
 import {
   GitHubIngestionStageError,
   GitSynchronizationStageError,
+  RepositoryMemoryBuildError,
+  buildRepositoryMemory,
   ingestGitHubRepository,
   synchronizeGitRepository,
 } from "@swega/indexer";
@@ -55,13 +57,23 @@ async function main(): Promise<void> {
         ? resolve(environment.SWEGA_REPOSITORY_DIR)
         : defaultRepositoryDirectory,
     });
-    await synchronizeGitRepository({
+    if (arguments_.command === "ingest-git") {
+      await synchronizeGitRepository({
+        database: database.db,
+        git,
+        logger,
+        repositoryId: arguments_.repositoryId,
+        commitLimit: arguments_.limit,
+        ...(arguments_.since ? { since: arguments_.since } : {}),
+      });
+      return;
+    }
+
+    await buildRepositoryMemory({
       database: database.db,
       git,
       logger,
       repositoryId: arguments_.repositoryId,
-      commitLimit: arguments_.limit,
-      ...(arguments_.since ? { since: arguments_.since } : {}),
     });
   } finally {
     await database.close();
@@ -74,7 +86,8 @@ try {
   const logger = createJsonLogger({ application: "swega-cli" });
   logger.error("cli.failed", {
     ...(error instanceof GitHubIngestionStageError ||
-    error instanceof GitSynchronizationStageError
+    error instanceof GitSynchronizationStageError ||
+    error instanceof RepositoryMemoryBuildError
       ? { stage: error.stage }
       : {}),
     ...errorFields(error),
