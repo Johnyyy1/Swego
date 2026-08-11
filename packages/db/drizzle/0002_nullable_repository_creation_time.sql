@@ -1,0 +1,1 @@
+ALTER TABLE "repositories" ALTER COLUMN "created_at" DROP NOT NULL;

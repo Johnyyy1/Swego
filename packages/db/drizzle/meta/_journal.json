@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786458645076,
+      "tag": "0000_rich_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786459225192,
+      "tag": "0001_normalized_repository_model",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786459414326,
+      "tag": "0002_nullable_repository_creation_time",
+      "breakpoints": true
+    }
+  ]
+}

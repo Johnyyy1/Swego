@@ -1,0 +1,4 @@
+bun.lock
+.next/
+node_modules/
+packages/db/drizzle/meta/
