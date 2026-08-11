@@ -31,6 +31,7 @@ import {
   persistMemoryDocuments,
   type MemoryPersistenceResult,
 } from "./repository-memory-persistence";
+import { decodeSourceFile } from "./source-file";
 
 const DEFAULT_MAX_SOURCE_FILE_BYTES = 512 * 1024;
 
@@ -454,22 +455,15 @@ async function readTextFile(
     throw error;
   }
 
-  if (bytes.includes(0)) {
+  const decoded = decodeSourceFile(bytes);
+  if (decoded.kind === "skipped") {
     logger.warn("repository_memory.source_file.skipped", {
       path,
-      reason: "binary",
+      reason: decoded.reason,
     });
     return null;
   }
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    logger.warn("repository_memory.source_file.skipped", {
-      path,
-      reason: "non_utf8",
-    });
-    return null;
-  }
+  return decoded.content;
 }
 
 function versionAt(sourceUpdatedAt: Date | null, createdAt: Date): string {

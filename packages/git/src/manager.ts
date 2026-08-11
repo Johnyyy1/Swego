@@ -376,8 +376,8 @@ export class GitCliRepositoryManager implements GitRepositoryManager {
       },
     );
 
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(subprocess.stdout).bytes(),
+    const [stdoutBuffer, stderr, exitCode] = await Promise.all([
+      new Response(subprocess.stdout).arrayBuffer(),
       new Response(subprocess.stderr).text(),
       subprocess.exited,
     ]);
@@ -386,7 +386,9 @@ export class GitCliRepositoryManager implements GitRepositoryManager {
       throw new GitCommandError(arguments_[0] ?? "unknown", exitCode, stderr);
     }
 
-    return { stdout, stderr };
+    // Materialize command output at the Git boundary so callers always receive
+    // the Uint8Array promised by GitRepositoryManager, regardless of runtime size.
+    return { stdout: new Uint8Array(stdoutBuffer), stderr };
   }
 }
 

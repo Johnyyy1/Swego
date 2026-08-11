@@ -79,6 +79,8 @@ describe("GitCliRepositoryManager", () => {
       "export const version = 2;\n",
     );
     await writeFile(join(source, "src", "worker.py"), "print('worker')\n");
+    const largeText = "SWEGA runtime byte boundary.\n".repeat(17_000);
+    await writeFile(join(source, "src", "large.txt"), largeText);
     await runGit(source, ["add", "."]);
     await commit(source, "update source files");
     await manager.updateRepository(repository);
@@ -116,6 +118,12 @@ describe("GitCliRepositoryManager", () => {
       extension: "py",
       language: "Python",
     });
+    const largeContents = await manager.readFile(repository, "src/large.txt", {
+      revision: "refs/remotes/origin/main",
+    });
+    expect(largeContents).toBeInstanceOf(Uint8Array);
+    expect(largeContents.includes(0)).toBe(false);
+    expect(new TextDecoder().decode(largeContents)).toBe(largeText);
     expect(new Set(files.map((file) => file.lastKnownCommitSha))).toEqual(
       new Set([latestCommit.hash]),
     );
