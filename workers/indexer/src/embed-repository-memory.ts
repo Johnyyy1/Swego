@@ -23,7 +23,9 @@ export interface EmbedRepositoryMemoryOptions {
 
 export interface EmbedRepositoryMemoryResult {
   repositoryId: string;
+  chunks: number;
   embedded: number;
+  skipped: number;
   unchanged: number;
   durationMs: number;
 }
@@ -152,12 +154,16 @@ export async function embedRepositoryMemory(
 
     const result: EmbedRepositoryMemoryResult = {
       repositoryId,
+      chunks: rows.length,
       embedded: stale.length,
+      skipped: rows.length - stale.length,
       unchanged: rows.length - stale.length,
       durationMs: Math.round(performance.now() - startedAt),
     };
     logger.info("memory_embeddings.completed", {
+      chunks: result.chunks,
       embedded: result.embedded,
+      skipped: result.skipped,
       unchanged: result.unchanged,
       durationMs: result.durationMs,
     });

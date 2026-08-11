@@ -7,6 +7,10 @@ import {
 } from "./arguments";
 
 describe("CLI arguments", () => {
+  test("parses doctor without a repository target", () => {
+    expect(parseCliArguments(["doctor"])).toEqual({ command: "doctor" });
+  });
+
   test("parses bounded GitHub metadata ingestion", () => {
     expect(
       parseCliArguments([

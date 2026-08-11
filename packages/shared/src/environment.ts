@@ -13,21 +13,51 @@ const optionalNonEmptyString = z.preprocess(
   z.string().min(1).optional(),
 );
 
-export const serverEnvironmentSchema = z.object({
-  DATABASE_URL: z
-    .string()
-    .min(1)
-    .refine((value) => /^postgres(?:ql)?:\/\//u.test(value), {
-      message: "DATABASE_URL must be a PostgreSQL connection URL",
-    }),
-  GITHUB_TOKEN: optionalNonEmptyString,
-  OPENAI_API_KEY: optionalNonEmptyString,
-  SWEGA_EMBEDDING_MODEL: optionalNonEmptyString,
-  SWEGA_REPOSITORY_DIR: optionalNonEmptyString,
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-});
+const optionalHttpUrl = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z
+    .url()
+    .refine((value) => /^https?:\/\//u.test(value), {
+      message: "must be an HTTP or HTTPS URL",
+    })
+    .optional(),
+);
+
+export const embeddingProviderNames = ["ollama", "openai"] as const;
+export type EmbeddingProviderName = (typeof embeddingProviderNames)[number];
+
+export const serverEnvironmentSchema = z
+  .object({
+    DATABASE_URL: z
+      .string()
+      .min(1)
+      .refine((value) => /^postgres(?:ql)?:\/\//u.test(value), {
+        message: "DATABASE_URL must be a PostgreSQL connection URL",
+      }),
+    GITHUB_TOKEN: optionalNonEmptyString,
+    EMBEDDING_PROVIDER: z.enum(embeddingProviderNames).default("ollama"),
+    OLLAMA_URL: optionalHttpUrl,
+    OLLAMA_EMBEDDING_MODEL: optionalNonEmptyString,
+    OPENAI_API_KEY: optionalNonEmptyString,
+    OPENAI_EMBEDDING_MODEL: optionalNonEmptyString,
+    SWEGA_EMBEDDING_MODEL: optionalNonEmptyString,
+    SWEGA_REPOSITORY_DIR: optionalNonEmptyString,
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  })
+  .superRefine((environment, context) => {
+    if (
+      environment.EMBEDDING_PROVIDER === "openai" &&
+      !environment.OPENAI_API_KEY
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["OPENAI_API_KEY"],
+        message: "OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai",
+      });
+    }
+  });
 
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 

@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDatabase } from "@swega/db";
-import { OpenAIEmbeddingProvider } from "@swega/embeddings";
 import { GitCliRepositoryManager } from "@swega/git";
 import { GitHubClient } from "@swega/github";
 import {
@@ -24,6 +23,8 @@ import {
 import { createJsonLogger, errorFields } from "@swega/shared/logging";
 
 import { helpText, parseCliArguments } from "./arguments";
+import { formatDoctorReport, isDoctorReady, runDoctor } from "./doctor";
+import { resolveConfiguredEmbeddingProvider } from "./embedding-provider";
 
 async function main(): Promise<void> {
   const arguments_ = parseCliArguments(Bun.argv.slice(2));
@@ -38,6 +39,18 @@ async function main(): Promise<void> {
   const database = createDatabase({ url: environment.DATABASE_URL });
 
   try {
+    if (arguments_.command === "doctor") {
+      const report = await runDoctor(
+        database,
+        resolveConfiguredEmbeddingProvider(environment),
+      );
+      console.log(formatDoctorReport(report));
+      if (!isDoctorReady(report)) {
+        process.exitCode = 1;
+      }
+      return;
+    }
+
     if (arguments_.command === "ingest") {
       const github = new GitHubClient({
         logger,
@@ -60,17 +73,7 @@ async function main(): Promise<void> {
       arguments_.command === "embed-memory" ||
       arguments_.command === "search"
     ) {
-      if (!environment.OPENAI_API_KEY) {
-        throw new Error(
-          "OPENAI_API_KEY is required for memory embedding and search",
-        );
-      }
-      const embeddings = new OpenAIEmbeddingProvider({
-        apiKey: environment.OPENAI_API_KEY,
-        ...(environment.SWEGA_EMBEDDING_MODEL
-          ? { model: environment.SWEGA_EMBEDDING_MODEL }
-          : {}),
-      });
+      const embeddings = resolveConfiguredEmbeddingProvider(environment);
 
       if (arguments_.command === "embed-memory") {
         await embedRepositoryMemory({

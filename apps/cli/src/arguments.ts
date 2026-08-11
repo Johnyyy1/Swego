@@ -16,6 +16,10 @@ export interface HelpArguments {
   command: "help";
 }
 
+export interface DoctorArguments {
+  command: "doctor";
+}
+
 export interface IngestGitArguments {
   command: "ingest-git";
   repositoryId: string;
@@ -47,6 +51,7 @@ export type CliArguments =
   | BuildMemoryArguments
   | EmbedMemoryArguments
   | SearchMemoryArguments
+  | DoctorArguments
   | HelpArguments;
 
 const ingestionLimitSchema = z.coerce.number().int().positive().max(1_000);
@@ -68,6 +73,18 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
 
   if (parsed.values.help || parsed.positionals[0] === "help") {
     return { command: "help" };
+  }
+
+  if (parsed.positionals[0] === "doctor") {
+    if (
+      parsed.positionals.length !== 1 ||
+      parsed.values.limit ||
+      parsed.values.since ||
+      parsed.values.before
+    ) {
+      throw new Error("Usage: swega doctor");
+    }
+    return { command: "doctor" };
   }
 
   const [command, target, query, ...unexpected] = parsed.positionals;
@@ -137,6 +154,7 @@ export function helpText(): string {
     "SWEGA repository memory",
     "",
     "Usage:",
+    "  swega doctor",
     "  swega ingest <github-repository-url> [--limit N] [--since ISO_DATE]",
     "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
     "  swega build-memory <repository-id>",

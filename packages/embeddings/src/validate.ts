@@ -10,19 +10,26 @@ export function validateEmbeddings(
     throw new EmbeddingProviderError(
       provider.provider,
       provider.model,
+      "invalid_response",
       `returned ${embeddings.length} vectors for ${inputs.length} inputs`,
     );
   }
 
   return embeddings.map((embedding, index) => {
-    if (
-      embedding.length !== provider.dimensions ||
-      embedding.some((value) => !Number.isFinite(value))
-    ) {
+    if (embedding.length !== provider.dimensions) {
       throw new EmbeddingProviderError(
         provider.provider,
         provider.model,
-        `returned an invalid vector at input index ${index}`,
+        "dimension_mismatch",
+        `returned ${embedding.length} dimensions at input index ${index}; expected ${provider.dimensions}`,
+      );
+    }
+    if (embedding.some((value) => !Number.isFinite(value))) {
+      throw new EmbeddingProviderError(
+        provider.provider,
+        provider.model,
+        "invalid_response",
+        `returned a non-finite vector at input index ${index}`,
       );
     }
     return [...embedding];

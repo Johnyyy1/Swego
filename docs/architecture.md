@@ -40,8 +40,8 @@ The database package accepts connection configuration instead of reading global 
 2. The Git and GitHub adapters collect source and development history.
 3. The indexer normalizes provider metadata, synchronizes Git commits, and persists current file metadata through the database package.
 4. The document package converts normalized sources into versioned repository-memory documents and conservative text chunks; the indexer persists them as rebuildable derived data.
-5. The indexer generates embeddings through `packages/embeddings` and stores the current vector projection for each chunk in pgvector.
-6. The PostgreSQL retrieval adapter embeds a query through the same provider/model and applies repository and temporal filters in SQL before returning ranked context.
+5. The indexer generates embeddings through the provider-neutral contract in `packages/embeddings` and stores the current vector projection plus provider/model/dimension metadata for each chunk in pgvector. Ollama is the default local adapter; OpenAI is optional.
+6. The PostgreSQL retrieval adapter embeds a query through the configured provider/model, rejects incompatible stored projections, and applies repository and temporal filters in SQL before returning ranked context.
 7. Delivery layers expose results without owning ingestion or retrieval logic.
 
 The process boundaries, normalized source-data model, ingestion layers, repository-memory documents, embedding projection, and semantic retrieval exist today. Repository contents and historical file versions remain authoritative in Git; documents, chunks, and embeddings are rebuildable derived data. No agent, answer-generation, parser, sandbox, authentication, or billing design is implied by this setup.

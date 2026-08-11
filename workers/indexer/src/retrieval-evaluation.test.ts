@@ -4,7 +4,11 @@ import { eq } from "drizzle-orm";
 import { createDatabase, repositories, type Database } from "@swega/db";
 import { normalizeIssueDocument } from "@swega/documents";
 import { DeterministicEmbeddingProvider } from "@swega/embeddings/testing";
-import { PgVectorRepositoryMemory } from "@swega/retrieval";
+import {
+  EmbeddingCompatibilityError,
+  PgVectorRepositoryMemory,
+} from "@swega/retrieval";
+import { EMBEDDING_DIMENSIONS } from "@swega/shared";
 import type { Logger } from "@swega/shared/logging";
 
 import { embedRepositoryMemory } from "./embed-repository-memory";
@@ -151,7 +155,25 @@ describeWithDatabase("repository memory retrieval", () => {
     });
 
     expect(result.embedded).toBe(0);
+    expect(result.skipped).toBe(result.chunks);
     expect(result.unchanged).toBeGreaterThan(0);
+  });
+
+  test("rejects search with an incompatible provider projection", async () => {
+    const memory = new PgVectorRepositoryMemory(database, {
+      provider: "another-provider",
+      model: "another-model",
+      dimensions: EMBEDDING_DIMENSIONS,
+      embed: async () => {
+        throw new Error(
+          "Query embedding must not run before compatibility check",
+        );
+      },
+    });
+
+    await expect(
+      memory.searchMemory({ repositoryId, query: "authentication" }),
+    ).rejects.toBeInstanceOf(EmbeddingCompatibilityError);
   });
 });
 

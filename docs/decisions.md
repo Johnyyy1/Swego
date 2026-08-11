@@ -34,7 +34,7 @@ SWEGA stores managed clones by internal repository UUID. PostgreSQL contains onl
 
 ## Embeddings remain behind a provider contract
 
-`EmbeddingProvider` exposes provider identity, model identity, dimensions, and batch embedding without exposing a vendor SDK to the indexer or retrieval package. The first adapter calls OpenAI's embeddings API, while deterministic lexical vectors are exported only from a testing entry point. The database stores provider/model metadata so query vectors are never compared with incompatible chunk vectors.
+`EmbeddingProvider` exposes provider identity, model identity, dimensions, and batch embedding without exposing a vendor SDK to the indexer or retrieval package. A separate diagnostic extension exposes the configured endpoint to delivery-layer health checks. Ollama is the default adapter for local development, with `qwen3-embedding:0.6b` requested at the database's established 512 dimensions. OpenAI remains an optional adapter, while deterministic lexical vectors are exported only from a testing entry point. The database stores provider/model/dimension metadata, and retrieval rejects incompatible projections before embedding a query.
 
 ## Retrieval v1 uses a rebuildable pgvector projection
 

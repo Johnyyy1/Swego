@@ -44,7 +44,7 @@ describe("OpenAIEmbeddingProvider", () => {
     });
 
     await expect(provider.embed(["query"])).rejects.toThrow(
-      "returned an invalid vector at input index 0",
+      `returned 2 dimensions at input index 0; expected ${EMBEDDING_DIMENSIONS}`,
     );
   });
 

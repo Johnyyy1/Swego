@@ -9,6 +9,7 @@ export class DeterministicEmbeddingProvider implements EmbeddingProvider {
   readonly provider = "deterministic-test";
   readonly model = "token-hash-v1";
   readonly dimensions = EMBEDDING_DIMENSIONS;
+  readonly endpoint = "memory://deterministic-test";
 
   async embed(inputs: readonly string[]): Promise<readonly number[][]> {
     return inputs.map((input) => embedText(input, this.dimensions));

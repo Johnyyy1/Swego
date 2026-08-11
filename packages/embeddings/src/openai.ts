@@ -23,8 +23,8 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
   readonly provider = "openai";
   readonly model: string;
   readonly dimensions: number;
+  readonly endpoint: string;
   private readonly apiKey: string;
-  private readonly endpoint: string;
   private readonly timeoutMs: number;
   private readonly fetchImplementation: EmbeddingFetch;
 
@@ -33,6 +33,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       throw new EmbeddingProviderError(
         this.provider,
         options.model ?? DEFAULT_OPENAI_EMBEDDING_MODEL,
+        "invalid_input",
         "API key is required",
       );
     }
@@ -52,6 +53,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       throw new EmbeddingProviderError(
         this.provider,
         this.model,
+        "invalid_input",
         "inputs must not be empty",
       );
     }
@@ -76,6 +78,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       throw new EmbeddingProviderError(
         this.provider,
         this.model,
+        "unavailable",
         "request failed",
         error,
       );
@@ -85,6 +88,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       throw new EmbeddingProviderError(
         this.provider,
         this.model,
+        "request_failed",
         `request failed with status ${response.status}`,
       );
     }
@@ -96,6 +100,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       throw new EmbeddingProviderError(
         this.provider,
         this.model,
+        "invalid_response",
         "returned invalid JSON",
         error,
       );
@@ -107,6 +112,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       throw new EmbeddingProviderError(
         this.provider,
         this.model,
+        "invalid_response",
         "returned an invalid response",
         error,
       );

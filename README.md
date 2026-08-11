@@ -8,13 +8,16 @@ The current implementation includes the normalized PostgreSQL model, bounded Git
 
 - [Bun](https://bun.sh/) 1.3 or newer
 - PostgreSQL with the `pgvector` extension available
+- [Ollama](https://ollama.com/) for the default local embedding provider
 
 ## Getting started
 
 ```bash
 bun install
 cp .env.example .env
+ollama pull qwen3-embedding:0.6b
 bun run db:migrate
+bun run swega doctor
 bun run dev
 ```
 
@@ -52,7 +55,25 @@ bun run swega search <repository-id> "authentication redirect"
 bun run swega search <repository-id> "authentication redirect" --before 2025-03-15
 ```
 
-The current CLI adapter uses OpenAI embeddings and requires `OPENAI_API_KEY`. The core embedding contract is vendor-neutral. `--before` is enforced in PostgreSQL against each chunk's temporal validity interval.
+Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. `--before` is enforced in PostgreSQL against each chunk's temporal validity interval.
+
+The default embedding configuration is:
+
+```dotenv
+EMBEDDING_PROVIDER=ollama
+OLLAMA_URL=http://localhost:11434
+OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
+```
+
+OpenAI remains optional. Select it explicitly with `EMBEDDING_PROVIDER=openai`, set `OPENAI_API_KEY`, and optionally set `OPENAI_EMBEDDING_MODEL`. After changing provider or model, rerun `embed-memory` before searching; SWEGA rejects incompatible stored projections rather than mixing vector spaces.
+
+Check database connectivity, provider availability, and model availability with:
+
+```bash
+bun run swega doctor
+```
+
+If the local model is missing, the command reports `ollama pull qwen3-embedding:0.6b` as the corrective action.
 
 ## Common commands
 

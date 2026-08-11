@@ -44,6 +44,8 @@ export class PgVectorRepositoryMemory implements RepositoryMemory {
       throw new Error("Memory search cutoff must be a valid date");
     }
 
+    await this.assertCompatibleProjection(repositoryId);
+
     const queryVectors = validateEmbeddings(
       this.embeddings,
       [query],
@@ -120,5 +122,58 @@ export class PgVectorRepositoryMemory implements RepositoryMemory {
         endLine: row.endLine,
       },
     }));
+  }
+
+  private async assertCompatibleProjection(
+    repositoryId: string,
+  ): Promise<void> {
+    const projections = await this.database
+      .select({
+        provider: chunkEmbeddings.provider,
+        model: chunkEmbeddings.model,
+        dimensions: chunkEmbeddings.dimensions,
+      })
+      .from(chunkEmbeddings)
+      .where(eq(chunkEmbeddings.repositoryId, repositoryId))
+      .groupBy(
+        chunkEmbeddings.provider,
+        chunkEmbeddings.model,
+        chunkEmbeddings.dimensions,
+      );
+
+    if (projections.length === 0) {
+      throw new EmbeddingCompatibilityError(
+        repositoryId,
+        this.embeddings,
+        "has no stored embeddings; run embed-memory first",
+      );
+    }
+    const incompatible = projections.find(
+      (projection) =>
+        projection.provider !== this.embeddings.provider ||
+        projection.model !== this.embeddings.model ||
+        projection.dimensions !== this.embeddings.dimensions,
+    );
+    if (incompatible) {
+      throw new EmbeddingCompatibilityError(
+        repositoryId,
+        this.embeddings,
+        `contains embeddings from ${incompatible.provider}/${incompatible.model} (${incompatible.dimensions} dimensions); run embed-memory to rebuild them`,
+      );
+    }
+  }
+}
+
+export class EmbeddingCompatibilityError extends Error {
+  override readonly name = "EmbeddingCompatibilityError";
+
+  constructor(
+    repositoryId: string,
+    provider: EmbeddingProvider,
+    detail: string,
+  ) {
+    super(
+      `Repository '${repositoryId}' ${detail}. Configured embeddings are ${provider.provider}/${provider.model} (${provider.dimensions} dimensions).`,
+    );
   }
 }

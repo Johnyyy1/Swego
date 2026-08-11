@@ -4,7 +4,7 @@
 
 Retrieval v1 embeds normalized `DocumentChunk` text, stores vectors in PostgreSQL through pgvector, and returns cosine-ranked chunks with their original repository, entity, relationship, path, commit, and temporal provenance. It does not generate an answer or call an LLM.
 
-The provider-neutral `EmbeddingProvider` contract lives in `packages/embeddings`. The current production adapter calls OpenAI's embeddings endpoint in batches with `text-embedding-3-small` and 512 requested dimensions. OpenAI documents batched string input and configurable dimensions for `text-embedding-3` models in its [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings#obtaining-the-embeddings). The indexer and retrieval package do not import an OpenAI SDK or vendor response type.
+The provider-neutral `EmbeddingProvider` contract lives in `packages/embeddings`. Ollama is the default local adapter and calls `/api/embed` in bounded batches with `qwen3-embedding:0.6b`. It explicitly requests 512 dimensions to match the existing pgvector column. OpenAI remains an optional adapter using `text-embedding-3-small` by default. The indexer and retrieval package import only the provider contract and never import a vendor SDK or response type.
 
 ## Pipeline
 
@@ -24,7 +24,15 @@ swega search <repository-id> "authentication redirect"
 swega search <repository-id> "authentication redirect" --before 2025-03-15
 ```
 
-`OPENAI_API_KEY` is required by both current CLI commands. `SWEGA_EMBEDDING_MODEL` optionally changes the concrete model. Programmatic callers can inject another provider that produces the configured 512 dimensions.
+The default local configuration requires no paid API key:
+
+```dotenv
+EMBEDDING_PROVIDER=ollama
+OLLAMA_URL=http://localhost:11434
+OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
+```
+
+Install the model with `ollama pull qwen3-embedding:0.6b`, then run `swega doctor`. To use OpenAI instead, set `EMBEDDING_PROVIDER=openai`, `OPENAI_API_KEY`, and optionally `OPENAI_EMBEDDING_MODEL`. Environment validation requires the OpenAI key only in that configuration. Programmatic callers can inject any provider that produces the configured 512 dimensions.
 
 Embedding writes are restart-safe and idempotent. A chunk is embedded only when no projection exists or its content hash, provider, model, or dimensions changed. Each completed batch is upserted immediately, so a retry resumes from the remaining stale chunks. Switching providers or models rebuilds the single current projection rather than mixing vector spaces.
 
@@ -45,6 +53,8 @@ and (
 
 The chunk join is also qualified by both repository ID and chunk ID. A missing `before` is resolved to the query start time, so even ordinary searches cannot expose data marked as becoming available in the future. This filtering happens in PostgreSQL before ranked rows are returned; no downstream model is trusted to discard future information.
 
+Before embedding the query, retrieval inspects the repository's stored provider/model/dimension metadata. Missing embeddings or any incompatible projection produce an actionable error instructing the caller to rerun `embed-memory`; search never silently mixes models or operates on a partially switched vector space.
+
 Each result returns content, cosine similarity, source type, internal source ID, availability timestamp, optional path, and source metadata including document/chunk IDs, original source reference, parent relationship, event and availability timestamps, commit SHA, and line range.
 
 ## Verification fixture
@@ -59,7 +69,7 @@ Against a real pgvector PostgreSQL instance, constrained retrieval returned the 
 
 ## Development-repository observations
 
-The SWEGA repository was ingested from GitHub with a limit of five, synchronized from Git with a commit limit of twenty, and built into 98 documents and 261 chunks. The environment had no OpenAI API key, so manual inspection used the deterministic lexical provider exported only from `@swega/embeddings/testing`. These results validate the complete storage/query/provenance path, not production semantic quality.
+The SWEGA repository was ingested from GitHub with a limit of five, synchronized from Git with a commit limit of twenty, and built into 98 documents and 261 chunks. An earlier manual inspection used the deterministic lexical provider exported only from `@swega/embeddings/testing`. These results validate the complete storage/query/provenance path, not current Ollama semantic quality.
 
 | Query                                       | Representative top results                                                          | Observation                                                                                                  |
 | ------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -88,12 +98,12 @@ Example result shape:
 
 ## Known weaknesses and Retrieval v2 direction
 
-- Production semantic ranking was not measured in this environment because no OpenAI credential was available.
+- Qwen3-Embedding-0.6B semantic ranking has not yet been measured against a stable SWEGA relevance corpus.
 - Ranking is vector-only: exact identifiers, paths, and uncommon tokens need lexical retrieval.
 - Conservative fixed-size code chunks can split a declaration from its context.
 - There is no reranker, result diversification, relationship expansion, or source-type/path filtering.
 - The schema currently supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
 - HNSW is approximate; highly selective repository/time filters can return fewer good candidates than a larger prefiltered candidate strategy.
-- The OpenAI adapter validates failures but does not yet retry rate limits or transient upstream errors.
+- Provider adapters validate failures but do not yet retry transient upstream errors.
 
 Retrieval v2 should add PostgreSQL full-text candidates and hybrid rank fusion, introduce a stable evaluation corpus with relevance judgments and temporal cutoffs, and measure candidate recall before considering reranking or code-aware chunking. Those improvements are intentionally not part of v1.
