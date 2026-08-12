@@ -102,7 +102,7 @@ Worse case:
 
 - `understand-session-flow`: first relevant rank 2 → 4 and nDCG@10 0.387 → 0.264.
 
-The session-implementation case stayed at rank 1, with `apps/web/modules/auth/lib/session.ts` scoring 0.972. Four cases had unchanged hits or misses. Recall did not improve because no new candidates enter after RRF. Eight cases are a smoke test, not statistically meaningful evidence for a default ranking change.
+The session-implementation case stayed at rank 1, with `apps/web/modules/auth/lib/session.ts` scoring 0.972. Five cases had unchanged hits or misses. Recall did not improve because no new candidates enter after RRF. Eight cases are a smoke test, not statistically meaningful evidence for a default ranking change.
 
 ## Observed resources and latency
 
