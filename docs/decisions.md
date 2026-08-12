@@ -54,6 +54,12 @@ Raw cosine similarity and full-text rank are retained as diagnostics but are not
 
 Ground truth uses stable paths and normalized source references rather than derived document/chunk IDs. Benchmark reports contain no source contents and omit timing data so identical inputs and rankings produce deterministic machine-readable output.
 
+## Optional reranking is a bounded local post-retrieval stage
+
+Reranking uses a separate `Reranker` contract rather than expanding `EmbeddingProvider`; vector generation and query-document relevance scoring are different responsibilities. `RerankedRepositoryMemory` wraps the existing hybrid strategy, requests 30 fused candidates, de-duplicates by stable chunk ID, and applies reranker scores without changing dense, lexical, or RRF behavior.
+
+The initial adapter targets a separately started llama.cpp server with the Qwen3-Reranker-0.6B Q4 model. It accepts loopback endpoints only, never starts a runtime or downloads a model, and fails explicitly when configured but unavailable. Search without `--rerank` remains byte-for-byte on the hybrid path. Benchmarking opts into a fourth `hybrid+rerank` strategy so quality changes stay measurable.
+
 ## Repository memory uses versioned temporal documents
 
 Searchable documents are derived from normalized entities and Git rather than queried directly from provider-shaped tables. Each version carries both its event time and a conservative availability interval. Deterministic document and chunk IDs make unchanged re-indexing idempotent, while new source versions supersede older versions without destroying historical provenance.

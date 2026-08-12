@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import type { MemorySearchResult, RepositoryMemory } from "@swega/retrieval";
+import {
+  RerankedRepositoryMemory,
+  type MemorySearchResult,
+  type RepositoryMemory,
+} from "@swega/retrieval";
 
 import {
   EvaluationRepositoryMismatchError,
@@ -70,6 +74,47 @@ describe("retrieval benchmark evaluation", () => {
         strategy("broken", [result("src/session.ts", mismatchedRepositoryId)]),
       ]),
     ).rejects.toBeInstanceOf(EvaluationRepositoryMismatchError);
+  });
+
+  test("compares hybrid and hybrid plus reranking through the same harness", async () => {
+    const benchmark = parseRetrievalBenchmark({
+      version: 1,
+      name: "reranking comparison",
+      cutoffs: [1, 3],
+      cases: [
+        {
+          id: "session-flow",
+          query: "session implementation",
+          repositoryId,
+          relevant: [{ path: "src/session.ts", grade: 3 }],
+        },
+      ],
+    });
+    const hybrid = strategy("hybrid", [
+      result("src/documentation.ts"),
+      result("src/session.ts"),
+    ]);
+    const hybridReranked = new RerankedRepositoryMemory(hybrid.memory, {
+      provider: "fixture",
+      model: "fixture",
+      rerank: async ({ candidates }) =>
+        candidates.map((candidate) => ({
+          candidateId: candidate.id,
+          score: candidate.id.includes("session") ? 1 : 0,
+        })),
+    });
+
+    const report = await evaluateRetrievalBenchmark(benchmark, [
+      hybrid,
+      { name: "hybrid+rerank", memory: hybridReranked },
+    ]);
+
+    expect(report.strategies.map((item) => item.strategy)).toEqual([
+      "hybrid",
+      "hybrid+rerank",
+    ]);
+    expect(report.strategies[0]?.aggregate.mrr).toBe(0.5);
+    expect(report.strategies[1]?.aggregate.mrr).toBe(1);
   });
 });
 

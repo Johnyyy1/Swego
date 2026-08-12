@@ -31,7 +31,14 @@ import { createJsonLogger, errorFields } from "@swega/shared/logging";
 import { helpText, parseCliArguments } from "./arguments";
 import { formatDoctorReport, isDoctorReady, runDoctor } from "./doctor";
 import { resolveConfiguredEmbeddingProvider } from "./embedding-provider";
-import { createConfiguredRetrievalStrategies } from "./retrieval-strategies";
+import {
+  createConfiguredRetrievalStrategies,
+  requireRerankedStrategy,
+} from "./retrieval-strategies";
+import {
+  requireConfiguredReranker,
+  resolveConfiguredReranker,
+} from "./reranker-provider";
 
 async function main(): Promise<void> {
   const arguments_ = parseCliArguments(Bun.argv.slice(2));
@@ -50,6 +57,7 @@ async function main(): Promise<void> {
       const report = await runDoctor(
         database,
         resolveConfiguredEmbeddingProvider(environment),
+        resolveConfiguredReranker(environment),
       );
       console.log(formatDoctorReport(report));
       if (!isDoctorReady(report)) {
@@ -93,17 +101,33 @@ async function main(): Promise<void> {
         return;
       }
 
+      const reranker = arguments_.rerank
+        ? requireConfiguredReranker(environment)
+        : undefined;
       const strategies = createConfiguredRetrievalStrategies(
         database.db,
         embeddings,
+        reranker,
       );
       if (arguments_.command === "benchmark") {
         const benchmark = await loadBenchmark(arguments_.benchmarkFile);
-        const report = await evaluateRetrievalBenchmark(benchmark, [
+        const benchmarkStrategies = [
           { name: "dense", memory: strategies.dense },
           { name: "lexical", memory: strategies.lexical },
           { name: "hybrid", memory: strategies.hybrid },
-        ]);
+          ...(arguments_.rerank
+            ? [
+                {
+                  name: "hybrid+rerank",
+                  memory: requireRerankedStrategy(strategies),
+                },
+              ]
+            : []),
+        ];
+        const report = await evaluateRetrievalBenchmark(
+          benchmark,
+          benchmarkStrategies,
+        );
         console.log(
           arguments_.json
             ? JSON.stringify(report, null, 2)
@@ -112,7 +136,10 @@ async function main(): Promise<void> {
         return;
       }
 
-      const results = await strategies.hybrid.searchMemory({
+      const memory = arguments_.rerank
+        ? requireRerankedStrategy(strategies)
+        : strategies.hybrid;
+      const results = await memory.searchMemory({
         repositoryId: arguments_.repositoryId,
         query: arguments_.query,
         limit: arguments_.limit,

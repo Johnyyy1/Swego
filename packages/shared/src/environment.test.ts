@@ -6,10 +6,14 @@ const databaseUrl = "postgresql://postgres:postgres@localhost:5432/swega";
 
 describe("server environment", () => {
   test("defaults to Ollama without requiring an OpenAI API key", () => {
-    const environment = parseServerEnvironment({ DATABASE_URL: databaseUrl });
+    const environment = parseServerEnvironment({
+      DATABASE_URL: databaseUrl,
+      RERANKER_PROVIDER: "",
+    });
 
     expect(environment.EMBEDDING_PROVIDER).toBe("ollama");
     expect(environment.OPENAI_API_KEY).toBeUndefined();
+    expect(environment.RERANKER_PROVIDER).toBeUndefined();
   });
 
   test("accepts an explicit Ollama configuration without an OpenAI API key", () => {
@@ -39,5 +43,17 @@ describe("server environment", () => {
         OPENAI_API_KEY: "test-key",
       }).OPENAI_API_KEY,
     ).toBe("test-key");
+  });
+
+  test("accepts an optional local llama.cpp reranker", () => {
+    const environment = parseServerEnvironment({
+      DATABASE_URL: databaseUrl,
+      RERANKER_PROVIDER: "llama.cpp",
+      LLAMA_CPP_RERANKER_URL: "http://127.0.0.1:8091",
+      LLAMA_CPP_RERANKER_MODEL: "Qwen3-Reranker-0.6B.Q4_K_M",
+    });
+
+    expect(environment.RERANKER_PROVIDER).toBe("llama.cpp");
+    expect(environment.LLAMA_CPP_RERANKER_URL).toBe("http://127.0.0.1:8091");
   });
 });

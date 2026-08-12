@@ -119,6 +119,23 @@ describe("CLI arguments", () => {
     });
   });
 
+  test("parses optional local reranking without changing the default", () => {
+    expect(
+      parseCliArguments([
+        "search",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "session implementation",
+        "--rerank",
+      ]),
+    ).toEqual({
+      command: "search",
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+      query: "session implementation",
+      limit: DEFAULT_SEARCH_LIMIT,
+      rerank: true,
+    });
+  });
+
   test("rejects hybrid search debugging on other commands", () => {
     expect(() => parseCliArguments(["doctor", "--debug"])).toThrow(
       "Usage: swega doctor",
@@ -131,11 +148,13 @@ describe("CLI arguments", () => {
         "benchmark",
         "benchmarks/formbricks-smoke.json",
         "--json",
+        "--rerank",
       ]),
     ).toEqual({
       command: "benchmark",
       benchmarkFile: "benchmarks/formbricks-smoke.json",
       json: true,
+      rerank: true,
     });
   });
 

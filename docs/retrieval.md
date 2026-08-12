@@ -22,6 +22,8 @@ query
              final top N chunks
 ```
 
+An optional post-retrieval stage can request the top 30 fused candidates, score each query-candidate pair with a local cross-encoder, and return the requested top K. It does not alter candidate generation or RRF. See [Local reranking](reranking.md).
+
 Run the projection after building repository memory, then search:
 
 ```bash
@@ -113,7 +115,7 @@ An exploratory comparison used the existing Formbricks snapshot at commit `88a38
 - PostgreSQL text search is token-based; it does not yet provide trigram typo matching or code-symbol parsing.
 - Repeated terms in large authored catalogs can produce noisy lexical candidates; a relevance corpus is needed before selecting a general mitigation.
 - Conservative fixed-size code chunks can split a declaration from its context.
-- There is no reranker, result diversification, relationship expansion, or source-type/path filter.
+- Optional reranking adds latency and cannot recover relevant material absent from the bounded hybrid candidate pool. There is still no result diversification, relationship expansion, or source-type/path filter.
 - The schema supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
 - HNSW with highly selective repository/time filters can return fewer strong dense candidates than an exact prefiltered strategy.
 - Provider adapters validate failures but do not yet retry transient upstream errors.

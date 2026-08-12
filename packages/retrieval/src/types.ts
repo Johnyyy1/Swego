@@ -39,6 +39,10 @@ export interface MemorySearchResult {
   denseSimilarity?: number;
   lexicalScore?: number;
   rrfScore?: number;
+  rrfRank?: number;
+  rerankerScore?: number;
+  rerankerRank?: number;
+  finalRank?: number;
 }
 
 export interface RepositoryMemory {

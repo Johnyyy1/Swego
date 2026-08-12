@@ -12,6 +12,7 @@
   "dependencies": {
     "@swega/db": "workspace:*",
     "@swega/embeddings": "workspace:*",
+    "@swega/reranking": "workspace:*",
     "@swega/shared": "workspace:*",
     "drizzle-orm": "0.45.2"
   }

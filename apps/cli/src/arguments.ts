@@ -44,12 +44,14 @@ export interface SearchMemoryArguments {
   limit: number;
   before?: Date;
   debug?: true;
+  rerank?: true;
 }
 
 export interface BenchmarkArguments {
   command: "benchmark";
   benchmarkFile: string;
   json?: true;
+  rerank?: true;
 }
 
 export type CliArguments =
@@ -78,6 +80,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       before: { type: "string" },
       debug: { type: "boolean" },
       json: { type: "boolean" },
+      rerank: { type: "boolean" },
     },
   });
 
@@ -92,7 +95,8 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.since ||
       parsed.values.before ||
       parsed.values.debug ||
-      parsed.values.json
+      parsed.values.json ||
+      parsed.values.rerank
     ) {
       throw new Error("Usage: swega doctor");
     }
@@ -109,7 +113,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.json
     ) {
       throw new Error(
-        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--debug]",
+        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--rerank] [--debug]",
       );
     }
     return {
@@ -123,6 +127,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
         ? { before: parseDate(parsed.values.before, "before") }
         : {}),
       ...(parsed.values.debug ? { debug: true as const } : {}),
+      ...(parsed.values.rerank ? { rerank: true as const } : {}),
     };
   }
 
@@ -136,12 +141,15 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.before ||
       parsed.values.debug
     ) {
-      throw new Error("Usage: swega benchmark <benchmark-file> [--json]");
+      throw new Error(
+        "Usage: swega benchmark <benchmark-file> [--rerank] [--json]",
+      );
     }
     return {
       command,
       benchmarkFile: target,
       ...(parsed.values.json ? { json: true as const } : {}),
+      ...(parsed.values.rerank ? { rerank: true as const } : {}),
     };
   }
 
@@ -156,6 +164,9 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   }
   if (parsed.values.json) {
     throw new Error("--json applies only to benchmark");
+  }
+  if (parsed.values.rerank) {
+    throw new Error("--rerank applies only to search and benchmark");
   }
 
   if (command === "ingest" || command === "ingest-git") {
@@ -203,14 +214,15 @@ export function helpText(): string {
     "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
     "  swega build-memory <repository-id>",
     "  swega embed-memory <repository-id>",
-    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--debug]',
-    "  swega benchmark <benchmark-file> [--json]",
+    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--rerank] [--debug]',
+    "  swega benchmark <benchmark-file> [--rerank] [--json]",
     "",
     "Options:",
     "  --limit N        Bound ingestion or the number of search results",
     "  --since DATE     Ingest records updated at or after an ISO-8601 date",
     "  --before DATE    Exclude memory unavailable at this historical cutoff",
-    "  --debug          Include dense, lexical, and RRF ranking diagnostics",
+    "  --debug          Include retrieval and reranker ranking diagnostics",
+    "  --rerank         Rerank a bounded hybrid candidate set locally",
     "  --json           Emit a machine-readable benchmark report",
     "  -h, --help       Show this help",
   ].join("\n");

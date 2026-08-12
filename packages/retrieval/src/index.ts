@@ -9,6 +9,11 @@ export {
 } from "./hybrid";
 export type { HybridRepositoryMemoryOptions } from "./hybrid";
 export { PgLexicalRepositoryMemory } from "./lexical";
+export {
+  DEFAULT_RERANK_CANDIDATE_LIMIT,
+  RerankedRepositoryMemory,
+} from "./reranked";
+export type { RerankedRepositoryMemoryOptions } from "./reranked";
 export { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
 export type { ReciprocalRankFusionOptions } from "./rrf";
 export type {

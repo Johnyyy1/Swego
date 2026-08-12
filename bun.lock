@@ -29,6 +29,7 @@
         "@swega/git": "workspace:*",
         "@swega/github": "workspace:*",
         "@swega/indexer": "workspace:*",
+        "@swega/reranking": "workspace:*",
         "@swega/retrieval": "workspace:*",
         "@swega/shared": "workspace:*",
         "zod": "4.4.3",
@@ -99,12 +100,17 @@
         "zod": "4.4.3",
       },
     },
+    "packages/reranking": {
+      "name": "@swega/reranking",
+      "version": "0.0.0",
+    },
     "packages/retrieval": {
       "name": "@swega/retrieval",
       "version": "0.0.0",
       "dependencies": {
         "@swega/db": "workspace:*",
         "@swega/embeddings": "workspace:*",
+        "@swega/reranking": "workspace:*",
         "@swega/shared": "workspace:*",
         "drizzle-orm": "0.45.2",
       },
@@ -421,6 +427,8 @@
     "@swega/github": ["@swega/github@workspace:packages/github"],
 
     "@swega/indexer": ["@swega/indexer@workspace:workers/indexer"],
+
+    "@swega/reranking": ["@swega/reranking@workspace:packages/reranking"],
 
     "@swega/retrieval": ["@swega/retrieval@workspace:packages/retrieval"],
 

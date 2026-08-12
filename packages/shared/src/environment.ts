@@ -25,6 +25,8 @@ const optionalHttpUrl = z.preprocess(
 
 export const embeddingProviderNames = ["ollama", "openai"] as const;
 export type EmbeddingProviderName = (typeof embeddingProviderNames)[number];
+export const rerankerProviderNames = ["llama.cpp"] as const;
+export type RerankerProviderName = (typeof rerankerProviderNames)[number];
 
 export const serverEnvironmentSchema = z
   .object({
@@ -41,6 +43,12 @@ export const serverEnvironmentSchema = z
     OPENAI_API_KEY: optionalNonEmptyString,
     OPENAI_EMBEDDING_MODEL: optionalNonEmptyString,
     SWEGA_EMBEDDING_MODEL: optionalNonEmptyString,
+    RERANKER_PROVIDER: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.enum(rerankerProviderNames).optional(),
+    ),
+    LLAMA_CPP_RERANKER_URL: optionalHttpUrl,
+    LLAMA_CPP_RERANKER_MODEL: optionalNonEmptyString,
     SWEGA_REPOSITORY_DIR: optionalNonEmptyString,
     NODE_ENV: z
       .enum(["development", "test", "production"])

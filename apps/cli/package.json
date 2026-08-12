@@ -18,6 +18,7 @@
     "@swega/git": "workspace:*",
     "@swega/github": "workspace:*",
     "@swega/indexer": "workspace:*",
+    "@swega/reranking": "workspace:*",
     "@swega/retrieval": "workspace:*",
     "@swega/shared": "workspace:*",
     "zod": "4.4.3"

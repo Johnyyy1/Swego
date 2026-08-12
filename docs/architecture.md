@@ -15,6 +15,7 @@ packages/embeddings/Embedding-provider contract and concrete adapters
 packages/evaluation/ Retrieval benchmark schemas, metrics, and reporting
 packages/github/    GitHub development-history source boundary
 packages/git/       Managed clones and Git object/history inspection
+packages/reranking/ Provider-neutral relevance scoring and local adapter
 packages/retrieval/ Repository-memory query contracts and PostgreSQL adapter
 packages/shared/    Framework-neutral schemas and shared primitives
 workers/indexer/    Background ingestion composition root
@@ -43,7 +44,8 @@ The database package accepts connection configuration instead of reading global 
 4. At the repository-memory boundary, the indexer classifies tracked files with conservative, explainable rules, then the document package converts admitted normalized sources into versioned documents and chunks. Git metadata remains faithful and unfiltered; memory is rebuildable derived data.
 5. The indexer generates embeddings through the provider-neutral contract in `packages/embeddings` and stores the current vector projection plus provider/model/dimension metadata for each chunk in pgvector. Ollama is the default local adapter; OpenAI is optional.
 6. The PostgreSQL retrieval adapters generate independent dense pgvector and lexical full-text candidate pools, applying repository and temporal filters in each SQL query. The retrieval core rejects incompatible stored embedding projections, merges candidates by stable chunk ID, and ranks them with Reciprocal Rank Fusion.
-7. Delivery layers expose results without owning ingestion or retrieval logic.
-8. The evaluation package consumes the stable retrieval interface with authored relevance judgments, computes reproducible metrics, and remains independent from production ranking implementations.
+7. When explicitly enabled, the retrieval package sends only the bounded, fused candidate set through the provider-neutral reranker contract, then preserves retrieval and reranker diagnostics on the final results. The initial llama.cpp adapter permits loopback endpoints only.
+8. Delivery layers expose results without owning ingestion or retrieval logic.
+9. The evaluation package consumes the stable retrieval interface with authored relevance judgments, computes reproducible metrics, and remains independent from production ranking implementations.
 
 The process boundaries, normalized source-data model, ingestion layers, repository-memory documents, embedding projection, and hybrid retrieval exist today. Repository contents and historical file versions remain authoritative in Git; documents, chunks, embeddings, full-text projections, and retrieval rankings are rebuildable derived data. No agent, answer-generation, parser, sandbox, authentication, or billing design is implied by this setup.

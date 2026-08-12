@@ -10,6 +10,7 @@ The CLI currently evaluates these strategies in a fixed order:
 dense
 lexical
 hybrid
+hybrid+rerank (only with --rerank and a configured local provider)
 ```
 
 Each strategy receives the same query, repository ID, cutoff, and maximum requested metric cutoff.
@@ -70,10 +71,11 @@ Defaults are `@1`, `@3`, `@5`, and `@10`. Human output includes aggregate tables
 
 ```bash
 bun run swega benchmark benchmarks/formbricks-smoke.json
+bun run swega benchmark benchmarks/formbricks-smoke.json --rerank
 bun run swega benchmark benchmarks/formbricks-smoke.json --json
 ```
 
-The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available.
+The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available. `--rerank` additionally requires `RERANKER_PROVIDER=llama.cpp`, evaluates `hybrid+rerank` against the same cases, and fails rather than silently falling back if that provider is unavailable.
 
 ## Authoring a benchmark for a new repository
 
@@ -91,13 +93,14 @@ The checked-in [Formbricks smoke benchmark](../benchmarks/formbricks-smoke.json)
 
 The initial run against the pinned 8,013-chunk Formbricks memory projection produced:
 
-| Strategy | MRR   | Recall@5 | Recall@10 | Precision@10 | Hit Rate@10 | nDCG@10 |
-| -------- | ----- | -------- | --------- | ------------ | ----------- | ------- |
-| dense    | 0.416 | 0.438    | 0.500     | 0.075        | 0.625       | 0.344   |
-| lexical  | 0.018 | 0.000    | 0.125     | 0.013        | 0.125       | 0.042   |
-| hybrid   | 0.438 | 0.500    | 0.500     | 0.075        | 0.625       | 0.394   |
+| Strategy      | MRR   | Recall@5 | Recall@10 | Precision@10 | Hit Rate@10 | nDCG@10 |
+| ------------- | ----- | -------- | --------- | ------------ | ----------- | ------- |
+| dense         | 0.416 | 0.438    | 0.500     | 0.075        | 0.625       | 0.344   |
+| lexical       | 0.018 | 0.000    | 0.125     | 0.013        | 0.125       | 0.042   |
+| hybrid        | 0.438 | 0.500    | 0.500     | 0.075        | 0.625       | 0.394   |
+| hybrid+rerank | 0.531 | 0.500    | 0.500     | 0.075        | 0.625       | 0.450   |
 
-On these eight cases, hybrid improved MRR and nDCG@10 over dense but did not improve Recall@10. Lexical-only retrieval performed poorly on the reviewed implementation targets. This result is useful for smoke regression detection only; the fixture is far too small for a statistical quality claim or general ranking decision.
+On these eight cases, hybrid improved MRR and nDCG@10 over dense but did not improve Recall@10. The Qwen3 reranker moved the database-model and API-endpoint cases from rank 2 to rank 1, but moved the session-flow case from rank 2 to rank 4. It did not change Recall@10 because reranking cannot add candidates. Lexical-only retrieval performed poorly on the reviewed implementation targets. These results are useful for smoke regression detection only; the fixture is far too small for a statistical quality claim or general ranking decision.
 
 ## Benchmark size
 
