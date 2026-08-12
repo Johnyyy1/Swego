@@ -56,6 +56,13 @@ describe("PgVectorRepositoryMemory", () => {
                     commitSha: null,
                     startLine: null,
                     endLine: null,
+                    language: null,
+                    symbolId: null,
+                    symbolName: null,
+                    symbolKind: null,
+                    parentSymbol: null,
+                    symbolPart: null,
+                    symbolPartCount: null,
                   },
                 ],
               }),
@@ -77,6 +84,11 @@ describe("PgVectorRepositoryMemory", () => {
       repositoryId,
       content: "semantic result",
       sourceType: "issue",
+      sourceMetadata: {
+        language: null,
+        symbolName: null,
+        symbolKind: null,
+      },
     });
   });
 

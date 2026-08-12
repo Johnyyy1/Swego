@@ -2,7 +2,7 @@
 
 SWEGA is a repository-agnostic memory and intelligence layer for AI coding agents. It is intended to ingest source-code and development history, preserve it as searchable repository memory, and provide relevant historical context to downstream tools.
 
-The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, repository-memory document generation, and repository-scoped hybrid retrieval with temporal cutoffs. Agent integrations will be added incrementally.
+The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, structural repository-memory generation, and repository-scoped hybrid retrieval with temporal cutoffs. Agent integrations will be added incrementally.
 
 ## Prerequisites
 
@@ -46,6 +46,8 @@ Build versioned repository-memory documents and text chunks after metadata and G
 ```bash
 bun run swega build-memory <repository-id>
 ```
+
+TypeScript, TSX, JavaScript, and JSX files are split at declarations such as functions, methods, classes, interfaces, types, and module-level variables. Every structural chunk carries its language, symbol, parent, and line provenance. Unsupported or malformed source falls back to bounded text chunks, so parser coverage never blocks a memory rebuild.
 
 Generate embeddings, then inspect hybrid dense and lexical retrieval directly:
 
@@ -94,4 +96,4 @@ bun run db:generate  # Generate migrations after schema changes
 bun run db:migrate   # Apply pending PostgreSQL migrations
 ```
 
-See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [retrieval design](docs/retrieval.md), [local reranking](docs/reranking.md), [retrieval evaluation](docs/retrieval-evaluation.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.
+See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [structural chunking](docs/structural-chunking.md), [retrieval design](docs/retrieval.md), [local reranking](docs/reranking.md), [retrieval evaluation](docs/retrieval-evaluation.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.

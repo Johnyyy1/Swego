@@ -70,6 +70,13 @@ export class PgVectorRepositoryMemory implements RepositoryMemory {
         commitSha: documentChunks.commitSha,
         startLine: documentChunks.startLine,
         endLine: documentChunks.endLine,
+        language: documentChunks.language,
+        symbolId: documentChunks.symbolId,
+        symbolName: documentChunks.symbolName,
+        symbolKind: documentChunks.symbolKind,
+        parentSymbol: documentChunks.parentSymbol,
+        symbolPart: documentChunks.symbolPart,
+        symbolPartCount: documentChunks.symbolPartCount,
       })
       .from(chunkEmbeddings)
       .innerJoin(
@@ -117,6 +124,13 @@ export class PgVectorRepositoryMemory implements RepositoryMemory {
         commitSha: row.commitSha,
         startLine: row.startLine,
         endLine: row.endLine,
+        language: row.language,
+        symbolId: row.symbolId,
+        symbolName: row.symbolName,
+        symbolKind: row.symbolKind,
+        parentSymbol: row.parentSymbol,
+        symbolPart: row.symbolPart,
+        symbolPartCount: row.symbolPartCount,
       },
     }));
   }

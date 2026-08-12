@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import {
   chunkEmbeddings,
@@ -12,6 +12,7 @@ import {
 import {
   normalizeIssueDocument,
   normalizeSourceCodeDocument,
+  type SourceStructureParser,
 } from "@swega/documents";
 import { EMBEDDING_DIMENSIONS } from "@swega/shared";
 
@@ -237,5 +238,73 @@ describeWithDatabase("repository-memory persistence", () => {
       chunksRemoved: 0,
       embeddingsRemoved: 0,
     });
+  });
+
+  test("reconciles old text chunks and embeddings when a document becomes structural", async () => {
+    const sourceEntityId = crypto.randomUUID();
+    const input = {
+      repositoryId,
+      sourceEntityId,
+      path: "src/session.ts",
+      commitSha: "e".repeat(40),
+      committedAt: new Date("2025-05-02T10:00:00.000Z"),
+      content: [
+        "export function getSession() { return null; }",
+        "export const getProxySession = async () => null;",
+      ].join("\n"),
+      sourceReference: `git:${"e".repeat(40)}:src/session.ts`,
+      language: "TypeScript",
+    };
+    const unsupportedParser: SourceStructureParser = {
+      id: "unsupported-fixture",
+      parse: () => ({ status: "unsupported", language: null }),
+    };
+    const textDocument = normalizeSourceCodeDocument(input, {
+      structureParser: unsupportedParser,
+    });
+    const structuralDocument = normalizeSourceCodeDocument(input);
+    expect(textDocument.document.id).toBe(structuralDocument.document.id);
+    expect(textDocument.chunks[0]?.id).not.toBe(
+      structuralDocument.chunks[0]?.id,
+    );
+
+    await persistMemoryDocuments(database, [textDocument], new Date());
+    const textChunk = textDocument.chunks[0];
+    if (!textChunk) {
+      throw new Error("Expected textual source fixture chunk");
+    }
+    await database.insert(chunkEmbeddings).values({
+      repositoryId,
+      chunkId: textChunk.id,
+      provider: "test",
+      model: "test-model",
+      dimensions: EMBEDDING_DIMENSIONS,
+      contentHash: textChunk.contentHash,
+      embedding: Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0),
+    });
+
+    await persistMemoryDocuments(database, [structuralDocument], new Date());
+    const storedChunks = await database
+      .select()
+      .from(documentChunks)
+      .where(eq(documentChunks.documentId, structuralDocument.document.id))
+      .orderBy(asc(documentChunks.chunkIndex));
+    const staleEmbeddings = await database
+      .select()
+      .from(chunkEmbeddings)
+      .where(eq(chunkEmbeddings.chunkId, textChunk.id));
+
+    expect(storedChunks.map((chunk) => chunk.id)).toEqual(
+      structuralDocument.chunks.map((chunk) => chunk.id),
+    );
+    expect(storedChunks.every((chunk) => chunk.symbolId !== null)).toBe(true);
+    expect(staleEmbeddings).toHaveLength(0);
+
+    await persistMemoryDocuments(database, [structuralDocument], new Date());
+    const repeatedChunks = await database
+      .select({ id: documentChunks.id })
+      .from(documentChunks)
+      .where(eq(documentChunks.documentId, structuralDocument.document.id));
+    expect(repeatedChunks).toHaveLength(structuralDocument.chunks.length);
   });
 });

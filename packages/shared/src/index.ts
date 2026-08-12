@@ -24,4 +24,18 @@ export const memorySourceTypes = [
 
 export type MemorySourceType = (typeof memorySourceTypes)[number];
 
+export const sourceSymbolKinds = [
+  "class",
+  "enum",
+  "function",
+  "interface",
+  "method",
+  "module",
+  "property",
+  "type",
+  "variable",
+] as const;
+
+export type SourceSymbolKind = (typeof sourceSymbolKinds)[number];
+
 export const EMBEDDING_DIMENSIONS = 512;

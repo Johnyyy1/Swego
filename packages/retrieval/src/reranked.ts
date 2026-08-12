@@ -120,6 +120,17 @@ function formatCandidate(result: MemorySearchResult): string {
     ...(result.path ? [`Path: ${result.path}`] : []),
     `Source type: ${result.sourceType}`,
     ...(lineRange ? [`Lines: ${lineRange}`] : []),
+    ...(result.sourceMetadata.language
+      ? [`Language: ${result.sourceMetadata.language}`]
+      : []),
+    ...(result.sourceMetadata.symbolKind
+      ? [
+          `Symbol: ${result.sourceMetadata.symbolKind}${result.sourceMetadata.symbolName ? ` ${result.sourceMetadata.symbolName}` : ""}`,
+        ]
+      : []),
+    ...(result.sourceMetadata.parentSymbol
+      ? [`Parent symbol: ${result.sourceMetadata.parentSymbol}`]
+      : []),
     ...(!result.path
       ? [`Source reference: ${result.sourceMetadata.sourceReference}`]
       : []),

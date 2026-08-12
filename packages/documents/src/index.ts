@@ -1,4 +1,5 @@
 export { generateMemoryDocument } from "./chunk";
+export type { GenerateMemoryDocumentOptions } from "./chunk";
 export {
   normalizeCommitDocument,
   normalizeIssueCommentDocument,
@@ -7,6 +8,18 @@ export {
   normalizeReviewDocument,
   normalizeSourceCodeDocument,
 } from "./normalize";
+export type { NormalizeSourceCodeDocumentOptions } from "./normalize";
+export type {
+  ParsedSourceSymbol,
+  SourceStructureParseInput,
+  SourceStructureParseResult,
+  SourceStructureParser,
+  SourceSymbolKind,
+} from "./source-structure";
+export {
+  TypeScriptSourceStructureParser,
+  typeScriptSourceStructureParser,
+} from "./typescript-structure";
 export { memorySourceTypes } from "@swega/shared";
 export type {
   CommitDocumentInput,

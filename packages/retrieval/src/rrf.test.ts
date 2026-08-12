@@ -102,6 +102,13 @@ function result(
       commitSha: null,
       startLine: null,
       endLine: null,
+      language: null,
+      symbolId: null,
+      symbolName: null,
+      symbolKind: null,
+      parentSymbol: null,
+      symbolPart: null,
+      symbolPartCount: null,
     },
     ...overrides,
   };

@@ -2,7 +2,10 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
 import { createDatabase, repositories, type Database } from "@swega/db";
-import { normalizeIssueDocument } from "@swega/documents";
+import {
+  normalizeIssueDocument,
+  normalizeSourceCodeDocument,
+} from "@swega/documents";
 import { DeterministicEmbeddingProvider } from "@swega/embeddings/testing";
 import {
   EmbeddingCompatibilityError,
@@ -27,6 +30,7 @@ describeWithDatabase("repository memory retrieval", () => {
   let otherRepositoryId: string;
   let pastSourceId: string;
   let futureSourceId: string;
+  let symbolSourceId: string;
   const embeddings = new DeterministicEmbeddingProvider();
 
   beforeAll(async () => {
@@ -51,6 +55,7 @@ describeWithDatabase("repository memory retrieval", () => {
     otherRepositoryId = otherRepository.id;
     pastSourceId = crypto.randomUUID();
     futureSourceId = crypto.randomUUID();
+    symbolSourceId = crypto.randomUUID();
 
     await persistMemoryDocuments(
       database,
@@ -75,6 +80,17 @@ describeWithDatabase("repository memory retrieval", () => {
           availableAt: new Date("2025-03-01T12:00:00.000Z"),
           title: "Authentication redirect security fix",
           body: "This exact match belongs to a different repository.",
+        }),
+        normalizeSourceCodeDocument({
+          repositoryId,
+          sourceEntityId: symbolSourceId,
+          path: "src/proxy-session.ts",
+          commitSha: "f".repeat(40),
+          committedAt: new Date("2025-03-01T12:00:00.000Z"),
+          content:
+            "export const getProxySession = async () => ({ userId: 'fixture' });",
+          sourceReference: `git:${"f".repeat(40)}:src/proxy-session.ts`,
+          language: "TypeScript",
         }),
       ],
       new Date("2025-04-02T00:00:00.000Z"),
@@ -175,6 +191,28 @@ describeWithDatabase("repository memory retrieval", () => {
     );
     expect(results[0]).toMatchObject({ lexicalRank: 1, similarity: 0 });
     expect(results[0]?.lexicalScore).toBeGreaterThan(0);
+  });
+
+  test("lexical retrieval ranks exact structural symbol names", async () => {
+    const memory = new PgLexicalRepositoryMemory(database);
+    const results = await memory.searchMemory({
+      repositoryId,
+      query: "getProxySession",
+      limit: 10,
+      before: cutoff,
+    });
+
+    expect(results[0]).toMatchObject({
+      sourceId: symbolSourceId,
+      path: "src/proxy-session.ts",
+      sourceMetadata: {
+        language: "TypeScript",
+        symbolName: "getProxySession",
+        symbolKind: "function",
+        symbolPart: 1,
+        symbolPartCount: 1,
+      },
+    });
   });
 
   test("hybrid retrieval preserves filtering and prevents duplicate chunks", async () => {

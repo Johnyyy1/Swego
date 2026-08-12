@@ -59,6 +59,8 @@ export interface BuildRepositoryMemoryResult extends MemoryPersistenceResult {
   admittedSourceFiles: number;
   excludedSourceFiles: number;
   admittedSourceChunks: number;
+  structurallyChunkedSourceFiles: number;
+  textuallyChunkedSourceFiles: number;
   sourceFileExclusions: Readonly<Record<SourceExclusionReason, number>>;
   /** @deprecated Use excludedSourceFiles. */
   skippedSourceFiles: number;
@@ -144,6 +146,8 @@ export async function buildRepositoryMemory(
     admittedSourceFiles: sourceCode.admitted,
     excludedSourceFiles: sourceCode.excluded,
     admittedSourceChunks: sourceCode.chunks,
+    structurallyChunkedSourceFiles: sourceCode.structural,
+    textuallyChunkedSourceFiles: sourceCode.textual,
     sourceFileExclusions: sourceCode.exclusions,
     skippedSourceFiles: sourceCode.excluded,
     durationMs: Math.round(performance.now() - startedAt),
@@ -154,6 +158,8 @@ export async function buildRepositoryMemory(
     admittedSourceFiles: result.admittedSourceFiles,
     excludedSourceFiles: result.excludedSourceFiles,
     admittedSourceChunks: result.admittedSourceChunks,
+    structurallyChunkedSourceFiles: result.structurallyChunkedSourceFiles,
+    textuallyChunkedSourceFiles: result.textuallyChunkedSourceFiles,
     sourceFileExclusions: result.sourceFileExclusions,
     reconciliation: result.reconciliation,
     durationMs: result.durationMs,
@@ -419,6 +425,8 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
   const exclusions = emptyExclusionCounts();
   let admitted = 0;
   let excluded = 0;
+  let structural = 0;
+  let textual = 0;
 
   for (const file of options.files) {
     const pathClassification = pathClassifications.get(file.path);
@@ -492,17 +500,22 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
       commitTimes.set(file.lastKnownCommitSha, committedAt);
     }
 
-    documents.push(
-      normalizeSourceCodeDocument({
-        repositoryId: options.repository.id,
-        sourceEntityId: file.id,
-        path: file.path,
-        commitSha: file.lastKnownCommitSha,
-        committedAt,
-        content: contents,
-        sourceReference: `git:${file.lastKnownCommitSha}:${file.path}`,
-      }),
-    );
+    const generated = normalizeSourceCodeDocument({
+      repositoryId: options.repository.id,
+      sourceEntityId: file.id,
+      path: file.path,
+      commitSha: file.lastKnownCommitSha,
+      committedAt,
+      content: contents,
+      sourceReference: `git:${file.lastKnownCommitSha}:${file.path}`,
+      language: file.language,
+    });
+    documents.push(generated);
+    if (generated.document.chunkingStrategy === "source_code_structural_v1") {
+      structural += 1;
+    } else {
+      textual += 1;
+    }
     admitted += 1;
   }
 
@@ -515,6 +528,8 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
       (total, document) => total + document.chunks.length,
       0,
     ),
+    structural,
+    textual,
   };
 }
 

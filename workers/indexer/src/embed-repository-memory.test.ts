@@ -24,6 +24,21 @@ describe("embedRepositoryMemory", () => {
     };
     const rows = [
       {
+        chunkId: "stale-long",
+        content: "embed this substantially longer chunk",
+        contentHash: "hash-stale-long",
+        path: "src/stale-long.ts",
+        sourceType: "source_code",
+        sourceReference: "git:test:src/stale-long.ts",
+        chunkIndex: 0,
+        startLine: 1,
+        endLine: 10,
+        embeddedProvider: null,
+        embeddedModel: null,
+        embeddedDimensions: null,
+        embeddedContentHash: null,
+      },
+      {
         chunkId: "stale",
         content: "embed this chunk",
         contentHash: "hash-stale",
@@ -83,13 +98,17 @@ describe("embedRepositoryMemory", () => {
       embeddings: provider,
       logger: recordingLogger(logEntries),
       repositoryId,
+      batchSize: 1,
     });
 
-    expect(embeddedInputs).toEqual([["embed this chunk"]]);
-    expect(insertedValues).toHaveLength(1);
+    expect(embeddedInputs).toEqual([
+      ["embed this chunk"],
+      ["embed this substantially longer chunk"],
+    ]);
+    expect(insertedValues).toHaveLength(2);
     expect(result).toMatchObject({
-      chunks: 2,
-      embedded: 1,
+      chunks: 3,
+      embedded: 2,
       skipped: 1,
       unchanged: 1,
     });
@@ -98,8 +117,8 @@ describe("embedRepositoryMemory", () => {
       fields: {
         embeddingProvider: "test-provider",
         embeddingModel: "test-model",
-        chunks: 2,
-        embedded: 1,
+        chunks: 3,
+        embedded: 2,
         skipped: 1,
       },
     });

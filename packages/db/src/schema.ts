@@ -16,7 +16,11 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 
-import { EMBEDDING_DIMENSIONS, type MemorySourceType } from "@swega/shared";
+import {
+  EMBEDDING_DIMENSIONS,
+  type MemorySourceType,
+  type SourceSymbolKind,
+} from "@swega/shared";
 
 const tsvector = customType<{ data: string }>({
   dataType: () => "tsvector",
@@ -473,8 +477,15 @@ export const documentChunks = pgTable(
     sourceReference: text("source_reference").notNull(),
     chunkIndex: integer("chunk_index").notNull(),
     content: text("content").notNull(),
+    language: text("language"),
+    symbolId: text("symbol_id"),
+    symbolName: text("symbol_name"),
+    symbolKind: text("symbol_kind").$type<SourceSymbolKind>(),
+    parentSymbol: text("parent_symbol"),
+    symbolPart: integer("symbol_part"),
+    symbolPartCount: integer("symbol_part_count"),
     searchVector: tsvector("search_vector").generatedAlwaysAs(
-      sql`setweight(to_tsvector('english', coalesce("content", '')), 'B') || setweight(to_tsvector('simple', coalesce("path", '')), 'A') || setweight(to_tsvector('simple', coalesce("source_type", '') || ' ' || coalesce("source_reference", '')), 'D')`,
+      sql`setweight(to_tsvector('simple', coalesce("path", '') || ' ' || coalesce("symbol_name", '')), 'A') || setweight(to_tsvector('english', coalesce("content", '')), 'B') || setweight(to_tsvector('simple', coalesce("parent_symbol", '')), 'C') || setweight(to_tsvector('simple', coalesce("source_type", '') || ' ' || coalesce("source_reference", '') || ' ' || coalesce("language", '') || ' ' || coalesce("symbol_kind", '')), 'D')`,
     ),
     contentHash: text("content_hash").notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
@@ -534,6 +545,14 @@ export const documentChunks = pgTable(
       sql`${table.sourceType} in ('issue', 'issue_comment', 'pull_request', 'review', 'commit', 'source_code')`,
     ),
     check("document_chunks_chunk_index_check", sql`${table.chunkIndex} >= 0`),
+    check(
+      "document_chunks_symbol_metadata_check",
+      sql`(${table.symbolId} is null and ${table.symbolKind} is null and ${table.symbolPart} is null and ${table.symbolPartCount} is null and ${table.parentSymbol} is null) or (${table.symbolId} is not null and ${table.symbolKind} is not null and ${table.symbolPart} >= 1 and ${table.symbolPartCount} >= ${table.symbolPart})`,
+    ),
+    check(
+      "document_chunks_symbol_kind_check",
+      sql`${table.symbolKind} is null or ${table.symbolKind} in ('class', 'enum', 'function', 'interface', 'method', 'module', 'property', 'type', 'variable')`,
+    ),
     check(
       "document_chunks_temporal_range_check",
       sql`${table.supersededAt} is null or ${table.supersededAt} >= ${table.availableAt}`,

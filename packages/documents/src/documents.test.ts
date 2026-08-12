@@ -113,27 +113,31 @@ describe("repository-memory documents", () => {
     expect(commit.chunks[0]?.availableAt).toEqual(committedAt);
   });
 
-  test("conservatively chunks source code by lines with provenance", () => {
+  test("falls back to conservative line chunks for unsupported source", () => {
     const content = Array.from(
       { length: 150 },
-      (_, index) => `export const value${index + 1} = ${index + 1};`,
+      (_, index) => `value_${index + 1} = ${index + 1}`,
     ).join("\n");
     const generated = normalizeSourceCodeDocument({
       repositoryId: repositoryOne,
       sourceEntityId,
-      path: "src/constants.ts",
+      path: "src/constants.py",
       commitSha: "b".repeat(40),
       committedAt: new Date("2025-03-10T12:00:00.000Z"),
       content,
-      sourceReference: `git:${"b".repeat(40)}:src/constants.ts`,
+      sourceReference: `git:${"b".repeat(40)}:src/constants.py`,
+      language: "Python",
     });
 
+    expect(generated.document.chunkingStrategy).toBe("source_code_v1");
     expect(generated.chunks.length).toBeGreaterThan(1);
     expect(generated.chunks[0]).toMatchObject({
-      path: "src/constants.ts",
+      path: "src/constants.py",
       commitSha: "b".repeat(40),
       startLine: 1,
       endLine: 120,
+      language: "Python",
+      symbolName: null,
     });
     expect(generated.chunks[1]?.startLine).toBe(101);
   });

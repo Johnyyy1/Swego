@@ -1,4 +1,8 @@
-import type { MemorySourceType, RepositoryId } from "@swega/shared";
+import type {
+  MemorySourceType,
+  RepositoryId,
+  SourceSymbolKind,
+} from "@swega/shared";
 
 export interface SearchMemoryInput {
   repositoryId: RepositoryId;
@@ -19,6 +23,13 @@ export interface MemorySourceMetadata {
   commitSha: string | null;
   startLine: number | null;
   endLine: number | null;
+  language: string | null;
+  symbolId: string | null;
+  symbolName: string | null;
+  symbolKind: SourceSymbolKind | null;
+  parentSymbol: string | null;
+  symbolPart: number | null;
+  symbolPartCount: number | null;
 }
 
 export interface MemorySearchResult {

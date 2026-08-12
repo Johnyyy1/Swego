@@ -63,3 +63,11 @@ The initial adapter targets a separately started llama.cpp server with the Qwen3
 ## Repository memory uses versioned temporal documents
 
 Searchable documents are derived from normalized entities and Git rather than queried directly from provider-shaped tables. Each version carries both its event time and a conservative availability interval. Deterministic document and chunk IDs make unchanged re-indexing idempotent, while new source versions supersede older versions without destroying historical provenance.
+
+## Structural chunking uses a parser adapter with a text fallback
+
+The document package owns a narrow `SourceStructureParser` contract, so repository-memory generation does not depend on one parser implementation. The initial adapter uses the TypeScript compiler parser without creating a program, resolving imports, type-checking, or executing repository code. It covers TypeScript, TSX, JavaScript, and JSX with one pure-JavaScript runtime already used by SWEGA's toolchain.
+
+Tree-sitter remains a sensible future adapter for broader language coverage, but its Node or WASM runtime still requires separately selected grammar packages and deployment initialization. Adding that surface for four languages already parsed well by TypeScript was not justified in this milestone. Parser errors are enrichment failures: they select the bounded textual strategy rather than failing the memory build.
+
+Structural metadata is persisted directly on derived chunks. Symbol names join paths in the lexical weight-A field; other metadata has lower diagnostic/context weights. This makes exact identifier evidence available to the existing lexical strategy without query-specific rules or changes to dense, RRF, or reranking algorithms.

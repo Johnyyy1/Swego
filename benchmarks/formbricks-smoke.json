@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "Formbricks retrieval smoke benchmark",
-  "description": "Eight manually reviewed code-search intents for the Formbricks snapshot at 88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5. This is a smoke benchmark, not a statistically meaningful relevance corpus.",
+  "description": "Eleven manually reviewed code-search intents for the Formbricks snapshot at 88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5. This is a smoke benchmark, not a statistically meaningful relevance corpus.",
   "cutoffs": [1, 3, 5, 10],
   "cases": [
     {
@@ -148,6 +148,48 @@
           "path": "packages/surveys/src/components/general/render-survey.tsx",
           "sourceType": "source_code",
           "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "locate-get-proxy-session-symbol",
+      "query": "getProxySession",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["symbol", "locate-implementation", "authentication"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "locate-survey-reference-validation-symbol",
+      "query": "validateV3SurveyReferences",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["symbol", "locate-implementation", "validation"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v3/surveys/reference-validation.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "locate-ending-card-component",
+      "query": "EndingCard component implementation",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["symbol", "tsx", "locate-implementation"],
+      "relevant": [
+        {
+          "path": "packages/surveys/src/components/general/ending-card.tsx",
+          "sourceType": "source_code",
+          "grade": 3
         }
       ]
     }

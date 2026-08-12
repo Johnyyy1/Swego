@@ -17,6 +17,8 @@ export interface ObservedSearchResult {
   path: string | null;
   sourceType: MemorySearchResult["sourceType"];
   sourceReference: string;
+  symbolName: string | null;
+  symbolKind: MemorySearchResult["sourceMetadata"]["symbolKind"];
 }
 
 export interface BenchmarkCaseReport {
@@ -149,6 +151,8 @@ function evaluateBenchmarkCase(
       path: result.path,
       sourceType: result.sourceType,
       sourceReference: result.sourceMetadata.sourceReference,
+      symbolName: result.sourceMetadata.symbolName,
+      symbolKind: result.sourceMetadata.symbolKind,
     })),
   };
 }

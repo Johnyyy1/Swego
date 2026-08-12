@@ -8,6 +8,8 @@ import {
 } from "@swega/db";
 import type { GeneratedMemoryDocument } from "@swega/documents";
 
+const CHUNK_UPSERT_BATCH_SIZE = 100;
+
 export interface MemoryReconciliationResult {
   documentsRemoved: number;
   chunksRemoved: number;
@@ -94,14 +96,34 @@ export async function persistMemoryDocuments(
           },
         });
 
-      for (const chunk of chunks) {
+      const currentChunkIds = chunks.map((chunk) => chunk.id);
+      await transaction
+        .delete(documentChunks)
+        .where(
+          and(
+            eq(documentChunks.repositoryId, document.repositoryId),
+            eq(documentChunks.documentId, document.id),
+            ...(currentChunkIds.length > 0
+              ? [notInArray(documentChunks.id, currentChunkIds)]
+              : []),
+          ),
+        );
+
+      for (
+        let offset = 0;
+        offset < chunks.length;
+        offset += CHUNK_UPSERT_BATCH_SIZE
+      ) {
+        const batch = chunks.slice(offset, offset + CHUNK_UPSERT_BATCH_SIZE);
         await transaction
           .insert(documentChunks)
-          .values({
-            ...chunk,
-            supersededAt,
-            indexedAt,
-          })
+          .values(
+            batch.map((chunk) => ({
+              ...chunk,
+              supersededAt,
+              indexedAt,
+            })),
+          )
           .onConflictDoUpdate({
             target: documentChunks.id,
             set: {
@@ -118,23 +140,17 @@ export async function persistMemoryDocuments(
               commitSha: sql`excluded.commit_sha`,
               startLine: sql`excluded.start_line`,
               endLine: sql`excluded.end_line`,
+              language: sql`excluded.language`,
+              symbolId: sql`excluded.symbol_id`,
+              symbolName: sql`excluded.symbol_name`,
+              symbolKind: sql`excluded.symbol_kind`,
+              parentSymbol: sql`excluded.parent_symbol`,
+              symbolPart: sql`excluded.symbol_part`,
+              symbolPartCount: sql`excluded.symbol_part_count`,
               indexedAt,
             },
           });
       }
-
-      const currentChunkIds = chunks.map((chunk) => chunk.id);
-      await transaction
-        .delete(documentChunks)
-        .where(
-          and(
-            eq(documentChunks.repositoryId, document.repositoryId),
-            eq(documentChunks.documentId, document.id),
-            ...(currentChunkIds.length > 0
-              ? [notInArray(documentChunks.id, currentChunkIds)]
-              : []),
-          ),
-        );
 
       const olderVersion = and(
         eq(documents.repositoryId, document.repositoryId),

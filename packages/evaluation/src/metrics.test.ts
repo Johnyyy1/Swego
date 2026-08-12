@@ -161,6 +161,13 @@ function result(
       commitSha: "fixture",
       startLine: 1,
       endLine: 10,
+      language: "TypeScript",
+      symbolId: null,
+      symbolName: null,
+      symbolKind: null,
+      parentSymbol: null,
+      symbolPart: null,
+      symbolPartCount: null,
     },
   };
 }

@@ -31,6 +31,13 @@ describe("PgLexicalRepositoryMemory", () => {
                   commitSha: "abc",
                   startLine: 1,
                   endLine: 1,
+                  language: "TypeScript",
+                  symbolId: "symbol-1",
+                  symbolName: "getSession",
+                  symbolKind: "function",
+                  parentSymbol: null,
+                  symbolPart: 1,
+                  symbolPartCount: 1,
                 },
               ],
             }),
@@ -55,6 +62,13 @@ describe("PgLexicalRepositoryMemory", () => {
       sourceMetadata: {
         chunkId: "chunk-1",
         sourceReference: "git:abc:src/session.ts",
+        language: "TypeScript",
+        symbolId: "symbol-1",
+        symbolName: "getSession",
+        symbolKind: "function",
+        parentSymbol: null,
+        symbolPart: 1,
+        symbolPartCount: 1,
       },
     });
   });

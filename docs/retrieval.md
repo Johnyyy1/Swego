@@ -49,9 +49,10 @@ Dense retrieval preserves the existing cosine-distance query over `chunk_embeddi
 
 Lexical retrieval uses a stored `tsvector` on `document_chunks` and a GIN index. Inputs are weighted deliberately rather than flattened as equally important text:
 
-- path uses the `simple` text-search configuration at weight A, retaining exact path and identifier-like tokens;
+- path and `symbolName` use the `simple` text-search configuration at weight A, retaining exact path and identifier-like tokens;
 - content uses the `english` configuration at weight B, providing natural-language normalization and stemming;
-- source type and source reference use `simple` at weight D, contributing low-weight provenance hints without dominating content and paths.
+- `parentSymbol` uses `simple` at weight C;
+- source type, source reference, language, and symbol kind use `simple` at weight D, contributing low-weight provenance hints without dominating content and primary identifiers.
 
 The query creates English and exact-token lexemes and joins terms disjunctively for candidate recall. PostgreSQL `ts_rank_cd` orders the lexical pool. The GIN match, repository predicate, and temporal predicate are all applied before the candidate limit.
 
@@ -92,6 +93,8 @@ Every result retains content and source provenance. Hybrid results may additiona
 - `lexicalRank` and `lexicalScore` when present in the lexical pool;
 - `rrfScore` for the final fused score.
 
+Source-code results also expose `language`, deterministic `symbolId`, `symbolName`, `symbolKind`, `parentSymbol`, and symbol part/count metadata. The CLI's debug output and benchmark failure records may show the symbol name and kind, but never log complete candidate source contents.
+
 Fields for a branch are absent when that branch did not return the chunk. The legacy `similarity` field remains the dense similarity when available and is zero for lexical-only results; consumers should use result order or `rrfScore` for hybrid ranking. Normal CLI output preserves the pre-hybrid JSON shape. `--debug` includes the ranking diagnostics and final 1-based rank.
 
 ## Verification
@@ -112,9 +115,9 @@ An exploratory comparison used the existing Formbricks snapshot at commit `88a38
 ## Known limitations
 
 - Qwen3-Embedding-0.6B ranking still needs a stable relevance corpus with judgments rather than a small set of exploratory queries.
-- PostgreSQL text search is token-based; it does not yet provide trigram typo matching or code-symbol parsing.
+- PostgreSQL text search is token-based; structural symbol names improve exact identifier matching but there is no trigram typo matching.
 - Repeated terms in large authored catalogs can produce noisy lexical candidates; a relevance corpus is needed before selecting a general mitigation.
-- Conservative fixed-size code chunks can split a declaration from its context.
+- Unsupported and malformed languages still use conservative fixed-size code chunks that can split a declaration from its context.
 - Optional reranking adds latency and cannot recover relevant material absent from the bounded hybrid candidate pool. There is still no result diversification, relationship expansion, or source-type/path filter.
 - The schema supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
 - HNSW with highly selective repository/time filters can return fewer strong dense candidates than an exact prefiltered strategy.

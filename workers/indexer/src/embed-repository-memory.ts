@@ -105,13 +105,19 @@ export async function embedRepositoryMemory(
         ),
       )
       .where(eq(documentChunks.repositoryId, repositoryId));
-    const stale = rows.filter(
-      (row) =>
-        row.embeddedProvider !== options.embeddings.provider ||
-        row.embeddedModel !== options.embeddings.model ||
-        row.embeddedDimensions !== options.embeddings.dimensions ||
-        row.embeddedContentHash !== row.contentHash,
-    );
+    const stale = rows
+      .filter(
+        (row) =>
+          row.embeddedProvider !== options.embeddings.provider ||
+          row.embeddedModel !== options.embeddings.model ||
+          row.embeddedDimensions !== options.embeddings.dimensions ||
+          row.embeddedContentHash !== row.contentHash,
+      )
+      .sort(
+        (left, right) =>
+          left.content.length - right.content.length ||
+          left.chunkId.localeCompare(right.chunkId),
+      );
 
     for (let offset = 0; offset < stale.length; offset += batchSize) {
       const batch = stale.slice(offset, offset + batchSize);

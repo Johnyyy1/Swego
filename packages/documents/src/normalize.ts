@@ -8,6 +8,11 @@ import type {
   ReviewDocumentInput,
   SourceCodeDocumentInput,
 } from "./types";
+import type { SourceStructureParser } from "./source-structure";
+
+export interface NormalizeSourceCodeDocumentOptions {
+  structureParser?: SourceStructureParser;
+}
 
 export function normalizeIssueDocument(
   input: IssueDocumentInput,
@@ -118,22 +123,31 @@ export function normalizeCommitDocument(
 
 export function normalizeSourceCodeDocument(
   input: SourceCodeDocumentInput,
+  options: NormalizeSourceCodeDocumentOptions = {},
 ): GeneratedMemoryDocument {
-  return generateMemoryDocument({
-    repositoryId: input.repositoryId,
-    sourceType: "source_code",
-    sourceEntityId: input.sourceEntityId,
-    parentSourceType: null,
-    parentSourceEntityId: null,
-    sourceVersion: input.commitSha,
-    sourceReference: input.sourceReference,
-    title: input.path,
-    content: input.content,
-    occurredAt: input.committedAt,
-    availableAt: input.committedAt,
-    path: input.path,
-    commitSha: input.commitSha,
-  });
+  return generateMemoryDocument(
+    {
+      repositoryId: input.repositoryId,
+      sourceType: "source_code",
+      sourceEntityId: input.sourceEntityId,
+      parentSourceType: null,
+      parentSourceEntityId: null,
+      sourceVersion: input.commitSha,
+      sourceReference: input.sourceReference,
+      title: input.path,
+      content: input.content,
+      occurredAt: input.committedAt,
+      availableAt: input.committedAt,
+      path: input.path,
+      commitSha: input.commitSha,
+    },
+    {
+      sourceLanguage: input.language ?? null,
+      ...(options.structureParser
+        ? { structureParser: options.structureParser }
+        : {}),
+    },
+  );
 }
 
 function commonNaturalLanguageFields(

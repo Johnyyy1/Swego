@@ -1,5 +1,7 @@
 import type { MemorySourceType, RepositoryId } from "@swega/shared";
 
+import type { SourceSymbolKind } from "./source-structure";
+
 export type { MemorySourceType } from "@swega/shared";
 
 export interface MemoryDocumentInput {
@@ -21,7 +23,8 @@ export interface MemoryDocumentInput {
 export interface MemoryDocument extends MemoryDocumentInput {
   id: string;
   contentHash: string;
-  chunkingStrategy: "natural_language_v1" | "source_code_v1";
+  chunkingStrategy:
+    "natural_language_v1" | "source_code_structural_v1" | "source_code_v1";
 }
 
 export interface MemoryDocumentChunk {
@@ -42,6 +45,13 @@ export interface MemoryDocumentChunk {
   commitSha: string | null;
   startLine: number | null;
   endLine: number | null;
+  language: string | null;
+  symbolId: string | null;
+  symbolName: string | null;
+  symbolKind: SourceSymbolKind | null;
+  parentSymbol: string | null;
+  symbolPart: number | null;
+  symbolPartCount: number | null;
 }
 
 export interface GeneratedMemoryDocument {
@@ -109,4 +119,5 @@ export interface SourceCodeDocumentInput {
   committedAt: Date;
   content: string;
   sourceReference: string;
+  language?: string | null;
 }

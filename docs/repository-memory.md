@@ -54,7 +54,11 @@ Database uniqueness constraints enforce one document per repository/source/versi
 
 Natural-language provider content is normalized into small labeled sections and grouped at paragraph boundaries with a conservative character limit. Long paragraphs fall back to whitespace boundaries.
 
-Source code uses a deliberately simple line-based strategy with bounded character and line counts plus a small line overlap. It records line ranges but performs no parsing and makes no language-specific assumptions. Tree-sitter or another code-aware strategy can later replace it by introducing a new chunking-strategy version.
+Source code first passes through the provider-neutral `SourceStructureParser` contract. The initial TypeScript compiler adapter recognizes TypeScript, TSX, JavaScript, and JSX and emits declarations for functions, methods, classes, interfaces, type aliases, enums, properties, and module-level variables. Those files use `source_code_structural_v1`; every chunk records language, symbol identity/kind, optional parent symbol, exact line range, and subdivision position.
+
+Class chunks retain their declaration header while members receive separate chunks, avoiding a copy of the whole class for every method. Module gaps preserve imports and unrecognized top-level statements without repeating them in each symbol. Nested named function constructs are emitted with their nearest enclosing symbol. Structural units above 120 lines or 12,000 characters are divided into bounded pieces with a short signature context and a shared deterministic symbol ID.
+
+Unsupported extensions, syntax errors, a parser that yields no structures, and unexpected parser-adapter failures all use the existing `source_code_v1` line strategy. The fallback preserves the former 120-line/12,000-character bounds and 20-line overlap. Parser enrichment can therefore never prevent repository memory from being built.
 
 The source-code builder:
 
@@ -80,7 +84,7 @@ The default policy excludes only strong, repository-independent signals:
 
 Ambiguous files remain admitted. Package/workspace and deployment configuration, authored JSON/YAML and documentation, API specifications without source-of-truth evidence, tests, migrations, SQL, large authored source files, and repository instructions are kept by default. The classifier accepts a canonical-locale option so a future repository-level configuration can override `en-US` without changing Git ingestion or document normalization.
 
-Rebuilding atomically reconciles the current source-code projection: source documents no longer admitted by the classifier are deleted, and database cascades remove their chunks and embeddings. Historical issue, pull-request, review, comment, and commit documents are not part of this reconciliation. Repeating an unchanged rebuild retains deterministic IDs and removes nothing.
+Rebuilding atomically reconciles the current source-code projection: obsolete chunks for an otherwise stable document are removed before new chunk positions are inserted, source documents no longer admitted by the classifier are deleted, and database cascades remove their embeddings. This handles the one-time transition from text to structural chunk IDs without a uniqueness collision or orphaned projection. Historical issue, pull-request, review, comment, and commit documents are not part of this reconciliation. Repeating an unchanged rebuild retains deterministic document, symbol, and chunk IDs and removes nothing.
 
 ## Build flow
 
@@ -93,3 +97,7 @@ swega build-memory <repository-id>
 The indexer loads normalized repository-scoped entities, normalizes metadata documents, reads safe text blobs through `GitRepositoryManager`, creates deterministic chunks, and persists them transactionally. The worker API is also available directly as `buildRepositoryMemory()`.
 
 Once built, the memory can be embedded and searched as described in [Repository Memory Retrieval](retrieval.md).
+
+Embedding regeneration processes stale chunks in deterministic content-length order before stable ID order. This keeps similarly sized inputs together for better local-provider batching while leaving vector contents and retrieval scoring unchanged.
+
+See [Structural source chunking](structural-chunking.md) for parser boundaries, metadata, and operational implications.
