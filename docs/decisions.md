@@ -48,6 +48,12 @@ Dense pgvector retrieval remains the semantic baseline. PostgreSQL full-text sea
 
 Raw cosine similarity and full-text rank are retained as diagnostics but are not added together because their scales are not comparable. The full-text projection is generated from document chunks and indexed with GIN, so it remains rebuildable derived data and requires no separate synchronization workflow.
 
+## Retrieval evaluation consumes production strategies without owning ranking
+
+`@swega/evaluation` accepts named implementations of the existing `RepositoryMemory` contract. It validates explicitly authored relevance targets, invokes strategies with identical repository/time constraints, and computes metrics from returned provenance. It does not import database adapters or reproduce dense, lexical, or RRF logic.
+
+Ground truth uses stable paths and normalized source references rather than derived document/chunk IDs. Benchmark reports contain no source contents and omit timing data so identical inputs and rankings produce deterministic machine-readable output.
+
 ## Repository memory uses versioned temporal documents
 
 Searchable documents are derived from normalized entities and Git rather than queried directly from provider-shaped tables. Each version carries both its event time and a conservative availability interval. Deterministic document and chunk IDs make unchanged re-indexing idempotent, while new source versions supersede older versions without destroying historical provenance.

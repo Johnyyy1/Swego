@@ -46,12 +46,19 @@ export interface SearchMemoryArguments {
   debug?: true;
 }
 
+export interface BenchmarkArguments {
+  command: "benchmark";
+  benchmarkFile: string;
+  json?: true;
+}
+
 export type CliArguments =
   | IngestArguments
   | IngestGitArguments
   | BuildMemoryArguments
   | EmbedMemoryArguments
   | SearchMemoryArguments
+  | BenchmarkArguments
   | DoctorArguments
   | HelpArguments;
 
@@ -70,6 +77,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       since: { type: "string" },
       before: { type: "string" },
       debug: { type: "boolean" },
+      json: { type: "boolean" },
     },
   });
 
@@ -83,7 +91,8 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.limit ||
       parsed.values.since ||
       parsed.values.before ||
-      parsed.values.debug
+      parsed.values.debug ||
+      parsed.values.json
     ) {
       throw new Error("Usage: swega doctor");
     }
@@ -92,7 +101,13 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
 
   const [command, target, query, ...unexpected] = parsed.positionals;
   if (command === "search") {
-    if (!target || !query || unexpected.length > 0 || parsed.values.since) {
+    if (
+      !target ||
+      !query ||
+      unexpected.length > 0 ||
+      parsed.values.since ||
+      parsed.values.json
+    ) {
       throw new Error(
         "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--debug]",
       );
@@ -111,6 +126,25 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
     };
   }
 
+  if (command === "benchmark") {
+    if (
+      !target ||
+      query ||
+      unexpected.length > 0 ||
+      parsed.values.limit ||
+      parsed.values.since ||
+      parsed.values.before ||
+      parsed.values.debug
+    ) {
+      throw new Error("Usage: swega benchmark <benchmark-file> [--json]");
+    }
+    return {
+      command,
+      benchmarkFile: target,
+      ...(parsed.values.json ? { json: true as const } : {}),
+    };
+  }
+
   if (!target || query || unexpected.length > 0) {
     throw new Error("Run 'swega --help' for usage");
   }
@@ -119,6 +153,9 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   }
   if (parsed.values.debug) {
     throw new Error("--debug applies only to search");
+  }
+  if (parsed.values.json) {
+    throw new Error("--json applies only to benchmark");
   }
 
   if (command === "ingest" || command === "ingest-git") {
@@ -167,12 +204,14 @@ export function helpText(): string {
     "  swega build-memory <repository-id>",
     "  swega embed-memory <repository-id>",
     '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--debug]',
+    "  swega benchmark <benchmark-file> [--json]",
     "",
     "Options:",
     "  --limit N        Bound ingestion or the number of search results",
     "  --since DATE     Ingest records updated at or after an ISO-8601 date",
     "  --before DATE    Exclude memory unavailable at this historical cutoff",
     "  --debug          Include dense, lexical, and RRF ranking diagnostics",
+    "  --json           Emit a machine-readable benchmark report",
     "  -h, --help       Show this help",
   ].join("\n");
 }

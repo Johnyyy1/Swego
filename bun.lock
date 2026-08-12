@@ -25,6 +25,7 @@
       "dependencies": {
         "@swega/db": "workspace:*",
         "@swega/embeddings": "workspace:*",
+        "@swega/evaluation": "workspace:*",
         "@swega/git": "workspace:*",
         "@swega/github": "workspace:*",
         "@swega/indexer": "workspace:*",
@@ -71,6 +72,15 @@
       "version": "0.0.0",
       "dependencies": {
         "@swega/shared": "workspace:*",
+      },
+    },
+    "packages/evaluation": {
+      "name": "@swega/evaluation",
+      "version": "0.0.0",
+      "dependencies": {
+        "@swega/retrieval": "workspace:*",
+        "@swega/shared": "workspace:*",
+        "zod": "4.4.3",
       },
     },
     "packages/git": {
@@ -403,6 +413,8 @@
     "@swega/documents": ["@swega/documents@workspace:packages/documents"],
 
     "@swega/embeddings": ["@swega/embeddings@workspace:packages/embeddings"],
+
+    "@swega/evaluation": ["@swega/evaluation@workspace:packages/evaluation"],
 
     "@swega/git": ["@swega/git@workspace:packages/git"],
 

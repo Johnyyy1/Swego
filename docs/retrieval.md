@@ -96,6 +96,8 @@ Fields for a branch are absent when that branch did not return the chunk. The le
 
 Deterministic unit tests cover dense-only, lexical-only, shared, duplicate, tied, and empty candidate sets; exact RRF arithmetic; independent candidate pools; and projection failures. Database-gated integration tests cover PostgreSQL lexical matching, repository isolation, temporal cutoffs, hybrid deduplication, and the existing embedding idempotency and compatibility invariants. Database tests continue to use the existing `TEST_DATABASE_URL` gate.
 
+The reproducible benchmark format, metrics, and strategy comparison workflow are documented in [Retrieval evaluation](retrieval-evaluation.md). The exploratory examples below predate that harness and remain observations rather than a relevance corpus.
+
 An exploratory comparison used the existing Formbricks snapshot at commit `88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5`, 8,013 chunks, and its complete Qwen3-Embedding-0.6B projection. These are observations, not a labeled relevance evaluation, and none of the query strings or paths are encoded in production logic.
 
 | Query                                                        | Dense rank 1                                                            | Hybrid rank 1                                               | Observation                                                                                           |

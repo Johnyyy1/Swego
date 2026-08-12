@@ -1,9 +1,15 @@
 #!/usr/bin/env bun
 
-import { resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDatabase } from "@swega/db";
+import {
+  evaluateRetrievalBenchmark,
+  formatBenchmarkReport,
+  parseRetrievalBenchmark,
+} from "@swega/evaluation";
 import { GitCliRepositoryManager } from "@swega/git";
 import { GitHubClient } from "@swega/github";
 import {
@@ -15,12 +21,7 @@ import {
   ingestGitHubRepository,
   synchronizeGitRepository,
 } from "@swega/indexer";
-import {
-  HybridRepositoryMemory,
-  PgLexicalRepositoryMemory,
-  PgVectorRepositoryMemory,
-  type MemorySearchResult,
-} from "@swega/retrieval";
+import type { MemorySearchResult } from "@swega/retrieval";
 import {
   loadRootEnvironment,
   parseServerEnvironment,
@@ -30,6 +31,7 @@ import { createJsonLogger, errorFields } from "@swega/shared/logging";
 import { helpText, parseCliArguments } from "./arguments";
 import { formatDoctorReport, isDoctorReady, runDoctor } from "./doctor";
 import { resolveConfiguredEmbeddingProvider } from "./embedding-provider";
+import { createConfiguredRetrievalStrategies } from "./retrieval-strategies";
 
 async function main(): Promise<void> {
   const arguments_ = parseCliArguments(Bun.argv.slice(2));
@@ -76,7 +78,8 @@ async function main(): Promise<void> {
 
     if (
       arguments_.command === "embed-memory" ||
-      arguments_.command === "search"
+      arguments_.command === "search" ||
+      arguments_.command === "benchmark"
     ) {
       const embeddings = resolveConfiguredEmbeddingProvider(environment);
 
@@ -90,11 +93,26 @@ async function main(): Promise<void> {
         return;
       }
 
-      const memory = new HybridRepositoryMemory(
-        new PgVectorRepositoryMemory(database.db, embeddings),
-        new PgLexicalRepositoryMemory(database.db),
+      const strategies = createConfiguredRetrievalStrategies(
+        database.db,
+        embeddings,
       );
-      const results = await memory.searchMemory({
+      if (arguments_.command === "benchmark") {
+        const benchmark = await loadBenchmark(arguments_.benchmarkFile);
+        const report = await evaluateRetrievalBenchmark(benchmark, [
+          { name: "dense", memory: strategies.dense },
+          { name: "lexical", memory: strategies.lexical },
+          { name: "hybrid", memory: strategies.hybrid },
+        ]);
+        console.log(
+          arguments_.json
+            ? JSON.stringify(report, null, 2)
+            : formatBenchmarkReport(report),
+        );
+        return;
+      }
+
+      const results = await strategies.hybrid.searchMemory({
         repositoryId: arguments_.repositoryId,
         query: arguments_.query,
         limit: arguments_.limit,
@@ -144,6 +162,43 @@ async function main(): Promise<void> {
   } finally {
     await database.close();
   }
+}
+
+async function loadBenchmark(path: string) {
+  const projectRoot = fileURLToPath(new URL("../../..", import.meta.url));
+  const candidates = isAbsolute(path)
+    ? [path]
+    : [...new Set([resolve(path), resolve(projectRoot, path)])];
+  let source: string | undefined;
+  let benchmarkPath = candidates[0] ?? path;
+  const failures: string[] = [];
+  for (const candidate of candidates) {
+    try {
+      source = await readFile(candidate, "utf8");
+      benchmarkPath = candidate;
+      break;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      failures.push(`${candidate}: ${detail}`);
+    }
+  }
+  if (source === undefined) {
+    throw new Error(
+      `Unable to read benchmark '${path}': ${failures.join("; ")}`,
+    );
+  }
+
+  let input: unknown;
+  try {
+    input = JSON.parse(source);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Benchmark '${benchmarkPath}' is not valid JSON: ${detail}`,
+      { cause: error },
+    );
+  }
+  return parseRetrievalBenchmark(input);
 }
 
 function toLegacySearchResult(result: MemorySearchResult) {

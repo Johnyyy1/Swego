@@ -54,6 +54,8 @@ bun run swega embed-memory <repository-id>
 bun run swega search <repository-id> "authentication redirect"
 bun run swega search <repository-id> "authentication redirect" --before 2025-03-15
 bun run swega search <repository-id> "authentication redirect" --debug
+bun run swega benchmark benchmarks/formbricks-smoke.json
+bun run swega benchmark benchmarks/formbricks-smoke.json --json
 ```
 
 Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. PostgreSQL full-text search supplies an independent lexical candidate pool, and Reciprocal Rank Fusion combines the two rankings. `--before` is enforced in PostgreSQL against each chunk's temporal validity interval in both branches. Use `--debug` to show dense, lexical, and fused ranks and scores.
@@ -90,4 +92,4 @@ bun run db:generate  # Generate migrations after schema changes
 bun run db:migrate   # Apply pending PostgreSQL migrations
 ```
 
-See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [retrieval design and evaluation](docs/retrieval.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.
+See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [retrieval design](docs/retrieval.md), [retrieval evaluation](docs/retrieval-evaluation.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.

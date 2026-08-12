@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "name": "Formbricks retrieval smoke benchmark",
+  "description": "Eight manually reviewed code-search intents for the Formbricks snapshot at 88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5. This is a smoke benchmark, not a statistically meaningful relevance corpus.",
+  "cutoffs": [1, 3, 5, 10],
+  "cases": [
+    {
+      "id": "locate-session-implementation",
+      "query": "implementation of user authentication and session handling",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["locate-implementation", "authentication"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "locate-github-auth-configuration",
+      "query": "where is GitHub authentication configured",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["locate-configuration", "authentication"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/ee/sso/lib/better-auth-providers.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/constants.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        },
+        {
+          "path": "apps/web/lib/env.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "understand-session-flow",
+      "query": "how do server and proxy authentication session checks work",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["understand-flow", "authentication"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "locate-unauthorized-error-handling",
+      "query": "how are unauthorized API requests handled",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["locate-error-handling", "api"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/api/v2/auth/api-wrapper.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/v2/auth/authenticate-request.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "locate-redirect-database-model",
+      "query": "where is the survey redirect URL stored in the database",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["locate-database-model", "migration"],
+      "relevant": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "packages/database/migration/20230626105714_add_redirect_url/migration.sql",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "locate-survey-validation-endpoint",
+      "query": "where is the v3 survey validation API endpoint implemented",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["locate-api-endpoint", "api"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v3/surveys/validate/route.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/surveys/lib/operations.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "locate-external-url-tests",
+      "query": "where are external survey URL permissions tested",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["locate-tests", "survey-editor"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/survey/editor/lib/check-external-urls-permission.test.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "understand-survey-redirect-behavior",
+      "query": "survey redirects to external URL after completion",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "tags": ["locate-feature-behavior", "survey-runtime"],
+      "relevant": [
+        {
+          "path": "packages/surveys/src/components/general/ending-card.tsx",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "packages/surveys/src/components/general/render-survey.tsx",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    }
+  ]
+}

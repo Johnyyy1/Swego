@@ -12,6 +12,7 @@ apps/web/           Next.js delivery layer
 packages/db/        PostgreSQL schema and Drizzle integration
 packages/documents/ Provider-independent document normalization and chunking
 packages/embeddings/Embedding-provider contract and concrete adapters
+packages/evaluation/ Retrieval benchmark schemas, metrics, and reporting
 packages/github/    GitHub development-history source boundary
 packages/git/       Managed clones and Git object/history inspection
 packages/retrieval/ Repository-memory query contracts and PostgreSQL adapter
@@ -43,5 +44,6 @@ The database package accepts connection configuration instead of reading global 
 5. The indexer generates embeddings through the provider-neutral contract in `packages/embeddings` and stores the current vector projection plus provider/model/dimension metadata for each chunk in pgvector. Ollama is the default local adapter; OpenAI is optional.
 6. The PostgreSQL retrieval adapters generate independent dense pgvector and lexical full-text candidate pools, applying repository and temporal filters in each SQL query. The retrieval core rejects incompatible stored embedding projections, merges candidates by stable chunk ID, and ranks them with Reciprocal Rank Fusion.
 7. Delivery layers expose results without owning ingestion or retrieval logic.
+8. The evaluation package consumes the stable retrieval interface with authored relevance judgments, computes reproducible metrics, and remains independent from production ranking implementations.
 
 The process boundaries, normalized source-data model, ingestion layers, repository-memory documents, embedding projection, and hybrid retrieval exist today. Repository contents and historical file versions remain authoritative in Git; documents, chunks, embeddings, full-text projections, and retrieval rankings are rebuildable derived data. No agent, answer-generation, parser, sandbox, authentication, or billing design is implied by this setup.

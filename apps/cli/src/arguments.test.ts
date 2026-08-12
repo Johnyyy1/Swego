@@ -124,4 +124,29 @@ describe("CLI arguments", () => {
       "Usage: swega doctor",
     );
   });
+
+  test("parses a machine-readable retrieval benchmark", () => {
+    expect(
+      parseCliArguments([
+        "benchmark",
+        "benchmarks/formbricks-smoke.json",
+        "--json",
+      ]),
+    ).toEqual({
+      command: "benchmark",
+      benchmarkFile: "benchmarks/formbricks-smoke.json",
+      json: true,
+    });
+  });
+
+  test("rejects search options for retrieval benchmarks", () => {
+    expect(() =>
+      parseCliArguments([
+        "benchmark",
+        "benchmark.json",
+        "--before",
+        "2025-03-15",
+      ]),
+    ).toThrow("Usage: swega benchmark");
+  });
 });

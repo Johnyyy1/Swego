@@ -1,0 +1,18 @@
+{
+  "name": "@swega/evaluation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@swega/retrieval": "workspace:*",
+    "@swega/shared": "workspace:*",
+    "zod": "4.4.3"
+  }
+}
