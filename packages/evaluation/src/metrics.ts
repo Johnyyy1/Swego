@@ -99,6 +99,21 @@ export function matchesRelevanceTarget(
     (target.sourceType === undefined ||
       result.sourceType === target.sourceType) &&
     (target.sourceReference === undefined ||
+      result.sourceMetadata.sourceReference === target.sourceReference) &&
+    (target.symbolName === undefined ||
+      result.sourceMetadata.symbolName === target.symbolName)
+  );
+}
+
+export function matchesRelevanceTargetFile(
+  result: MemorySearchResult,
+  target: RelevanceTarget,
+): boolean {
+  return (
+    (target.path === undefined || result.path === target.path) &&
+    (target.sourceType === undefined ||
+      result.sourceType === target.sourceType) &&
+    (target.sourceReference === undefined ||
       result.sourceMetadata.sourceReference === target.sourceReference)
   );
 }

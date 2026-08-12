@@ -9,6 +9,7 @@ The CLI currently evaluates these strategies in a fixed order:
 ```text
 dense
 lexical
+structured
 hybrid
 hybrid+rerank (only with --rerank and a configured local provider)
 ```
@@ -45,6 +46,8 @@ Benchmark files are strict versioned JSON:
 
 Every case needs a stable case ID, query, repository UUID, and at least one relevance target. `before` is optional, but pinning it is strongly recommended so later source versions cannot silently alter the benchmark corpus.
 
+Development and held-out files additionally require a pinned `repositoryRevision`, a `groundTruthMethod`, and `category`, `difficulty`, and review `notes` on every case. Supported categories cover implementation, exact symbols, feature flows, configuration, endpoints, authorization, schema, migrations, errors, tests, UI, utilities, cross-file behavior, repository infrastructure, and temporal retrieval. An optional `symbolName` narrows a path target to one structural chunk and requires that path.
+
 A relevance target must use at least one stable selector:
 
 - `path` matches a document/file path and is the preferred selector for source code across memory rebuilds;
@@ -67,7 +70,14 @@ The evaluator reports per-case values and macro-averages across cases:
 
 Defaults are `@1`, `@3`, `@5`, and `@10`. Human output includes aggregate tables and every query with incomplete recall at the largest cutoff. JSON output includes aggregates, per-case metrics, missing targets, and compact top-result provenance without source contents.
 
-For diagnostic strategies such as `hybrid+rerank`, the report additionally includes candidate recall across the complete pre-rerank pool, candidate count and UTF-8 formatted-candidate bytes, candidate-generation/reranking durations, and a cause for every final missing target. Causes are `absent_from_candidate_pool` or `reranked_below_cutoff`, with candidate rank when present.
+For diagnostic strategies such as `hybrid+rerank`, the report additionally includes candidate recall across the complete pre-rerank pool, candidate count and UTF-8 formatted-candidate bytes, candidate-generation/reranking durations, and an outcome for every target:
+
+- A, `absent_from_candidate_pool`: no chunk from the target file entered the pool;
+- B, `wrong_chunk_from_target_file`: the file entered, but the labeled symbol/chunk did not;
+- C, `reranked_below_cutoff`: the target chunk entered but finished below K;
+- D, `successfully_returned`: the target was returned within K.
+
+Category aggregates are emitted for inspection, while the human report suppresses categories with fewer than three cases to avoid over-interpreting tiny samples.
 
 Existing Precision/Recall/MRR/nDCG definitions are unchanged. Candidate recall is separately named and never substituted for final Recall@K. Timing fields make diagnostic reports intentionally nondeterministic; ranking and metric fields remain reproducible for deterministic providers.
 
@@ -78,6 +88,7 @@ bun run swega benchmark benchmarks/formbricks-smoke.json
 bun run swega benchmark benchmarks/formbricks-smoke.json --rerank
 bun run swega benchmark benchmarks/formbricks-smoke.json --json
 bun run swega benchmark benchmarks/formbricks-smoke.json --rerank --candidate-limit 50 --path-limit 2
+bun run swega benchmark benchmarks/formbricks-development.json --file-evidence multi-branch
 ```
 
 The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available. `--rerank` additionally requires `RERANKER_PROVIDER=llama.cpp`, evaluates `hybrid+rerank` against the same cases, and fails rather than silently falling back if that provider is unavailable.
@@ -90,9 +101,33 @@ The benchmark command uses the configured database and embedding provider. Dense
 4. Inspect repository source and development history directly to author relevance targets. Do not use SWEGA search results to manufacture ground truth.
 5. Prefer paths for source documents and stable provider `sourceReference` values for non-file entities. Include all independently useful targets, not only one convenient file.
 6. Have another developer review ambiguous queries, grades, and target completeness.
-7. Run all three strategies, inspect per-query misses, and keep benchmark changes separate from ranking changes during comparison.
+7. Run all four base strategies, inspect per-query misses, and keep benchmark changes separate from ranking changes during comparison.
 
-The checked-in [Formbricks smoke benchmark](../benchmarks/formbricks-smoke.json) contains eleven manually reviewed cases spanning implementation, configuration, authentication flow, error handling, database schema/migration, API endpoint, tests, feature behavior, exact symbols, and a TSX component. Its repository UUID is local to the current SWEGA database; replace the UUID if Formbricks is registered under a different ID. The labels were authored by inspecting the pinned source snapshot, not from SWEGA's rankings.
+The checked-in Formbricks corpus has three roles:
+
+- [smoke](../benchmarks/formbricks-smoke.json): 11 fast, backward-compatible regression cases;
+- [development](../benchmarks/formbricks-development.json): 40 cases and 57 targets used to compare retrieval changes;
+- [held-out](../benchmarks/formbricks-held-out.json): 15 cases and 26 targets withheld until the file-propagation approach and bounds were selected.
+
+Together the development and held-out splits contain 55 cases across 15 categories, with easy navigation, medium semantic, broad architectural, multi-file, and one historical query. Every label was authored by using `git show`, `git grep`, and commit history against Formbricks revision `88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5`. Notes state why the path or symbol is relevant. SWEGA rankings were not used to create labels. A single author performed the source review, so these are manually reviewable judgments rather than independent inter-annotator agreement.
+
+| Category                  | Development | Held-out |
+| ------------------------- | ----------: | -------: |
+| implementation            |           3 |        1 |
+| exact symbol              |           3 |        1 |
+| feature flow              |           3 |        1 |
+| configuration             |           3 |        1 |
+| API endpoint              |           3 |        1 |
+| authorization             |           3 |        1 |
+| database schema           |           3 |        1 |
+| migration                 |           3 |        1 |
+| error handling            |           3 |        1 |
+| tests                     |           3 |        1 |
+| UI component              |           3 |        1 |
+| utility                   |           3 |        1 |
+| cross-file                |           3 |        1 |
+| repository infrastructure |           1 |        1 |
+| temporal                  |           0 |        1 |
 
 ## Formbricks smoke baseline
 
@@ -144,3 +179,61 @@ The selected 50-candidate/two-per-path configuration raised complete pre-rerank 
 The direct hybrid top-10 ranking regressed from the pre-change structural baseline (MRR 0.530, Recall@10 0.667, nDCG@10 0.518). Candidate Generation v2 deliberately optimizes a broader, more diverse pre-rerank pool; RRF alone does not reliably order its three heterogeneous intent signals. Non-reranked search therefore remains a known regression requiring broader evaluation before another fusion change.
 
 The exact pool-size measurements and per-query changes are recorded in [Local reranking](reranking.md). The remaining unauthorized-request failure demonstrates both diagnostic categories: one implementation file is present but reranked below 10, while the other is absent from the pool.
+
+## File evidence development comparison
+
+The 40-case development split was frozen before ranking changes. An order-preserving diagnostic reranker requested the production 50-candidate pool for each approach, allowing candidate coverage and direct fused ordering to be compared without using Qwen to select an aggregation formula.
+
+| File evidence |   MRR | Recall@10 | Hit@10 | nDCG@10 | Candidate recall | A: absent | B: wrong chunk | Mean bytes | Generation |
+| ------------- | ----: | --------: | -----: | ------: | ---------------: | --------: | -------------: | ---------: | ---------: |
+| none          | 0.362 |     0.479 |  0.600 |   0.372 |            0.592 |        14 |             11 |    134,663 |   642.8 ms |
+| max           | 0.342 |     0.454 |  0.550 |   0.348 |            0.667 |        14 |              7 |    137,185 |   706.0 ms |
+| multi-branch  | 0.342 |     0.454 |  0.550 |   0.348 |            0.667 |        13 |              8 |    133,211 |   677.7 ms |
+| bounded top-N | 0.341 |     0.442 |  0.550 |   0.346 |            0.667 |        14 |              7 |    138,604 |   673.9 ms |
+
+All three bounded propagation methods recovered the same aggregate target coverage and preserved exact-symbol Recall@10 at 1.0. `multi-branch` was selected before held-out evaluation because it had the fewest completely absent target files, the smallest payload, and represents independent retriever agreement. Its mean candidate-generation increase was 34.9 ms (5.4%) over the cached-query comparison. Max evidence had one fewer wrong-chunk classification but one more absent file and a larger payload; bounded top-N also lost additional direct top-10 recall.
+
+The direct fused ranking regression is material: configuration and authorization each moved from 0.167 to 0 Recall@10 in this three-case-per-category development sample, and test MRR moved from 0.833 to 0.583 despite unchanged test Recall@10 of 1.0. Consequently, multi-branch propagation is enabled by default for the reranker's candidate generation only. Ordinary hybrid search keeps the no-propagation ranking. This milestone optimizes material available to the reranker, not RRF as a final ranker.
+
+### Qwen development result
+
+After selecting multi-branch propagation, the same local Qwen3 reranker was run against the frozen development split. Query embeddings were cached before each run so Ollama could be unloaded and the 4,096-token, one-slot llama.cpp profile could process long candidates without Metal memory exhaustion.
+
+| Reranked candidate generation |   MRR | Recall@1 | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall |
+| ----------------------------- | ----: | -------: | -------: | --------: | -----: | ------: | ---------------: |
+| no propagation                | 0.446 |    0.358 |    0.462 |     0.521 |  0.625 |   0.438 |            0.592 |
+| multi-branch                  | 0.500 |    0.396 |    0.537 |     0.608 |  0.725 |   0.497 |            0.667 |
+
+Target outcomes moved from A/B/C/D = 14/11/6/26 to 13/8/6/30. Exact symbols, migrations, and tests retained 1.0 Recall@10. Among categories with three cases, notable gains were error handling (0.333→1.0 Recall@10), database schema (0.333→0.667), cross-file (0.278→0.444), and utility (0→0.333). Feature-flow Recall@10 remained 0.333, implementation remained 0.5, authorization remained 0.167, API endpoints remained 0.5, and UI remained 0.333. These small category slices describe failures; they are not statistical claims.
+
+Mean candidate payload decreased from 134,812 to 133,211 bytes. Mean candidate generation increased from 671.4 to 742.5 ms (+71.2 ms, 10.6%). Mean reranking changed from 39,902.7 to 38,638.1 ms (-3.2%), which is run/load noise rather than an algorithmic reranker speedup because candidate count stayed at 50.
+
+### Held-out result
+
+The 15-case held-out split was evaluated once after the multi-branch method and bounds were fixed. Because it contains only one case per category, only aggregate metrics are reported.
+
+| Strategy      |   MRR | Recall@1 | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall |
+| ------------- | ----: | -------: | -------: | --------: | -----: | ------: | ---------------: |
+| dense         | 0.492 |    0.289 |    0.506 |     0.561 |  0.800 |   0.489 |                — |
+| lexical       | 0.062 |    0.000 |    0.067 |     0.222 |  0.267 |   0.090 |                — |
+| structured    | 0.067 |    0.067 |    0.067 |     0.067 |  0.067 |   0.067 |                — |
+| hybrid        | 0.282 |    0.117 |    0.250 |     0.406 |  0.533 |   0.286 |                — |
+| hybrid+rerank | 0.568 |    0.333 |    0.622 |     0.711 |  0.867 |   0.581 |            0.767 |
+
+The held-out reranker pool contained 50 candidates averaging 143,586 bytes. Mean generation was 714.5 ms and mean reranking was 39,258.4 ms. Target outcomes were A/B/C/D = 5/3/2/16. The historical commit target was returned at rank 2 under its cutoff. Important misses remained both authorization symbols in one workspace access file, the workflow schema, two of three offline-retry flow symbols, and one upload-permission collaborator. These results are reported as-is and were not used to revise the selected approach.
+
+### Original smoke regression
+
+The unchanged 11-case smoke suite was rerun after selection. Dense, lexical, and direct hybrid results are unchanged because file propagation is scoped to the reranker pool. Structured is now independently reported. The reranked smoke result regressed slightly despite the development and held-out gains.
+
+| Strategy      |   MRR | Recall@5 | Recall@10 | Hit@10 | nDCG@10 |
+| ------------- | ----: | -------: | --------: | -----: | ------: |
+| dense         | 0.561 |    0.576 |     0.576 |  0.727 |   0.477 |
+| lexical       | 0.091 |    0.273 |     0.273 |  0.273 |   0.136 |
+| structured    | 0.348 |    0.409 |     0.409 |  0.455 |   0.358 |
+| hybrid        | 0.405 |    0.500 |     0.545 |  0.636 |   0.433 |
+| hybrid+rerank | 0.642 |    0.621 |     0.758 |  0.909 |   0.618 |
+
+Compared with Candidate Generation v2's reranked smoke baseline, MRR moved 0.652→0.642, Recall@5 0.697→0.621, Recall@10 0.788→0.758, and nDCG@10 0.629→0.618; Hit@10 stayed 0.909 and candidate recall stayed 0.833. This is the main observed regression and reinforces why ranking decisions were based on the larger development split rather than the smoke fixture.
+
+The motivating unauthorized-request case is not solved. Multi-branch propagation now promotes representative `apiWrapper` chunks to fused ranks 26–27, but Qwen still places the file below top 10; `authenticate-request.ts` remains absent because no bounded raw branch retrieved one of its chunks. The next bottleneck is therefore bounded structural/relationship expansion for collaborating symbols and files, followed by reranker discrimination—not a stronger unbounded file aggregate.

@@ -52,12 +52,33 @@ export interface MemorySearchResult {
   lexicalScore?: number;
   structuredScore?: number;
   structuredExactMatch?: boolean;
+  fileEvidenceRank?: number;
+  fileEvidenceSources?: readonly FileEvidenceSource[];
+  fileEvidenceScore?: number;
+  representativeChunkReason?: RepresentativeChunkReason;
+  propagatedFromFileEvidence?: boolean;
   rrfScore?: number;
   rrfRank?: number;
   rerankerScore?: number;
   rerankerRank?: number;
   finalRank?: number;
 }
+
+export const fileEvidenceStrategies = [
+  "none",
+  "max",
+  "multi-branch",
+  "bounded-top-n",
+] as const;
+
+export type FileEvidenceStrategy = (typeof fileEvidenceStrategies)[number];
+export type FileEvidenceSource = "dense" | "lexical" | "structured";
+export type RepresentativeChunkReason =
+  | "exact-symbol"
+  | "multi-branch-chunk"
+  | "query-symbol-overlap"
+  | "implementation-symbol"
+  | "best-direct-rank";
 
 export interface RepositoryMemory {
   searchMemory(

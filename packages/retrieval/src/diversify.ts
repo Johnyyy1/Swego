@@ -39,6 +39,7 @@ export function diversifyCandidatesByPath(
     [...firstExactByPath.values()].slice(0, options.limit),
   );
   let remainingProtected = protectedIds.size;
+  const selectedProtectedIds = new Set<string>();
   const pathCounts = new Map<string, number>();
 
   for (const candidate of candidates) {
@@ -58,6 +59,7 @@ export function diversifyCandidatesByPath(
     const reservesExactSlot =
       firstExactByPath.has(path) &&
       protectedIds.has(firstExactByPath.get(path) ?? "") &&
+      !selectedProtectedIds.has(firstExactByPath.get(path) ?? "") &&
       !protectedExact;
     const ordinaryLimit =
       options.maxCandidatesPerPath - (reservesExactSlot ? 1 : 0);
@@ -69,6 +71,9 @@ export function diversifyCandidatesByPath(
     }
 
     selected.push(candidate);
+    if (protectedExact) {
+      selectedProtectedIds.add(candidate.sourceMetadata.chunkId);
+    }
     pathCounts.set(path, count + 1);
   }
 

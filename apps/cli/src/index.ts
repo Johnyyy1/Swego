@@ -115,6 +115,9 @@ async function main(): Promise<void> {
           ...(arguments_.pathLimit === undefined
             ? {}
             : { maxCandidatesPerPath: arguments_.pathLimit }),
+          ...(arguments_.fileEvidence === undefined
+            ? {}
+            : { fileEvidenceStrategy: arguments_.fileEvidence }),
         },
       );
       if (arguments_.command === "benchmark") {
@@ -122,6 +125,7 @@ async function main(): Promise<void> {
         const benchmarkStrategies = [
           { name: "dense", memory: strategies.dense },
           { name: "lexical", memory: strategies.lexical },
+          { name: "structured", memory: strategies.structured },
           { name: "hybrid", memory: strategies.hybrid },
           ...(arguments_.rerank
             ? [

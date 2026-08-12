@@ -27,6 +27,7 @@ describe("HybridRepositoryMemory", () => {
       dense,
       lexical,
       memoryStub([], structuredInputs),
+      { fileEvidenceStrategy: "none" },
     );
 
     const results = await hybrid.searchMemory({
@@ -67,6 +68,7 @@ describe("HybridRepositoryMemory", () => {
       dense,
       memoryStub([]),
       memoryStub([]),
+      { fileEvidenceStrategy: "none" },
     );
 
     await expect(
@@ -91,6 +93,7 @@ describe("HybridRepositoryMemory", () => {
       memoryStub([]),
       memoryStub([]),
       {
+        fileEvidenceStrategy: "none",
         denseCandidateLimit: 75,
         lexicalCandidateLimit: 50,
         structuredCandidateLimit: 30,
@@ -108,6 +111,87 @@ describe("HybridRepositoryMemory", () => {
     expect(results.map((candidate) => candidate.path)).toEqual([
       "src/a.ts",
       "src/b.ts",
+    ]);
+  });
+
+  test("uses multi-branch file evidence and preserves two legitimate symbols", async () => {
+    const exact = result("exact", {
+      path: "src/auth.ts",
+      sourceMetadata: metadata("exact", "src/auth.ts", {
+        symbolName: "authenticateRequest",
+        symbolKind: "function",
+      }),
+      structuredExactMatch: true,
+    });
+    const implementation = result("implementation", {
+      path: "src/auth.ts",
+      sourceMetadata: metadata("implementation", "src/auth.ts", {
+        symbolName: "handleUnauthorized",
+        symbolKind: "function",
+      }),
+    });
+    const metadataChunk = result("metadata", {
+      path: "src/auth.ts",
+      sourceMetadata: metadata("metadata", "src/auth.ts", {
+        symbolName: "AuthOptions",
+        symbolKind: "interface",
+      }),
+    });
+    const hybrid = new HybridRepositoryMemory(
+      memoryStub([implementation, metadataChunk]),
+      memoryStub([metadataChunk, exact]),
+      memoryStub([exact, implementation]),
+      {
+        fileEvidenceStrategy: "multi-branch",
+        maxCandidatesPerPath: 2,
+      },
+    );
+
+    const results = await hybrid.searchMemory({
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+      query: "authenticateRequest unauthorized implementation",
+      limit: 2,
+      before: new Date("2025-03-02T00:00:00.000Z"),
+    });
+
+    expect(
+      results.map((candidate) => candidate.sourceMetadata.chunkId),
+    ).toEqual(["exact", "implementation"]);
+    expect(
+      results.every((candidate) => candidate.propagatedFromFileEvidence),
+    ).toBe(true);
+    expect(results[0]?.representativeChunkReason).toBe("exact-symbol");
+  });
+
+  test("uses the resolved temporal cutoff before file aggregation", async () => {
+    const observedCutoffs: Date[] = [];
+    const cutoffMemory: RepositoryMemory = {
+      searchMemory: async (input) => {
+        observedCutoffs.push(input.before ?? new Date(0));
+        return input.before &&
+          input.before <= new Date("2025-03-02T00:00:00.000Z")
+          ? [result("available", { path: "src/available.ts" })]
+          : [result("future", { path: "src/future.ts" })];
+      },
+    };
+    const hybrid = new HybridRepositoryMemory(
+      cutoffMemory,
+      cutoffMemory,
+      cutoffMemory,
+      { fileEvidenceStrategy: "multi-branch" },
+    );
+    const before = new Date("2025-03-02T00:00:00.000Z");
+
+    const results = await hybrid.searchMemory({
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+      query: "available behavior",
+      limit: 10,
+      before,
+    });
+
+    expect(observedCutoffs).toEqual([before, before, before]);
+    expect(results.map((candidate) => candidate.path)).toEqual([
+      "src/available.ts",
     ]);
   });
 });
@@ -157,6 +241,35 @@ function result(
       symbolPart: null,
       symbolPartCount: null,
     },
+    ...overrides,
+  };
+}
+
+function metadata(
+  chunkId: string,
+  path: string,
+  overrides: Partial<MemorySearchResult["sourceMetadata"]>,
+): MemorySearchResult["sourceMetadata"] {
+  const timestamp = new Date("2025-03-01T00:00:00.000Z");
+  return {
+    documentId: `document-${chunkId}`,
+    chunkId,
+    sourceReference: `git:test:${path}`,
+    parentSourceType: null,
+    parentSourceEntityId: null,
+    occurredAt: timestamp,
+    availableAt: timestamp,
+    path,
+    commitSha: "abc123",
+    startLine: 1,
+    endLine: 10,
+    language: "typescript",
+    symbolId: `symbol-${chunkId}`,
+    symbolName: null,
+    symbolKind: null,
+    parentSymbol: null,
+    symbolPart: 1,
+    symbolPartCount: 1,
     ...overrides,
   };
 }

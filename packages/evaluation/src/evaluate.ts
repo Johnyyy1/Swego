@@ -5,11 +5,15 @@ import {
   type SearchMemoryExecutionDiagnostics,
 } from "@swega/retrieval";
 
-import { evaluateRanking, type CutoffMetrics } from "./metrics";
+import {
+  evaluateRanking,
+  matchesRelevanceTargetFile,
+  type CutoffMetrics,
+} from "./metrics";
 import type {
+  RetrievalBenchmarkCase,
   RelevanceTarget,
   RetrievalBenchmark,
-  RetrievalBenchmarkCase,
 } from "./schema";
 
 export interface RetrievalStrategy {
@@ -31,6 +35,9 @@ export interface BenchmarkCaseReport {
   query: string;
   repositoryId: string;
   before?: string;
+  category?: RetrievalBenchmarkCase["category"];
+  difficulty?: RetrievalBenchmarkCase["difficulty"];
+  notes?: string;
   tags?: readonly string[];
   reciprocalRank: number;
   firstRelevantRank: number | null;
@@ -42,7 +49,11 @@ export interface BenchmarkCaseReport {
 }
 
 export type MissingRelevantReason =
-  "absent_from_candidate_pool" | "reranked_below_cutoff";
+  | "absent_from_candidate_pool"
+  | "wrong_chunk_from_target_file"
+  | "reranked_below_cutoff";
+
+export type TargetOutcome = MissingRelevantReason | "successfully_returned";
 
 export interface MissingRelevantDiagnostic {
   target: RelevanceTarget;
@@ -50,9 +61,17 @@ export interface MissingRelevantDiagnostic {
   candidateRank: number | null;
 }
 
+export interface TargetOutcomeDiagnostic {
+  target: RelevanceTarget;
+  outcome: TargetOutcome;
+  candidateRank: number | null;
+  finalRank: number | null;
+}
+
 export interface BenchmarkCandidateDiagnostics extends SearchMemoryExecutionDiagnostics {
   candidateRecall: number;
   missingRelevant: readonly MissingRelevantDiagnostic[];
+  targetOutcomes: readonly TargetOutcomeDiagnostic[];
 }
 
 export interface AggregateStrategyMetrics {
@@ -68,11 +87,17 @@ export interface AggregateCandidateDiagnostics {
   meanCandidateBytes: number;
   meanCandidateGenerationDurationMs: number;
   meanRerankingDurationMs: number;
+  targetOutcomeCounts: Readonly<Record<TargetOutcome, number>>;
+}
+
+export interface CategoryStrategyMetrics extends AggregateStrategyMetrics {
+  category: NonNullable<RetrievalBenchmarkCase["category"]>;
 }
 
 export interface StrategyBenchmarkReport {
   strategy: string;
   aggregate: AggregateStrategyMetrics;
+  categories: readonly CategoryStrategyMetrics[];
   cases: readonly BenchmarkCaseReport[];
 }
 
@@ -80,6 +105,9 @@ export interface RetrievalBenchmarkReport {
   version: 1;
   benchmark: string;
   description?: string;
+  split?: RetrievalBenchmark["split"];
+  repositoryRevision?: string;
+  groundTruthMethod?: string;
   caseCount: number;
   cutoffs: readonly number[];
   strategies: readonly StrategyBenchmarkReport[];
@@ -147,6 +175,7 @@ export async function evaluateRetrievalBenchmark(
     strategyReports.push({
       strategy: strategy.name,
       aggregate: aggregateCaseReports(caseReports, benchmark.cutoffs),
+      categories: aggregateCategoryReports(caseReports, benchmark.cutoffs),
       cases: caseReports,
     });
   }
@@ -155,6 +184,13 @@ export async function evaluateRetrievalBenchmark(
     version: 1,
     benchmark: benchmark.name,
     ...(benchmark.description ? { description: benchmark.description } : {}),
+    ...(benchmark.split ? { split: benchmark.split } : {}),
+    ...(benchmark.repositoryRevision
+      ? { repositoryRevision: benchmark.repositoryRevision }
+      : {}),
+    ...(benchmark.groundTruthMethod
+      ? { groundTruthMethod: benchmark.groundTruthMethod }
+      : {}),
     caseCount: benchmark.cases.length,
     cutoffs: benchmark.cutoffs,
     strategies: strategyReports,
@@ -187,12 +223,17 @@ function evaluateBenchmarkCase(
           return [];
         }
         const candidateRank = candidateEvaluation.targetRanks[index] ?? null;
+        const targetFilePresent = candidates?.some((candidate) =>
+          matchesRelevanceTargetFile(candidate, target),
+        );
         return [
           {
             target,
             reason:
               candidateRank === null
-                ? ("absent_from_candidate_pool" as const)
+                ? targetFilePresent
+                  ? ("wrong_chunk_from_target_file" as const)
+                  : ("absent_from_candidate_pool" as const)
                 : ("reranked_below_cutoff" as const),
             candidateRank,
           },
@@ -205,6 +246,11 @@ function evaluateBenchmarkCase(
     query: benchmarkCase.query,
     repositoryId: benchmarkCase.repositoryId,
     ...(benchmarkCase.before ? { before: benchmarkCase.before } : {}),
+    ...(benchmarkCase.category ? { category: benchmarkCase.category } : {}),
+    ...(benchmarkCase.difficulty
+      ? { difficulty: benchmarkCase.difficulty }
+      : {}),
+    ...(benchmarkCase.notes ? { notes: benchmarkCase.notes } : {}),
     ...(benchmarkCase.tags ? { tags: benchmarkCase.tags } : {}),
     reciprocalRank: evaluation.reciprocalRank,
     firstRelevantRank: evaluation.firstRelevantRank,
@@ -219,6 +265,38 @@ function evaluateBenchmarkCase(
               candidateEvaluation.at[String(candidates?.length || 1)]?.recall ??
               0,
             missingRelevant: missingRelevantDiagnostics,
+            targetOutcomes: benchmarkCase.relevant.map((target, index) => {
+              const finalRank = evaluation.targetRanks[index] ?? null;
+              const candidateRank =
+                candidateEvaluation.targetRanks[index] ?? null;
+              if (finalRank !== null) {
+                return {
+                  target,
+                  outcome: "successfully_returned" as const,
+                  candidateRank,
+                  finalRank,
+                };
+              }
+              if (candidateRank !== null) {
+                return {
+                  target,
+                  outcome: "reranked_below_cutoff" as const,
+                  candidateRank,
+                  finalRank,
+                };
+              }
+              const targetFilePresent = candidates?.some((candidate) =>
+                matchesRelevanceTargetFile(candidate, target),
+              );
+              return {
+                target,
+                outcome: targetFilePresent
+                  ? ("wrong_chunk_from_target_file" as const)
+                  : ("absent_from_candidate_pool" as const),
+                candidateRank,
+                finalRank,
+              };
+            }),
           },
         }
       : {}),
@@ -274,10 +352,52 @@ function aggregateCaseReports(
             meanRerankingDurationMs: mean(
               candidateDiagnostics.map((item) => item.rerankingDurationMs),
             ),
+            targetOutcomeCounts: countTargetOutcomes(candidateDiagnostics),
           },
         }
       : {}),
   };
+}
+
+function aggregateCategoryReports(
+  cases: readonly BenchmarkCaseReport[],
+  cutoffs: readonly number[],
+): readonly CategoryStrategyMetrics[] {
+  const grouped = new Map<
+    NonNullable<RetrievalBenchmarkCase["category"]>,
+    BenchmarkCaseReport[]
+  >();
+  for (const report of cases) {
+    if (!report.category) {
+      continue;
+    }
+    const categoryCases = grouped.get(report.category) ?? [];
+    categoryCases.push(report);
+    grouped.set(report.category, categoryCases);
+  }
+  return [...grouped.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([category, categoryCases]) => ({
+      category,
+      ...aggregateCaseReports(categoryCases, cutoffs),
+    }));
+}
+
+function countTargetOutcomes(
+  diagnostics: readonly BenchmarkCandidateDiagnostics[],
+): Readonly<Record<TargetOutcome, number>> {
+  const counts: Record<TargetOutcome, number> = {
+    absent_from_candidate_pool: 0,
+    wrong_chunk_from_target_file: 0,
+    reranked_below_cutoff: 0,
+    successfully_returned: 0,
+  };
+  for (const diagnostic of diagnostics) {
+    for (const targetOutcome of diagnostic.targetOutcomes) {
+      counts[targetOutcome.outcome] += 1;
+    }
+  }
+  return counts;
 }
 
 function validateStrategies(strategies: readonly RetrievalStrategy[]): void {

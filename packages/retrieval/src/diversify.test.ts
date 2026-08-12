@@ -35,6 +35,19 @@ describe("candidate path diversification", () => {
     ).toHaveLength(1);
   });
 
+  test("allows a second legitimate symbol after an exact match", () => {
+    const diversified = diversifyCandidatesByPath(
+      [
+        result("a-exact", "src/a.ts", { structuredExactMatch: true }),
+        result("a-implementation", "src/a.ts"),
+        result("a-metadata", "src/a.ts"),
+      ],
+      { limit: 2, maxCandidatesPerPath: 2 },
+    );
+
+    expect(diversified.map(id)).toEqual(["a-exact", "a-implementation"]);
+  });
+
   test("is deterministic for tied input and does not cap pathless sources", () => {
     const input = [
       result("pathless-a", null),

@@ -33,6 +33,14 @@ describe("retrieval benchmark schema", () => {
         ],
       }),
     ).toThrow(BenchmarkValidationError);
+    expect(() =>
+      parseRetrievalBenchmark({
+        version: 1,
+        name: "incomplete development corpus",
+        split: "development",
+        cases: [validCase()],
+      }),
+    ).toThrow("repository revision");
   });
 
   test("rejects duplicate case IDs and relevance selectors", () => {
@@ -52,6 +60,49 @@ describe("retrieval benchmark schema", () => {
         ],
       }),
     ).toThrow("Duplicate");
+  });
+
+  test("validates review metadata and symbol-level targets", () => {
+    const benchmark = parseRetrievalBenchmark({
+      version: 1,
+      name: "reviewed corpus",
+      split: "development",
+      repositoryRevision: "fixture-revision",
+      groundTruthMethod: "Reviewed source at the pinned revision.",
+      cases: [
+        {
+          ...validCase(),
+          category: "exact_symbol",
+          difficulty: "easy",
+          notes: "The exported symbol is the implementation entry point.",
+          relevant: [
+            {
+              path: "src/session.ts",
+              sourceType: "source_code",
+              symbolName: "getSession",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(benchmark).toMatchObject({
+      split: "development",
+      cases: [
+        {
+          category: "exact_symbol",
+          difficulty: "easy",
+          relevant: [{ symbolName: "getSession" }],
+        },
+      ],
+    });
+    expect(() =>
+      parseRetrievalBenchmark({
+        version: 1,
+        name: "bad category",
+        cases: [{ ...validCase(), category: "made_up" }],
+      }),
+    ).toThrow(BenchmarkValidationError);
   });
 });
 

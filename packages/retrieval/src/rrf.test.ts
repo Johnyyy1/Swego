@@ -103,6 +103,35 @@ describe("reciprocalRankFusion", () => {
       rrfRank: 1,
     });
   });
+
+  test("adds bounded rank-only file evidence to representative chunks", () => {
+    const representative = result("representative", {
+      fileEvidenceRank: 2,
+      fileEvidenceSources: ["dense", "structured"],
+      fileEvidenceScore: 2 / 61,
+      representativeChunkReason: "implementation-symbol",
+      propagatedFromFileEvidence: true,
+    });
+    const fused = reciprocalRankFusion(
+      [result("direct")],
+      [],
+      { limit: 10, k: 60 },
+      [],
+      [representative],
+    );
+
+    expect(fused.map((candidate) => candidate.sourceMetadata.chunkId)).toEqual([
+      "direct",
+      "representative",
+    ]);
+    expect(fused[1]).toMatchObject({
+      rrfScore: 1 / 62,
+      fileEvidenceRank: 2,
+      fileEvidenceSources: ["dense", "structured"],
+      representativeChunkReason: "implementation-symbol",
+      propagatedFromFileEvidence: true,
+    });
+  });
 });
 
 function result(

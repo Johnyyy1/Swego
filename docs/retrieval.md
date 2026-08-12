@@ -20,6 +20,9 @@ query
         branch path diversification
                     ↓
       merge stable chunk IDs with RRF
+                    +
+    bounded rank-only file evidence
+      → representative code chunks
                     ↓
           path diversification
                     ↓
@@ -68,6 +71,20 @@ Structured retrieval uses a separate generated `structural_search_vector` and GI
 
 All three branches execute concurrently. Each may internally overfetch up to the centralized default of 300 so repeated structural chunks cannot prevent a relevant path from reaching diversification. Each branch is reduced to at most 100 candidates with the configured per-path cap before fusion. Public search and reranker pools remain bounded at 100 and 50 respectively; there is no query per candidate.
 
+## File-level evidence propagation
+
+File evidence is a rank-only branch layered on chunk retrieval. The selected reranker candidate-generation default is `multi-branch`; direct non-reranked hybrid search remains `none` because propagation improved pool coverage but regressed direct top-10 ordering. It groups the already repository- and time-filtered raw branch candidates by `(repositoryId, path)`, ranks at most 50 promising files, and selects at most two representative chunks from each. Pathless provider entities remain ordinary chunk candidates. Whole files are never returned or queried again.
+
+Three bounded aggregation methods are available for controlled evaluation:
+
+- `max` uses the strongest direct chunk's reciprocal-rank evidence;
+- `multi-branch` sums only the best reciprocal-rank contribution from each independent dense, lexical, and structural branch;
+- `bounded-top-n` uses the two strongest chunk aggregates, discounting the second contribution.
+
+None of the methods counts every chunk or mixes cosine, lexical, and structural raw scores. Thus a large file cannot win merely by containing more chunks. File ranks contribute one additional `1 / (k + fileRank)` term only to selected representatives. Selection protects exact structural matches, then considers query/symbol overlap, implementation-bearing symbol kinds, independent branch coverage, direct rank, and stable chunk ID. Final path diversification still permits two independently useful symbols from one file.
+
+Use `--file-evidence none|max|multi-branch|bounded-top-n` to reproduce an approach. The benchmark comparison is recorded in [Retrieval evaluation](retrieval-evaluation.md).
+
 ## Reciprocal Rank Fusion
 
 Candidates merge by deterministic `document_chunks.id`, so a chunk returned by multiple branches is one result. RRF uses 1-based ranks and the conventional default `k = 60`:
@@ -102,6 +119,8 @@ Every result retains content and source provenance. Hybrid results may additiona
 - `denseRank` and `denseSimilarity` when present in the dense pool;
 - `lexicalRank` and `lexicalScore` when present in the lexical pool;
 - `structuredRank`, `structuredScore`, and `structuredExactMatch` when present in the structural pool;
+- `fileEvidenceRank`, `fileEvidenceSources`, and rank-derived `fileEvidenceScore` for propagated representatives;
+- `representativeChunkReason` and `propagatedFromFileEvidence` for the bounded synthetic branch;
 - `rrfScore` and pre-diversification `rrfRank` for the fused score/order;
 - `rerankerScore`, `rerankerRank`, and `finalRank` when reranking is enabled.
 
@@ -126,12 +145,12 @@ An exploratory comparison used the existing Formbricks snapshot at commit `88a38
 
 ## Known limitations
 
-- Qwen3-Embedding-0.6B ranking still needs a stable relevance corpus with judgments rather than a small set of exploratory queries.
+- The reviewed relevance corpus covers one repository and one author; broader claims require additional repositories and independent reviewers.
 - PostgreSQL structural search is token/prefix based; it does not provide trigram typo correction or semantic symbol resolution.
 - Repeated terms in large authored catalogs can produce noisy lexical candidates; a relevance corpus is needed before selecting a general mitigation.
 - Unsupported and malformed languages still use conservative fixed-size code chunks that can split a declaration from its context.
 - Optional reranking adds substantial latency and cannot recover relevant material absent from the bounded candidate pool. There is no relationship expansion or source-type/path filter.
-- RRF is chunk-scoped. Lexical and structural evidence that lands on different chunks from the same file does not currently reinforce one representative chunk; the unauthorized-request smoke case exposes this remaining bottleneck.
+- File propagation can only select chunks already present in one of the bounded raw branches. It does not perform relationship or neighboring-symbol expansion.
 - The schema supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
 - HNSW with highly selective repository/time filters can return fewer strong dense candidates than an exact prefiltered strategy.
 - Provider adapters validate failures but do not yet retry transient upstream errors.

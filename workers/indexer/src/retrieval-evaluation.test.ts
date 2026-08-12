@@ -335,6 +335,39 @@ describeWithDatabase("repository memory retrieval", () => {
     expect(results[0]?.rrfScore).toBeGreaterThan(0);
   });
 
+  test("file evidence propagation remains repository- and time-isolated", async () => {
+    const memory = new HybridRepositoryMemory(
+      new PgVectorRepositoryMemory(database, embeddings),
+      new PgLexicalRepositoryMemory(database),
+      new PgStructuredRepositoryMemory(database),
+      { fileEvidenceStrategy: "multi-branch" },
+    );
+    const results = await memory.searchMemory({
+      repositoryId,
+      query: "getProxySession implementation",
+      limit: 10,
+      before: cutoff,
+    });
+
+    expect(
+      results.every(
+        (result) =>
+          result.repositoryId === repositoryId &&
+          result.sourceMetadata.availableAt.getTime() <= cutoff.getTime(),
+      ),
+    ).toBe(true);
+    expect(
+      results.some((result) => result.sourceId === futureSymbolSourceId),
+    ).toBe(false);
+    expect(
+      results.find((result) => result.sourceId === symbolSourceId),
+    ).toMatchObject({
+      path: "src/proxy-session.ts",
+      propagatedFromFileEvidence: true,
+      fileEvidenceSources: expect.arrayContaining(["structured"]),
+    });
+  });
+
   test("re-embedding unchanged chunks is idempotent", async () => {
     const result = await embedRepositoryMemory({
       database,

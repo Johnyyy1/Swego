@@ -9,6 +9,14 @@ export {
   HybridRepositoryMemory,
 } from "./hybrid";
 export type { HybridRepositoryMemoryOptions } from "./hybrid";
+export {
+  buildFileEvidenceRepresentatives,
+  DEFAULT_BOUNDED_FILE_CHUNK_COUNT,
+  DEFAULT_FILE_EVIDENCE_FILE_LIMIT,
+  DEFAULT_RERANK_FILE_EVIDENCE_STRATEGY,
+  DEFAULT_REPRESENTATIVE_CHUNKS_PER_FILE,
+} from "./file-evidence";
+export type { FileEvidenceOptions } from "./file-evidence";
 export { PgLexicalRepositoryMemory } from "./lexical";
 export {
   DEFAULT_BRANCH_CANDIDATE_LIMIT,
@@ -33,11 +41,15 @@ export { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
 export type { ReciprocalRankFusionOptions } from "./rrf";
 export type {
   DiagnosticRepositoryMemory,
+  FileEvidenceSource,
+  FileEvidenceStrategy,
   MemorySearchResult,
   MemorySourceMetadata,
   RepositoryMemory,
   SearchMemoryExecution,
   SearchMemoryExecutionDiagnostics,
   SearchMemoryInput,
+  RepresentativeChunkReason,
 } from "./types";
+export { fileEvidenceStrategies } from "./types";
 export { supportsSearchMemoryDiagnostics } from "./types";

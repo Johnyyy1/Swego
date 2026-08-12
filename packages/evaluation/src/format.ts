@@ -74,6 +74,57 @@ export function formatBenchmarkReport(
         ...candidateRows,
       ]),
     );
+    lines.push(
+      "",
+      "Candidate failure classes (targets)",
+      formatTable([
+        [
+          "Strategy",
+          "A: absent",
+          "B: wrong chunk",
+          "C: reranked",
+          "D: returned",
+        ],
+        ...report.strategies.flatMap((strategy) => {
+          const counts =
+            strategy.aggregate.candidateDiagnostics?.targetOutcomeCounts;
+          return counts
+            ? [
+                [
+                  strategy.strategy,
+                  String(counts.absent_from_candidate_pool),
+                  String(counts.wrong_chunk_from_target_file),
+                  String(counts.reranked_below_cutoff),
+                  String(counts.successfully_returned),
+                ],
+              ]
+            : [];
+        }),
+      ]),
+    );
+  }
+
+  const meaningfulCategoryRows = report.strategies.flatMap((strategy) =>
+    strategy.categories
+      .filter((category) => category.cases >= 3)
+      .map((category) => [
+        strategy.strategy,
+        category.category,
+        String(category.cases),
+        formatMetric(category.mrr),
+        formatMetric(category.at["10"]?.recall ?? 0),
+        formatMetric(category.at["10"]?.ndcg ?? 0),
+      ]),
+  );
+  if (meaningfulCategoryRows.length > 0) {
+    lines.push(
+      "",
+      "Metrics by category (categories with at least 3 cases)",
+      formatTable([
+        ["Strategy", "Category", "Cases", "MRR", "Recall@10", "nDCG@10"],
+        ...meaningfulCategoryRows,
+      ]),
+    );
   }
 
   const maximumCutoff = Math.max(...report.cutoffs);
@@ -153,6 +204,7 @@ function formatRelevanceTarget(target: RelevanceTarget): string {
     ...(target.sourceReference
       ? [`sourceReference=${target.sourceReference}`]
       : []),
+    ...(target.symbolName ? [`symbolName=${target.symbolName}`] : []),
   ];
   return `${selectors.join(",")},grade=${target.grade}`;
 }

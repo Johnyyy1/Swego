@@ -6,10 +6,17 @@ import {
   validateCandidateLimit,
 } from "./candidate-generation";
 import { diversifyCandidatesByPath } from "./diversify";
+import {
+  buildFileEvidenceRepresentatives,
+  DEFAULT_FILE_EVIDENCE_FILE_LIMIT,
+  DEFAULT_REPRESENTATIVE_CHUNKS_PER_FILE,
+} from "./file-evidence";
 import { normalizeSearchMemoryInput } from "./search-input";
 import { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
+import { fileEvidenceStrategies } from "./types";
 import type {
   MemorySearchResult,
+  FileEvidenceStrategy,
   RepositoryMemory,
   SearchMemoryInput,
 } from "./types";
@@ -26,6 +33,9 @@ export interface HybridRepositoryMemoryOptions {
   fusionBranchCandidateLimit?: number;
   maxCandidatesPerPath?: number;
   rrfK?: number;
+  fileEvidenceStrategy?: FileEvidenceStrategy;
+  fileEvidenceFileLimit?: number;
+  representativeChunksPerFile?: number;
 }
 
 export class HybridRepositoryMemory implements RepositoryMemory {
@@ -35,6 +45,9 @@ export class HybridRepositoryMemory implements RepositoryMemory {
   private readonly fusionBranchCandidateLimit: number;
   private readonly maxCandidatesPerPath: number;
   private readonly rrfK: number;
+  private readonly fileEvidenceStrategy: FileEvidenceStrategy;
+  private readonly fileEvidenceFileLimit: number;
+  private readonly representativeChunksPerFile: number;
 
   constructor(
     private readonly dense: RepositoryMemory,
@@ -67,6 +80,21 @@ export class HybridRepositoryMemory implements RepositoryMemory {
     if (!Number.isFinite(this.rrfK) || this.rrfK < 0) {
       throw new Error("RRF k must be a non-negative finite number");
     }
+    this.fileEvidenceStrategy = options.fileEvidenceStrategy ?? "none";
+    if (!fileEvidenceStrategies.includes(this.fileEvidenceStrategy)) {
+      throw new Error(
+        `Unsupported file evidence strategy '${this.fileEvidenceStrategy}'`,
+      );
+    }
+    this.fileEvidenceFileLimit = validateCandidateLimit(
+      options.fileEvidenceFileLimit ?? DEFAULT_FILE_EVIDENCE_FILE_LIMIT,
+      "File evidence",
+    );
+    this.representativeChunksPerFile = validateCandidateLimit(
+      options.representativeChunksPerFile ??
+        DEFAULT_REPRESENTATIVE_CHUNKS_PER_FILE,
+      "Representative chunk",
+    );
   }
 
   async searchMemory(
@@ -111,6 +139,21 @@ export class HybridRepositoryMemory implements RepositoryMemory {
       structuredResults,
       branchDiversification,
     );
+    const fileEvidenceResults =
+      this.fileEvidenceStrategy === "none"
+        ? []
+        : buildFileEvidenceRepresentatives(
+            denseResults,
+            lexicalResults,
+            structuredResults,
+            {
+              strategy: this.fileEvidenceStrategy,
+              query: normalized.query,
+              rrfK: this.rrfK,
+              fileLimit: this.fileEvidenceFileLimit,
+              representativeChunksPerFile: this.representativeChunksPerFile,
+            },
+          );
     const fused = reciprocalRankFusion(
       diversifiedDense,
       diversifiedLexical,
@@ -122,6 +165,7 @@ export class HybridRepositoryMemory implements RepositoryMemory {
         k: this.rrfK,
       },
       diversifiedStructured,
+      fileEvidenceResults,
     );
     return diversifyCandidatesByPath(fused, {
       limit: normalized.limit,

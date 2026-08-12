@@ -176,11 +176,73 @@ describe("retrieval benchmark evaluation", () => {
       candidateRecall: 0.5,
       meanCandidateBytes: 1024,
       meanRerankingDurationMs: 12,
+      targetOutcomeCounts: {
+        absent_from_candidate_pool: 1,
+        wrong_chunk_from_target_file: 0,
+        reranked_below_cutoff: 1,
+        successfully_returned: 0,
+      },
     });
     expect(formatBenchmarkReport(report)).toContain(
       "absent_from_candidate_pool",
     );
     expect(formatBenchmarkReport(report)).toContain("reranked_below_cutoff");
+  });
+
+  test("classifies a wrong candidate chunk from a relevant file", async () => {
+    const benchmark = parseRetrievalBenchmark({
+      version: 1,
+      name: "chunk diagnostics",
+      cutoffs: [1],
+      cases: [
+        {
+          id: "session-flow",
+          query: "session implementation",
+          repositoryId,
+          category: "implementation",
+          relevant: [
+            {
+              path: "src/session.ts",
+              symbolName: "getSession",
+              grade: 3,
+            },
+          ],
+        },
+      ],
+    });
+    const wrongChunk = result("src/session.ts", repositoryId, "helper");
+    const memory: DiagnosticRepositoryMemory = {
+      searchMemory: async () => [wrongChunk],
+      searchMemoryWithDiagnostics: async () => ({
+        results: [wrongChunk],
+        candidates: [wrongChunk],
+        diagnostics: {
+          candidateGenerationDurationMs: 1,
+          rerankingDurationMs: 1,
+          candidateCount: 1,
+          candidateBytes: 1,
+        },
+      }),
+    };
+
+    const report = await evaluateRetrievalBenchmark(benchmark, [
+      { name: "hybrid+rerank", memory },
+    ]);
+
+    expect(
+      report.strategies[0]?.cases[0]?.candidateDiagnostics?.targetOutcomes,
+    ).toEqual([
+      {
+        target: expect.objectContaining({ symbolName: "getSession" }),
+        outcome: "wrong_chunk_from_target_file",
+        candidateRank: null,
+        finalRank: null,
+      },
+    ]);
+    expect(report.strategies[0]?.categories[0]).toMatchObject({
+      category: "implementation",
+      cases: 1,
+    });
   });
 });
 
@@ -194,6 +256,7 @@ function strategy(name: string, results: readonly MemorySearchResult[]) {
 function result(
   path: string,
   resultRepositoryId = repositoryId,
+  symbolName: string | null = null,
 ): MemorySearchResult {
   const timestamp = new Date("2025-03-01T00:00:00.000Z");
   return {
@@ -218,7 +281,7 @@ function result(
       endLine: 10,
       language: "TypeScript",
       symbolId: null,
-      symbolName: null,
+      symbolName,
       symbolKind: null,
       parentSymbol: null,
       symbolPart: null,

@@ -1,0 +1,826 @@
+{
+  "version": 1,
+  "name": "Formbricks retrieval development corpus",
+  "description": "Forty reviewed code-search cases for engineering iteration on the pinned Formbricks snapshot. This development split may be used to compare retrieval designs; it is not evidence of general performance beyond this repository.",
+  "split": "development",
+  "repositoryRevision": "88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5",
+  "groundTruthMethod": "Each query and relevance target was authored by reading the pinned Git snapshot directly. Targets identify implementation entry points, collaborating files, schemas, migrations, tests, or configuration supported by the inspected source; SWEGA search output was not used to create labels.",
+  "cutoffs": [1, 3, 5, 10],
+  "cases": [
+    {
+      "id": "server-session-implementation",
+      "query": "where is the server request session loaded and inactive users rejected",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "implementation",
+      "difficulty": "medium",
+      "notes": "getSession reads Better Auth and calls isUserActive before returning the normalized session.",
+      "tags": ["authentication", "session"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getSession",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "symbolName": "isUserActive",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "webhook-creation-implementation",
+      "query": "implementation that validates and persists a new webhook with a generated secret",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "implementation",
+      "difficulty": "medium",
+      "notes": "createWebhook validates the URL, generates a secret, and writes the Prisma record.",
+      "tags": ["webhooks", "persistence"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/api/v2/management/webhooks/lib/webhook.ts",
+          "sourceType": "source_code",
+          "symbolName": "createWebhook",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "client-response-persistence",
+      "query": "where does the v1 client response API persist a survey response and link contacts or displays",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "implementation",
+      "difficulty": "hard",
+      "notes": "The v1 createResponse implementation resolves contacts, validates display ownership, builds Prisma data, and creates the response.",
+      "tags": ["responses", "database"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/responses/lib/response.ts",
+          "sourceType": "source_code",
+          "symbolName": "createResponse",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "symbol-authenticate-api-key-from-headers",
+      "query": "authenticateApiKeyFromHeaders",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "exact_symbol",
+      "difficulty": "easy",
+      "notes": "Exact exported API-key authentication symbol.",
+      "tags": ["authentication", "symbol"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/api/lib/api-key-auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "authenticateApiKeyFromHeaders",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "symbol-strip-inline-styles",
+      "query": "stripInlineStyles",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "exact_symbol",
+      "difficulty": "easy",
+      "notes": "Exact HTML sanitization helper exported from the surveys package.",
+      "tags": ["html", "symbol"],
+      "relevant": [
+        {
+          "path": "packages/surveys/src/lib/html-utils.ts",
+          "sourceType": "source_code",
+          "symbolName": "stripInlineStyles",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "symbol-validated-callback-url",
+      "query": "getValidatedCallbackUrl",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "exact_symbol",
+      "difficulty": "easy",
+      "notes": "Exact callback URL safety helper.",
+      "tags": ["url", "symbol"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/utils/url.ts",
+          "sourceType": "source_code",
+          "symbolName": "getValidatedCallbackUrl",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "ai-survey-generation-flow",
+      "query": "how does a v3 request turn an AI prompt into a validated survey draft and map provider errors",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "The route authorizes and invokes the generator, the service constructs and validates the payload, and error-mapping creates API responses.",
+      "tags": ["ai", "survey", "cross-file"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/service.ts",
+          "sourceType": "source_code",
+          "symbolName": "generateV3SurveyCreatePayloadFromPrompt",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/error-mapping.ts",
+          "sourceType": "source_code",
+          "symbolName": "mapV3SurveyGenerateError",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "webhook-create-request-flow",
+      "query": "trace a v2 create webhook request from the route through URL validation and database creation",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "POST authenticates and resolves input, createWebhook validates and persists, and validateWebhookUrl enforces destination safety.",
+      "tags": ["webhooks", "api", "cross-file"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/api/v2/management/webhooks/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/v2/management/webhooks/lib/webhook.ts",
+          "sourceType": "source_code",
+          "symbolName": "createWebhook",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/utils/validate-webhook-url.ts",
+          "sourceType": "source_code",
+          "symbolName": "validateWebhookUrl",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "client-response-submission-flow",
+      "query": "trace public survey response submission from request validation to persistence and pipeline dispatch",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "The route validates survey and request gates, delegates persistence, then dispatches the response pipeline.",
+      "tags": ["responses", "api", "cross-file"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/responses/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/responses/lib/response.ts",
+          "sourceType": "source_code",
+          "symbolName": "createResponse",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/lib/pipelines.ts",
+          "sourceType": "source_code",
+          "symbolName": "sendToPipeline",
+          "grade": 2
+        }
+      ]
+    },
+
+    {
+      "id": "bullmq-worker-configuration",
+      "query": "where are BullMQ worker enablement count concurrency and Redis requirements configured",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "configuration",
+      "difficulty": "medium",
+      "notes": "jobs/config derives worker and queue configuration from validated environment values.",
+      "tags": ["jobs", "redis"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/jobs/config.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/env.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "object-storage-configuration",
+      "query": "where are S3 endpoint bucket credentials path style and upload size limits configured",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "configuration",
+      "difficulty": "medium",
+      "notes": "env validates the S3 inputs and constants exposes storage settings and upload bounds.",
+      "tags": ["storage", "s3"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/constants.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/env.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "ai-provider-environment-configuration",
+      "query": "how are Google AWS Azure and OpenAI-compatible AI provider settings validated",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "configuration",
+      "difficulty": "medium",
+      "notes": "env.ts defines provider-specific validation including required credentials, endpoints, and JSON option maps.",
+      "tags": ["ai", "environment"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/env.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "health-api-endpoint",
+      "query": "where is the v2 health endpoint implemented and how does it check Postgres and Redis",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "api_endpoint",
+      "difficulty": "medium",
+      "notes": "The app route re-exports the module route, which delegates database and cache checks to performHealthChecks.",
+      "tags": ["health", "api"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/api/v2/health/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "GET",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/v2/health/lib/health-checks.ts",
+          "sourceType": "source_code",
+          "symbolName": "performHealthChecks",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v2/health/route.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "workflow-enable-api-endpoint",
+      "query": "where is POST api v3 workflows workflowId enable implemented",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "api_endpoint",
+      "difficulty": "easy",
+      "notes": "The dynamic enable route validates the workflow ID and delegates to workflowsHandlers.enable.",
+      "tags": ["workflows", "api"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v3/workflows/[workflowId]/enable/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "private-upload-api-endpoint",
+      "query": "where is the public client endpoint that creates a private S3 upload URL for a survey file element",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "api_endpoint",
+      "difficulty": "medium",
+      "notes": "The v1 storage route resolves the workspace, validates survey file permissions, rate limits, and requests a signed URL.",
+      "tags": ["storage", "api"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/storage/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/storage/service.ts",
+          "sourceType": "source_code",
+          "symbolName": "getSignedUrlForUpload",
+          "grade": 2
+        }
+      ]
+    },
+
+    {
+      "id": "api-key-workspace-isolation",
+      "query": "how are API key workspace permissions filtered to the key organization during authentication",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "authorization",
+      "difficulty": "hard",
+      "notes": "authenticateApiKeyFromHeaders filters foreign-organization workspace permissions before returning authentication.",
+      "tags": ["api-key", "isolation"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/api/lib/api-key-auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "authenticateApiKeyFromHeaders",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "workspace-action-permission-authorization",
+      "query": "where are GET POST PATCH and DELETE mapped to workspace team permission levels",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "authorization",
+      "difficulty": "medium",
+      "notes": "hasUserWorkspaceAccessForAction maps actions to required ranks and evaluates membership and team grants.",
+      "tags": ["workspace", "teams"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/workspace/auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "hasUserWorkspaceAccessForAction",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "v3-survey-resource-authorization",
+      "query": "how does the v3 API authorize access to a survey without leaking whether it exists",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "authorization",
+      "difficulty": "hard",
+      "notes": "getAuthorizedV3Survey loads the survey then calls the shared workspace permission gate; failures use a forbidden response.",
+      "tags": ["survey", "v3"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v3/surveys/authorization.ts",
+          "sourceType": "source_code",
+          "symbolName": "getAuthorizedV3Survey",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/lib/auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "requireV3WorkspaceAccess",
+          "grade": 2
+        }
+      ]
+    },
+
+    {
+      "id": "survey-redirect-database-schema",
+      "query": "which database model stores the legacy survey redirect URL",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "database_schema",
+      "difficulty": "easy",
+      "notes": "The Survey model declares redirectUrl as an optional string.",
+      "tags": ["survey", "prisma"],
+      "relevant": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "response-contact-database-schema",
+      "query": "how are survey responses related to contacts displays tags and workflow runs in Prisma",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "database_schema",
+      "difficulty": "medium",
+      "notes": "The Response model defines its contact/display relations, uniqueness constraints, tags, quotas, and workflow runs.",
+      "tags": ["responses", "prisma"],
+      "relevant": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "api-key-permission-database-schema",
+      "query": "where are organization API keys and per-workspace read write manage permissions modeled",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "database_schema",
+      "difficulty": "medium",
+      "notes": "ApiKey, ApiKeyWorkspace, and ApiKeyPermission are declared together in the Prisma schema.",
+      "tags": ["api-key", "prisma"],
+      "relevant": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "redirect-url-migration",
+      "query": "which migration added redirectUrl to Survey",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "migration",
+      "difficulty": "easy",
+      "notes": "The 20230626105714 migration adds the Survey.redirectUrl text column.",
+      "tags": ["survey", "sql"],
+      "relevant": [
+        {
+          "path": "packages/database/migration/20230626105714_add_redirect_url/migration.sql",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "auth-session-tables-migration",
+      "query": "which migration created Session and VerificationToken with expiry and user indexes",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "migration",
+      "difficulty": "medium",
+      "notes": "The auth session migration creates both tables, uniqueness constraints, and the Session user foreign key.",
+      "tags": ["authentication", "sql"],
+      "relevant": [
+        {
+          "path": "packages/database/migration/20260325090000_add_auth_sessions/migration.sql",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "survey-publish-schedule-migration",
+      "query": "which migration added publishOn closeOn and status scheduling indexes to Survey",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "migration",
+      "difficulty": "easy",
+      "notes": "The scheduling migration adds both timestamps and their status composite indexes.",
+      "tags": ["survey", "sql"],
+      "relevant": [
+        {
+          "path": "packages/database/migration/20260417120000_add_survey_publish_pause_scheduling/migration.sql",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "v1-api-error-boundary",
+      "query": "how are expected 4xx errors and unexpected 5xx errors converted without leaking Prisma details",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "error_handling",
+      "difficulty": "medium",
+      "notes": "handleApiError maps safe expected errors and returns a generic response while preserving the underlying unexpected error for reporting.",
+      "tags": ["api", "security"],
+      "relevant": [
+        {
+          "path": "apps/web/app/lib/api/handle-api-error.ts",
+          "sourceType": "source_code",
+          "symbolName": "handleApiError",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "response-prisma-error-mapping",
+      "query": "where are duplicate display and single-use response Prisma errors mapped to domain errors",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "error_handling",
+      "difficulty": "medium",
+      "notes": "handleClientResponseCreateError distinguishes displayId and singleUseId unique constraints and wraps other Prisma failures.",
+      "tags": ["responses", "prisma"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/client/[workspaceId]/responses/lib/response-error.ts",
+          "sourceType": "source_code",
+          "symbolName": "handleClientResponseCreateError",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "ai-survey-error-mapping",
+      "query": "where are AI survey generation quota unavailable invalid payload and upstream errors mapped to problem responses",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "error_handling",
+      "difficulty": "hard",
+      "notes": "mapV3SurveyGenerateError covers prompt, quota, provider availability, validation, token-limit, not-found, and fallback cases.",
+      "tags": ["ai", "api"],
+      "relevant": [
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/error-mapping.ts",
+          "sourceType": "source_code",
+          "symbolName": "mapV3SurveyGenerateError",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "api-wrapper-authentication-tests",
+      "query": "where are v2 API wrapper authentication validation rate limit and malformed body behaviors tested",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "tests",
+      "difficulty": "medium",
+      "notes": "The api-wrapper test suite exercises wrapper-level authentication and input/error behavior.",
+      "tags": ["api", "authentication"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/api/v2/auth/tests/api-wrapper.test.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "job-worker-configuration-tests",
+      "query": "where is BullMQ worker enablement and missing Redis configuration tested",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "tests",
+      "difficulty": "easy",
+      "notes": "config.test.ts covers the environment-derived jobs worker configuration.",
+      "tags": ["jobs", "configuration"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/jobs/config.test.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "proxy-session-integration-tests",
+      "query": "where are proxy sessions tested against the real session table expiry and inactive users",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "tests",
+      "difficulty": "medium",
+      "notes": "The integration test covers proxy-session persistence and lifecycle behavior.",
+      "tags": ["authentication", "database"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.integration.test.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "ending-card-runtime-component",
+      "query": "EndingCard runtime component that completes or redirects a survey",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "ui_component",
+      "difficulty": "easy",
+      "notes": "The surveys package EndingCard component implements runtime end-screen and redirect behavior.",
+      "tags": ["tsx", "survey"],
+      "relevant": [
+        {
+          "path": "packages/surveys/src/components/general/ending-card.tsx",
+          "sourceType": "source_code",
+          "symbolName": "EndingCard",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "survey-language-switch-component",
+      "query": "React component that deduplicates survey languages and changes text direction",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "ui_component",
+      "difficulty": "medium",
+      "notes": "LanguageSwitch canonicalizes visible languages, updates i18n state, and switches RTL/LTR direction.",
+      "tags": ["tsx", "i18n"],
+      "relevant": [
+        {
+          "path": "packages/surveys/src/components/general/language-switch.tsx",
+          "sourceType": "source_code",
+          "symbolName": "LanguageSwitch",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "ending-card-editor-component",
+      "query": "survey editor component for changing duplicating deleting and reordering ending cards",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "ui_component",
+      "difficulty": "medium",
+      "notes": "EditEndingCard owns editor interactions, quota/follow-up guards, and ending-card updates.",
+      "tags": ["tsx", "survey-editor"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/survey/editor/components/edit-ending-card.tsx",
+          "sourceType": "source_code",
+          "symbolName": "EditEndingCard",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "webhook-url-safety-utility",
+      "query": "utility that rejects private internal and unsafe webhook destination URLs",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "utility",
+      "difficulty": "medium",
+      "notes": "validateWebhookUrl is the public entry point for DNS and address safety validation.",
+      "tags": ["webhooks", "security"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/utils/validate-webhook-url.ts",
+          "sourceType": "source_code",
+          "symbolName": "validateWebhookUrl",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "response-total-time-utility",
+      "query": "helper that adds a _total field to survey response time-to-completion values",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "utility",
+      "difficulty": "easy",
+      "notes": "calculateTtcTotal sums all timing values into _total.",
+      "tags": ["responses", "time"],
+      "relevant": [
+        {
+          "path": "apps/web/lib/response/utils.ts",
+          "sourceType": "source_code",
+          "symbolName": "calculateTtcTotal",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "html-accessible-text-utility",
+      "query": "helper that converts survey HTML to plain text for accessible labels",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "utility",
+      "difficulty": "easy",
+      "notes": "htmlToPlainText parses HTML with DOMParser and provides non-browser/error fallbacks.",
+      "tags": ["html", "accessibility"],
+      "relevant": [
+        {
+          "path": "packages/surveys/src/lib/html-utils.ts",
+          "sourceType": "source_code",
+          "symbolName": "htmlToPlainText",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "multilingual-survey-ui-flow",
+      "query": "how does the survey runtime choose canonical languages display their names and update i18n",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "cross_file",
+      "difficulty": "hard",
+      "notes": "LanguageSwitch coordinates canonical language selection with i18n lookup and display naming helpers.",
+      "tags": ["i18n", "survey"],
+      "relevant": [
+        {
+          "path": "packages/surveys/src/components/general/language-switch.tsx",
+          "sourceType": "source_code",
+          "symbolName": "LanguageSwitch",
+          "grade": 3
+        },
+        {
+          "path": "packages/surveys/src/lib/i18n-utils.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        },
+        {
+          "path": "packages/surveys/src/lib/language-display-name.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "onboarding-route-decision-flow",
+      "query": "how is an onboarding workspace selected and redirected between plan survey and completed destinations",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "cross_file",
+      "difficulty": "hard",
+      "notes": "The workspace helper selects onboarding context and the redirect helper chooses the next route from repository-backed state.",
+      "tags": ["onboarding", "routing"],
+      "relevant": [
+        {
+          "path": "apps/web/app/(app)/(onboarding)/lib/onboarding-workspace.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/(app)/(onboarding)/lib/redirect-if-onboarding-complete.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    },
+    {
+      "id": "active-user-session-enforcement",
+      "query": "how are deactivated users rejected in both server session reads and proxy middleware sessions",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "cross_file",
+      "difficulty": "hard",
+      "notes": "session.ts queries current user activity after Better Auth; proxy-session selects user.isActive alongside the database session.",
+      "tags": ["authentication", "security"],
+      "relevant": [
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getSession",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getProxySession",
+          "grade": 3
+        }
+      ]
+    },
+
+    {
+      "id": "ci-unit-test-infrastructure",
+      "query": "where is the GitHub Actions unit test job configured including pnpm setup environment generation and test command",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "repository_infrastructure",
+      "difficulty": "easy",
+      "notes": "The test workflow defines checkout, pnpm/Node setup, environment preparation, and pnpm test.",
+      "tags": ["github-actions", "ci"],
+      "relevant": [
+        {
+          "path": ".github/workflows/test.yml",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ]
+    }
+  ]
+}

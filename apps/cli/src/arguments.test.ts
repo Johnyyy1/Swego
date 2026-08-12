@@ -146,6 +146,8 @@ describe("CLI arguments", () => {
         "75",
         "--path-limit",
         "3",
+        "--file-evidence",
+        "multi-branch",
       ]),
     ).toEqual({
       command: "benchmark",
@@ -153,6 +155,7 @@ describe("CLI arguments", () => {
       rerank: true,
       candidateLimit: 75,
       pathLimit: 3,
+      fileEvidence: "multi-branch",
     });
   });
 
@@ -176,6 +179,14 @@ describe("CLI arguments", () => {
     expect(() => parseCliArguments(["doctor", "--path-limit", "2"])).toThrow(
       "Usage: swega doctor",
     );
+    expect(() =>
+      parseCliArguments([
+        "benchmark",
+        "benchmark.json",
+        "--file-evidence",
+        "unbounded-sum",
+      ]),
+    ).toThrow();
   });
 
   test("rejects hybrid search debugging on other commands", () => {

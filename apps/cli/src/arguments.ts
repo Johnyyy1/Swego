@@ -1,6 +1,10 @@
 import { parseArgs } from "node:util";
 
 import { z } from "zod";
+import {
+  fileEvidenceStrategies,
+  type FileEvidenceStrategy,
+} from "@swega/retrieval";
 
 export const DEFAULT_INGESTION_LIMIT = 100;
 export const DEFAULT_SEARCH_LIMIT = 10;
@@ -47,6 +51,7 @@ export interface SearchMemoryArguments {
   rerank?: true;
   candidateLimit?: number;
   pathLimit?: number;
+  fileEvidence?: FileEvidenceStrategy;
 }
 
 export interface BenchmarkArguments {
@@ -56,6 +61,7 @@ export interface BenchmarkArguments {
   rerank?: true;
   candidateLimit?: number;
   pathLimit?: number;
+  fileEvidence?: FileEvidenceStrategy;
 }
 
 export type CliArguments =
@@ -87,6 +93,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       rerank: { type: "boolean" },
       "candidate-limit": { type: "string" },
       "path-limit": { type: "string" },
+      "file-evidence": { type: "string" },
     },
   });
 
@@ -104,7 +111,8 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.json ||
       parsed.values.rerank ||
       parsed.values["candidate-limit"] ||
-      parsed.values["path-limit"]
+      parsed.values["path-limit"] ||
+      parsed.values["file-evidence"]
     ) {
       throw new Error("Usage: swega doctor");
     }
@@ -121,7 +129,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.json
     ) {
       throw new Error(
-        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--debug]",
+        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--debug]",
       );
     }
     if (parsed.values["candidate-limit"] && !parsed.values.rerank) {
@@ -149,6 +157,13 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       ...(parsed.values["path-limit"]
         ? { pathLimit: searchLimitSchema.parse(parsed.values["path-limit"]) }
         : {}),
+      ...(parsed.values["file-evidence"]
+        ? {
+            fileEvidence: z
+              .enum(fileEvidenceStrategies)
+              .parse(parsed.values["file-evidence"]),
+          }
+        : {}),
     };
   }
 
@@ -163,7 +178,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.debug
     ) {
       throw new Error(
-        "Usage: swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--json]",
+        "Usage: swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--json]",
       );
     }
     if (parsed.values["candidate-limit"] && !parsed.values.rerank) {
@@ -184,6 +199,13 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       ...(parsed.values["path-limit"]
         ? { pathLimit: searchLimitSchema.parse(parsed.values["path-limit"]) }
         : {}),
+      ...(parsed.values["file-evidence"]
+        ? {
+            fileEvidence: z
+              .enum(fileEvidenceStrategies)
+              .parse(parsed.values["file-evidence"]),
+          }
+        : {}),
     };
   }
 
@@ -202,7 +224,11 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   if (parsed.values.rerank) {
     throw new Error("--rerank applies only to search and benchmark");
   }
-  if (parsed.values["candidate-limit"] || parsed.values["path-limit"]) {
+  if (
+    parsed.values["candidate-limit"] ||
+    parsed.values["path-limit"] ||
+    parsed.values["file-evidence"]
+  ) {
     throw new Error(
       "Candidate generation options apply only to search and benchmark",
     );
@@ -253,8 +279,8 @@ export function helpText(): string {
     "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
     "  swega build-memory <repository-id>",
     "  swega embed-memory <repository-id>",
-    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--debug]',
-    "  swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--json]",
+    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--debug]',
+    "  swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--json]",
     "",
     "Options:",
     "  --limit N        Bound ingestion or the number of search results",
@@ -264,6 +290,7 @@ export function helpText(): string {
     "  --rerank         Rerank a bounded hybrid candidate set locally",
     "  --candidate-limit N  Bound the pre-rerank candidate pool",
     "  --path-limit N   Bound pre-rerank chunks retained per file path",
+    "  --file-evidence STRATEGY  Select none, max, multi-branch, or bounded-top-n propagation",
     "  --json           Emit a machine-readable benchmark report",
     "  -h, --help       Show this help",
   ].join("\n");

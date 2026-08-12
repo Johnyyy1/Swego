@@ -114,6 +114,18 @@ describe("retrieval metrics", () => {
       }),
     ).toBe(false);
   });
+
+  test("optionally distinguishes the relevant symbol from another chunk in the same file", () => {
+    const searchResult = result("src/session.ts", undefined, "helper");
+    expect(
+      matchesRelevanceTarget(searchResult, {
+        path: "src/session.ts",
+        sourceType: "source_code",
+        symbolName: "getSession",
+        grade: 1,
+      }),
+    ).toBe(false);
+  });
 });
 
 function target(path: string, grade = 1) {
@@ -139,6 +151,7 @@ function target(path: string, grade = 1) {
 function result(
   path: string,
   repositoryId = "123e4567-e89b-42d3-a456-426614174000",
+  symbolName: string | null = null,
 ): MemorySearchResult {
   const timestamp = new Date("2025-03-01T00:00:00.000Z");
   return {
@@ -163,7 +176,7 @@ function result(
       endLine: 10,
       language: "TypeScript",
       symbolId: null,
-      symbolName: null,
+      symbolName,
       symbolKind: null,
       parentSymbol: null,
       symbolPart: null,

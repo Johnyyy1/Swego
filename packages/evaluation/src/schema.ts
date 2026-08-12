@@ -4,11 +4,32 @@ import { memorySourceTypes, repositoryIdSchema } from "@swega/shared";
 
 export const DEFAULT_BENCHMARK_CUTOFFS = [1, 3, 5, 10] as const;
 
+export const benchmarkSplits = ["smoke", "development", "held_out"] as const;
+export const benchmarkCategories = [
+  "implementation",
+  "exact_symbol",
+  "feature_flow",
+  "configuration",
+  "api_endpoint",
+  "authorization",
+  "database_schema",
+  "migration",
+  "error_handling",
+  "tests",
+  "ui_component",
+  "utility",
+  "cross_file",
+  "repository_infrastructure",
+  "temporal",
+] as const;
+export const benchmarkDifficulties = ["easy", "medium", "hard"] as const;
+
 export const relevanceTargetSchema = z
   .object({
     path: z.string().min(1).optional(),
     sourceType: z.enum(memorySourceTypes).optional(),
     sourceReference: z.string().min(1).optional(),
+    symbolName: z.string().min(1).optional(),
     grade: z.number().int().min(1).max(3).default(1),
   })
   .strict()
@@ -16,6 +37,10 @@ export const relevanceTargetSchema = z
     (target) =>
       target.path !== undefined || target.sourceReference !== undefined,
     "A relevance target must specify path or sourceReference",
+  )
+  .refine(
+    (target) => target.symbolName === undefined || target.path !== undefined,
+    "A symbol relevance target must also specify path",
   );
 
 export const retrievalBenchmarkCaseSchema = z
@@ -27,6 +52,9 @@ export const retrievalBenchmarkCaseSchema = z
     query: z.string().trim().min(1),
     repositoryId: repositoryIdSchema,
     before: z.iso.datetime({ offset: true }).optional(),
+    category: z.enum(benchmarkCategories).optional(),
+    difficulty: z.enum(benchmarkDifficulties).optional(),
+    notes: z.string().trim().min(1).optional(),
     tags: z.array(z.string().min(1)).max(20).optional(),
     relevant: z.array(relevanceTargetSchema).min(1),
   })
@@ -38,6 +66,7 @@ export const retrievalBenchmarkCaseSchema = z
         path: target.path ?? null,
         sourceType: target.sourceType ?? null,
         sourceReference: target.sourceReference ?? null,
+        symbolName: target.symbolName ?? null,
       });
       if (selectors.has(selector)) {
         context.addIssue({
@@ -70,6 +99,9 @@ export const retrievalBenchmarkSchema = z
     version: z.literal(1),
     name: z.string().trim().min(1),
     description: z.string().trim().min(1).optional(),
+    split: z.enum(benchmarkSplits).optional(),
+    repositoryRevision: z.string().trim().min(1).optional(),
+    groundTruthMethod: z.string().trim().min(1).optional(),
     cutoffs: cutoffsSchema,
     cases: z.array(retrievalBenchmarkCaseSchema).min(1),
   })
@@ -86,6 +118,35 @@ export const retrievalBenchmarkSchema = z
       }
       caseIds.add(benchmarkCase.id);
     });
+    if (benchmark.split && benchmark.split !== "smoke") {
+      if (!benchmark.repositoryRevision) {
+        context.addIssue({
+          code: "custom",
+          path: ["repositoryRevision"],
+          message:
+            "Development and held-out benchmarks require a repository revision",
+        });
+      }
+      if (!benchmark.groundTruthMethod) {
+        context.addIssue({
+          code: "custom",
+          path: ["groundTruthMethod"],
+          message:
+            "Development and held-out benchmarks require a ground-truth method",
+        });
+      }
+      benchmark.cases.forEach((benchmarkCase, index) => {
+        for (const field of ["category", "difficulty", "notes"] as const) {
+          if (!benchmarkCase[field]) {
+            context.addIssue({
+              code: "custom",
+              path: ["cases", index, field],
+              message: `Development and held-out cases require ${field}`,
+            });
+          }
+        }
+      });
+    }
   });
 
 export type RelevanceTarget = z.infer<typeof relevanceTargetSchema>;
