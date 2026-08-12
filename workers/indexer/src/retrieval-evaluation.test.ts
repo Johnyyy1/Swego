@@ -11,6 +11,7 @@ import {
   EmbeddingCompatibilityError,
   HybridRepositoryMemory,
   PgLexicalRepositoryMemory,
+  PgStructuredRepositoryMemory,
   PgVectorRepositoryMemory,
 } from "@swega/retrieval";
 import { EMBEDDING_DIMENSIONS } from "@swega/shared";
@@ -31,6 +32,9 @@ describeWithDatabase("repository memory retrieval", () => {
   let pastSourceId: string;
   let futureSourceId: string;
   let symbolSourceId: string;
+  let endingCardSourceId: string;
+  let exactOnlySymbolSourceId: string;
+  let futureSymbolSourceId: string;
   const embeddings = new DeterministicEmbeddingProvider();
 
   beforeAll(async () => {
@@ -56,6 +60,9 @@ describeWithDatabase("repository memory retrieval", () => {
     pastSourceId = crypto.randomUUID();
     futureSourceId = crypto.randomUUID();
     symbolSourceId = crypto.randomUUID();
+    endingCardSourceId = crypto.randomUUID();
+    exactOnlySymbolSourceId = crypto.randomUUID();
+    futureSymbolSourceId = crypto.randomUUID();
 
     await persistMemoryDocuments(
       database,
@@ -92,6 +99,47 @@ describeWithDatabase("repository memory retrieval", () => {
           sourceReference: `git:${"f".repeat(40)}:src/proxy-session.ts`,
           language: "TypeScript",
         }),
+        normalizeSourceCodeDocument({
+          repositoryId,
+          sourceEntityId: endingCardSourceId,
+          path: "src/components/ending-card.tsx",
+          commitSha: "e".repeat(40),
+          committedAt: new Date("2025-03-02T12:00:00.000Z"),
+          content:
+            "export function EndingCard() { return <section>Done</section>; }",
+          sourceReference: `git:${"e".repeat(40)}:src/components/ending-card.tsx`,
+          language: "TSX",
+        }),
+        normalizeSourceCodeDocument({
+          repositoryId,
+          sourceEntityId: exactOnlySymbolSourceId,
+          path: "src/unrelated.ts",
+          commitSha: "b".repeat(40),
+          committedAt: new Date("2025-03-03T12:00:00.000Z"),
+          content: "export function resolveIdentityBoundary() { return true; }",
+          sourceReference: `git:${"b".repeat(40)}:src/unrelated.ts`,
+          language: "TypeScript",
+        }),
+        normalizeSourceCodeDocument({
+          repositoryId,
+          sourceEntityId: futureSymbolSourceId,
+          path: "src/future-proxy-session.ts",
+          commitSha: "d".repeat(40),
+          committedAt: new Date("2025-04-01T12:00:00.000Z"),
+          content: "export function getProxySession() { return null; }",
+          sourceReference: `git:${"d".repeat(40)}:src/future-proxy-session.ts`,
+          language: "TypeScript",
+        }),
+        normalizeSourceCodeDocument({
+          repositoryId: otherRepositoryId,
+          sourceEntityId: crypto.randomUUID(),
+          path: "src/proxy-session.ts",
+          commitSha: "c".repeat(40),
+          committedAt: new Date("2025-03-01T12:00:00.000Z"),
+          content: "export function getProxySession() { return null; }",
+          sourceReference: `git:${"c".repeat(40)}:src/proxy-session.ts`,
+          language: "TypeScript",
+        }),
       ],
       new Date("2025-04-02T00:00:00.000Z"),
     );
@@ -107,7 +155,7 @@ describeWithDatabase("repository memory retrieval", () => {
       logger: silentLogger,
       repositoryId: otherRepositoryId,
     });
-  });
+  }, 30_000);
 
   afterAll(async () => {
     if (database && repositoryId && otherRepositoryId) {
@@ -121,7 +169,7 @@ describeWithDatabase("repository memory retrieval", () => {
     if (databaseConnection) {
       await databaseConnection.close();
     }
-  });
+  }, 30_000);
 
   test("enforces repository and temporal isolation in the vector query", async () => {
     const memory = new PgVectorRepositoryMemory(database, embeddings);
@@ -215,10 +263,51 @@ describeWithDatabase("repository memory retrieval", () => {
     });
   });
 
+  test("structured retrieval matches exact, camel/Pascal, and filename metadata", async () => {
+    const memory = new PgStructuredRepositoryMemory(database);
+
+    for (const [query, expectedSourceId] of [
+      ["getProxySession", symbolSourceId],
+      ["get proxy session", symbolSourceId],
+      ["EndingCard", endingCardSourceId],
+      ["ending card", endingCardSourceId],
+      ["components ending-card", endingCardSourceId],
+      ["resolveIdentityBoundary", exactOnlySymbolSourceId],
+    ] as const) {
+      const results = await memory.searchMemory({
+        repositoryId,
+        query,
+        limit: 10,
+        before: cutoff,
+      });
+
+      expect(results[0]?.sourceId).toBe(expectedSourceId);
+      expect(
+        results.every((result) => result.repositoryId === repositoryId),
+      ).toBe(true);
+      expect(
+        results.some((result) => result.sourceId === futureSymbolSourceId),
+      ).toBe(false);
+    }
+  });
+
+  test("structured retrieval returns no content without matching metadata", async () => {
+    const memory = new PgStructuredRepositoryMemory(database);
+    const results = await memory.searchMemory({
+      repositoryId,
+      query: "future-only-token",
+      limit: 10,
+      before: cutoff,
+    });
+
+    expect(results).toEqual([]);
+  });
+
   test("hybrid retrieval preserves filtering and prevents duplicate chunks", async () => {
     const memory = new HybridRepositoryMemory(
       new PgVectorRepositoryMemory(database, embeddings),
       new PgLexicalRepositoryMemory(database),
+      new PgStructuredRepositoryMemory(database),
     );
     const results = await memory.searchMemory({
       repositoryId,

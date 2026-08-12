@@ -108,6 +108,14 @@ async function main(): Promise<void> {
         database.db,
         embeddings,
         reranker,
+        {
+          ...(arguments_.candidateLimit === undefined
+            ? {}
+            : { candidateLimit: arguments_.candidateLimit }),
+          ...(arguments_.pathLimit === undefined
+            ? {}
+            : { maxCandidatesPerPath: arguments_.pathLimit }),
+        },
       );
       if (arguments_.command === "benchmark") {
         const benchmark = await loadBenchmark(arguments_.benchmarkFile);

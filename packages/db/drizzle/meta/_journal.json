@@ -71,6 +71,27 @@
       "when": 1786497152423,
       "tag": "0009_sticky_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786533412595,
+      "tag": "0010_spicy_bloodstorm",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786533787703,
+      "tag": "0011_dear_skaar",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786533802300,
+      "tag": "0012_restore_structural_search_index",
+      "breakpoints": true
     }
   ]
 }

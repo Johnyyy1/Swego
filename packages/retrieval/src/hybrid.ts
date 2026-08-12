@@ -1,4 +1,12 @@
-import { MAX_SEARCH_LIMIT, normalizeSearchMemoryInput } from "./search-input";
+import {
+  DEFAULT_BRANCH_CANDIDATE_LIMIT,
+  DEFAULT_FUSION_BRANCH_CANDIDATE_LIMIT,
+  DEFAULT_MAX_CANDIDATES_PER_PATH,
+  validateBranchCandidateLimit,
+  validateCandidateLimit,
+} from "./candidate-generation";
+import { diversifyCandidatesByPath } from "./diversify";
+import { normalizeSearchMemoryInput } from "./search-input";
 import { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
 import type {
   MemorySearchResult,
@@ -6,32 +14,54 @@ import type {
   SearchMemoryInput,
 } from "./types";
 
-export const DEFAULT_DENSE_CANDIDATE_LIMIT = 30;
-export const DEFAULT_LEXICAL_CANDIDATE_LIMIT = 30;
+export const DEFAULT_DENSE_CANDIDATE_LIMIT = DEFAULT_BRANCH_CANDIDATE_LIMIT;
+export const DEFAULT_LEXICAL_CANDIDATE_LIMIT = DEFAULT_BRANCH_CANDIDATE_LIMIT;
+export const DEFAULT_STRUCTURED_CANDIDATE_LIMIT =
+  DEFAULT_BRANCH_CANDIDATE_LIMIT;
 
 export interface HybridRepositoryMemoryOptions {
   denseCandidateLimit?: number;
   lexicalCandidateLimit?: number;
+  structuredCandidateLimit?: number;
+  fusionBranchCandidateLimit?: number;
+  maxCandidatesPerPath?: number;
   rrfK?: number;
 }
 
 export class HybridRepositoryMemory implements RepositoryMemory {
   private readonly denseCandidateLimit: number;
   private readonly lexicalCandidateLimit: number;
+  private readonly structuredCandidateLimit: number;
+  private readonly fusionBranchCandidateLimit: number;
+  private readonly maxCandidatesPerPath: number;
   private readonly rrfK: number;
 
   constructor(
     private readonly dense: RepositoryMemory,
     private readonly lexical: RepositoryMemory,
+    private readonly structured: RepositoryMemory,
     options: HybridRepositoryMemoryOptions = {},
   ) {
-    this.denseCandidateLimit = validateCandidateLimit(
+    this.denseCandidateLimit = validateBranchCandidateLimit(
       options.denseCandidateLimit ?? DEFAULT_DENSE_CANDIDATE_LIMIT,
       "Dense",
     );
-    this.lexicalCandidateLimit = validateCandidateLimit(
+    this.lexicalCandidateLimit = validateBranchCandidateLimit(
       options.lexicalCandidateLimit ?? DEFAULT_LEXICAL_CANDIDATE_LIMIT,
       "Lexical",
+    );
+    this.structuredCandidateLimit = validateBranchCandidateLimit(
+      options.structuredCandidateLimit ?? DEFAULT_STRUCTURED_CANDIDATE_LIMIT,
+      "Structured",
+    );
+    this.fusionBranchCandidateLimit = validateCandidateLimit(
+      options.fusionBranchCandidateLimit ??
+        DEFAULT_FUSION_BRANCH_CANDIDATE_LIMIT,
+      "Fusion branch",
+    );
+    this.maxCandidatesPerPath = validateCandidateLimit(
+      options.maxCandidatesPerPath ?? DEFAULT_MAX_CANDIDATES_PER_PATH,
+      "Per-path",
     );
     this.rrfK = options.rrfK ?? DEFAULT_RRF_K;
     if (!Number.isFinite(this.rrfK) || this.rrfK < 0) {
@@ -48,29 +78,54 @@ export class HybridRepositoryMemory implements RepositoryMemory {
       query: normalized.query,
       before: normalized.before,
     };
-    const [denseResults, lexicalResults] = await Promise.all([
-      this.dense.searchMemory({
-        ...sharedInput,
-        limit: Math.max(normalized.limit, this.denseCandidateLimit),
-      }),
-      this.lexical.searchMemory({
-        ...sharedInput,
-        limit: Math.max(normalized.limit, this.lexicalCandidateLimit),
-      }),
-    ]);
+    const [denseResults, lexicalResults, structuredResults] = await Promise.all(
+      [
+        this.dense.searchMemory({
+          ...sharedInput,
+          limit: Math.max(normalized.limit, this.denseCandidateLimit),
+        }),
+        this.lexical.searchMemory({
+          ...sharedInput,
+          limit: Math.max(normalized.limit, this.lexicalCandidateLimit),
+        }),
+        this.structured.searchMemory({
+          ...sharedInput,
+          limit: Math.max(normalized.limit, this.structuredCandidateLimit),
+        }),
+      ],
+    );
 
-    return reciprocalRankFusion(denseResults, lexicalResults, {
+    const branchDiversification = {
+      limit: Math.max(normalized.limit, this.fusionBranchCandidateLimit),
+      maxCandidatesPerPath: this.maxCandidatesPerPath,
+    };
+    const diversifiedDense = diversifyCandidatesByPath(
+      denseResults,
+      branchDiversification,
+    );
+    const diversifiedLexical = diversifyCandidatesByPath(
+      lexicalResults,
+      branchDiversification,
+    );
+    const diversifiedStructured = diversifyCandidatesByPath(
+      structuredResults,
+      branchDiversification,
+    );
+    const fused = reciprocalRankFusion(
+      diversifiedDense,
+      diversifiedLexical,
+      {
+        limit:
+          diversifiedDense.length +
+          diversifiedLexical.length +
+          diversifiedStructured.length,
+        k: this.rrfK,
+      },
+      diversifiedStructured,
+    );
+    return diversifyCandidatesByPath(fused, {
       limit: normalized.limit,
-      k: this.rrfK,
+      maxCandidatesPerPath: this.maxCandidatesPerPath,
     });
   }
-}
-
-function validateCandidateLimit(value: number, label: string): number {
-  if (!Number.isInteger(value) || value < 1 || value > MAX_SEARCH_LIMIT) {
-    throw new Error(
-      `${label} candidate limit must be between 1 and ${MAX_SEARCH_LIMIT}`,
-    );
-  }
-  return value;
 }

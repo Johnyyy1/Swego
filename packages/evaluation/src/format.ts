@@ -43,6 +43,39 @@ export function formatBenchmarkReport(
     );
   }
 
+  const candidateRows = report.strategies.flatMap((strategy) => {
+    const diagnostics = strategy.aggregate.candidateDiagnostics;
+    return diagnostics
+      ? [
+          [
+            strategy.strategy,
+            formatMetric(diagnostics.candidateRecall),
+            formatMetric(diagnostics.meanCandidateCount),
+            formatBytes(diagnostics.meanCandidateBytes),
+            formatMilliseconds(diagnostics.meanCandidateGenerationDurationMs),
+            formatMilliseconds(diagnostics.meanRerankingDurationMs),
+          ],
+        ]
+      : [];
+  });
+  if (candidateRows.length > 0) {
+    lines.push(
+      "",
+      "Candidate and reranking diagnostics",
+      formatTable([
+        [
+          "Strategy",
+          "Candidate Recall",
+          "Candidates",
+          "Candidate Bytes",
+          "Generation",
+          "Reranking",
+        ],
+        ...candidateRows,
+      ]),
+    );
+  }
+
   const maximumCutoff = Math.max(...report.cutoffs);
   const failures = report.strategies.flatMap((strategy) =>
     strategy.cases
@@ -64,6 +97,18 @@ export function formatBenchmarkReport(
           `  [${strategy.strategy}] ${benchmarkCase.id}: recall=${formatMetric(metrics?.recall ?? 0)}, firstRelevant=${benchmarkCase.firstRelevantRank ?? "none"}`,
           `    Query: ${benchmarkCase.query}`,
           `    Missing: ${benchmarkCase.missingRelevant.map(formatRelevanceTarget).join("; ")}`,
+          ...(benchmarkCase.candidateDiagnostics
+            ? [
+                `    Cause: ${
+                  benchmarkCase.candidateDiagnostics.missingRelevant
+                    .map(
+                      (item) =>
+                        `${formatRelevanceTarget(item.target)}=${item.reason}${item.candidateRank === null ? "" : ` (candidate rank ${item.candidateRank})`}`,
+                    )
+                    .join("; ") || "none"
+                }`,
+              ]
+            : []),
           `    Top results: ${formatTopResults(benchmarkCase)}`,
         );
       });
@@ -91,6 +136,14 @@ function formatTable(rows: readonly (readonly string[])[]): string {
 
 function formatMetric(value: number): string {
   return value.toFixed(3);
+}
+
+function formatBytes(value: number): string {
+  return `${Math.round(value / 1024)} KiB`;
+}
+
+function formatMilliseconds(value: number): string {
+  return `${value.toFixed(1)} ms`;
 }
 
 function formatRelevanceTarget(target: RelevanceTarget): string {

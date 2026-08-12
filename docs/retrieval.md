@@ -1,8 +1,8 @@
-# Hybrid Repository Memory Retrieval v1
+# Candidate Generation v2
 
 ## Scope
 
-Hybrid Retrieval v1 combines the existing dense pgvector search with PostgreSQL full-text search and Reciprocal Rank Fusion (RRF). It returns repository-memory chunks with their original repository, entity, relationship, path, commit, and temporal provenance. It does not generate an answer or call an LLM.
+Candidate Generation v2 combines dense pgvector, lexical full-text, and structural symbol/path retrieval with Reciprocal Rank Fusion (RRF) and deterministic path diversification. It returns repository-memory chunks with their original repository, entity, relationship, path, commit, and temporal provenance. It does not generate an answer or call an LLM.
 
 The provider-neutral `EmbeddingProvider` contract remains in `packages/embeddings`. Ollama is the default local adapter and calls `/api/embed` in bounded batches with `qwen3-embedding:0.6b`. It requests 512 dimensions to match the pgvector column and a 32,768-token context while keeping truncation disabled. OpenAI remains an optional adapter using `text-embedding-3-small` by default. The indexer and retrieval package import only the provider contract and never import a vendor SDK or response type.
 
@@ -11,18 +11,26 @@ The provider-neutral `EmbeddingProvider` contract remains in `packages/embedding
 ```text
 query
   ├─ EmbeddingProvider.embed()
-  │    └─ repository/time/projection-filtered pgvector top 30
-  └─ PostgreSQL full-text query
-       └─ repository/time-filtered lexical top 30
+  │    └─ repository/time/projection-filtered pgvector candidates
+  ├─ PostgreSQL full-text query
+  │    └─ repository/time-filtered lexical candidates
+  └─ PostgreSQL structural metadata query
+       └─ repository/time-filtered symbol/path candidates
                     ↓
-          merge by stable chunk ID
+        branch path diversification
                     ↓
-           Reciprocal Rank Fusion
+      merge stable chunk IDs with RRF
                     ↓
-             final top N chunks
+          path diversification
+                    ↓
+       bounded 50-candidate pool
+                    ↓
+       optional local reranker
+                    ↓
+             final top K
 ```
 
-An optional post-retrieval stage can request the top 30 fused candidates, score each query-candidate pair with a local cross-encoder, and return the requested top K. It does not alter candidate generation or RRF. See [Local reranking](reranking.md).
+An optional post-retrieval stage scores the bounded fused candidates with a local cross-encoder and returns the requested top K. See [Local reranking](reranking.md).
 
 Run the projection after building repository memory, then search:
 
@@ -47,7 +55,7 @@ Embedding writes remain restart-safe and idempotent. A chunk is embedded only wh
 
 Dense retrieval preserves the existing cosine-distance query over `chunk_embeddings.embedding vector(512)`. It checks that the repository's complete stored projection matches the configured provider, model, and dimensions before embedding the query. Missing or incompatible embeddings remain actionable errors that instruct the caller to rerun `embed-memory`.
 
-Lexical retrieval uses a stored `tsvector` on `document_chunks` and a GIN index. Inputs are weighted deliberately rather than flattened as equally important text:
+Lexical retrieval continues to use the stored content-oriented `search_vector` and its GIN index. Inputs are weighted deliberately rather than flattened as equally important text:
 
 - path and `symbolName` use the `simple` text-search configuration at weight A, retaining exact path and identifier-like tokens;
 - content uses the `english` configuration at weight B, providing natural-language normalization and stemming;
@@ -56,23 +64,25 @@ Lexical retrieval uses a stored `tsvector` on `document_chunks` and a GIN index.
 
 The query creates English and exact-token lexemes and joins terms disjunctively for candidate recall. PostgreSQL `ts_rank_cd` orders the lexical pool. The GIN match, repository predicate, and temporal predicate are all applied before the candidate limit.
 
-Dense and lexical candidate limits default independently to 30 and are centralized in `packages/retrieval`. If a caller requests more than 30 final results, each pool grows to at least the requested limit. Both branches execute concurrently; there is no query per candidate.
+Structured retrieval uses a separate generated `structural_search_vector` and GIN index. It searches only `symbolName`, `symbolKind`, `parentSymbol`, and normalized path/filename components. Query normalization splits camelCase and PascalCase, path/kebab/snake separators, removes common question framing, and adds conservative singular/suffix variants. Exact raw symbol equality is an independent match condition and orders ahead of ranked metadata matches. Missing structural metadata simply contributes no branch match.
+
+All three branches execute concurrently. Each may internally overfetch up to the centralized default of 300 so repeated structural chunks cannot prevent a relevant path from reaching diversification. Each branch is reduced to at most 100 candidates with the configured per-path cap before fusion. Public search and reranker pools remain bounded at 100 and 50 respectively; there is no query per candidate.
 
 ## Reciprocal Rank Fusion
 
-Candidates merge by deterministic `document_chunks.id`, so a chunk returned by both branches is one result. RRF uses 1-based ranks and the conventional default `k = 60`:
+Candidates merge by deterministic `document_chunks.id`, so a chunk returned by multiple branches is one result. RRF uses 1-based ranks and the conventional default `k = 60`:
 
 ```text
 rrfScore(d) = sum(1 / (60 + rank(d)))
 ```
 
-A shared candidate receives one contribution from each branch. Duplicate rows inside one branch contribute only once. Results sort by descending RRF score, then best branch rank, then chunk ID for deterministic ties.
+A shared candidate receives one contribution from each branch. Duplicate rows inside one branch contribute only once. Results sort by descending RRF score, then best branch rank, then chunk ID for deterministic ties. Raw cosine, lexical, and structural scores are never added together.
 
-Cosine similarity and `ts_rank_cd` are not combined directly. They have unrelated scales and distributions, so a weighted raw-score sum would require model-, corpus-, and query-specific calibration. RRF uses only ordinal evidence while preserving both raw values for diagnostics.
+Path diversification keeps at most two candidates from one non-null path at the branch and fused-pool stages. This still permits multiple useful symbols from one file. Pathless issue/PR/commit memory is not grouped into one bucket. The first exact-symbol match from a path reserves a slot even if it appears below the ordinary cap. Input order and stable chunk-ID fusion make ties deterministic.
 
 ## Temporal and repository isolation
 
-Hybrid search resolves a missing `before` once at query start and passes that exact cutoff to both branches. Each branch applies the same predicates in PostgreSQL:
+Hybrid search resolves a missing `before` once at query start and passes that exact cutoff to all three branches. Each branch applies the same predicates in PostgreSQL:
 
 ```sql
 repository_id = :repository_id
@@ -91,7 +101,9 @@ Every result retains content and source provenance. Hybrid results may additiona
 
 - `denseRank` and `denseSimilarity` when present in the dense pool;
 - `lexicalRank` and `lexicalScore` when present in the lexical pool;
-- `rrfScore` for the final fused score.
+- `structuredRank`, `structuredScore`, and `structuredExactMatch` when present in the structural pool;
+- `rrfScore` and pre-diversification `rrfRank` for the fused score/order;
+- `rerankerScore`, `rerankerRank`, and `finalRank` when reranking is enabled.
 
 Source-code results also expose `language`, deterministic `symbolId`, `symbolName`, `symbolKind`, `parentSymbol`, and symbol part/count metadata. The CLI's debug output and benchmark failure records may show the symbol name and kind, but never log complete candidate source contents.
 
@@ -99,7 +111,7 @@ Fields for a branch are absent when that branch did not return the chunk. The le
 
 ## Verification
 
-Deterministic unit tests cover dense-only, lexical-only, shared, duplicate, tied, and empty candidate sets; exact RRF arithmetic; independent candidate pools; and projection failures. Database-gated integration tests cover PostgreSQL lexical matching, repository isolation, temporal cutoffs, hybrid deduplication, and the existing embedding idempotency and compatibility invariants. Database tests continue to use the existing `TEST_DATABASE_URL` gate.
+Deterministic unit tests cover dense/lexical/structured fusion, exact RRF arithmetic, query normalization, exact/camel/Pascal/kebab/snake/path matching, multiple chunks per path, diversification and exact preservation, configurable pools, deterministic ties, null metadata, and projection failures. Database-gated integration tests cover PostgreSQL structured/lexical matching, repository isolation, temporal cutoffs, hybrid deduplication, and embedding idempotency/compatibility. Database tests continue to use the existing `TEST_DATABASE_URL` gate.
 
 The reproducible benchmark format, metrics, and strategy comparison workflow are documented in [Retrieval evaluation](retrieval-evaluation.md). The exploratory examples below predate that harness and remain observations rather than a relevance corpus.
 
@@ -115,10 +127,11 @@ An exploratory comparison used the existing Formbricks snapshot at commit `88a38
 ## Known limitations
 
 - Qwen3-Embedding-0.6B ranking still needs a stable relevance corpus with judgments rather than a small set of exploratory queries.
-- PostgreSQL text search is token-based; structural symbol names improve exact identifier matching but there is no trigram typo matching.
+- PostgreSQL structural search is token/prefix based; it does not provide trigram typo correction or semantic symbol resolution.
 - Repeated terms in large authored catalogs can produce noisy lexical candidates; a relevance corpus is needed before selecting a general mitigation.
 - Unsupported and malformed languages still use conservative fixed-size code chunks that can split a declaration from its context.
-- Optional reranking adds latency and cannot recover relevant material absent from the bounded hybrid candidate pool. There is still no result diversification, relationship expansion, or source-type/path filter.
+- Optional reranking adds substantial latency and cannot recover relevant material absent from the bounded candidate pool. There is no relationship expansion or source-type/path filter.
+- RRF is chunk-scoped. Lexical and structural evidence that lands on different chunks from the same file does not currently reinforce one representative chunk; the unauthorized-request smoke case exposes this remaining bottleneck.
 - The schema supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
 - HNSW with highly selective repository/time filters can return fewer strong dense candidates than an exact prefiltered strategy.
 - Provider adapters validate failures but do not yet retry transient upstream errors.

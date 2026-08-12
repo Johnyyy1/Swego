@@ -48,17 +48,25 @@ Dense pgvector retrieval remains the semantic baseline. PostgreSQL full-text sea
 
 Raw cosine similarity and full-text rank are retained as diagnostics but are not added together because their scales are not comparable. The full-text projection is generated from document chunks and indexed with GIN, so it remains rebuildable derived data and requires no separate synchronization workflow.
 
+## Candidate Generation v2 adds structural retrieval and path diversity
+
+Dense and lexical retrieval remain independent baselines. A third PostgreSQL-native branch searches only rebuildable structural metadata: symbol name/kind, parent symbol, and normalized path/filename components. It uses a dedicated generated `tsvector` and GIN index rather than adding structural fields to generic content scoring. Exact symbol equality is retained as a diagnostic and preservation signal.
+
+Each branch internally overfetches up to 300 rows, diversifies to 100 with at most two chunks per path, and then participates in three-way RRF. Fusion is followed by the same deterministic path cap. The internal overfetch is necessary because structural chunking can exhaust a branch before the implementation path reaches fusion; it does not enlarge the public or reranker result bound. Exact-symbol candidates reserve a slot under diversification.
+
+The reranker pool defaults to 50. On the 11-case Formbricks smoke corpus, candidate recall rose from 0.667 for legacy top-30 generation to 0.833 at 50; 75 and 100 added no target coverage while materially increasing local reranking latency. These are smoke measurements rather than general tuning evidence, so the pool and path limits remain centralized and configurable.
+
 ## Retrieval evaluation consumes production strategies without owning ranking
 
-`@swega/evaluation` accepts named implementations of the existing `RepositoryMemory` contract. It validates explicitly authored relevance targets, invokes strategies with identical repository/time constraints, and computes metrics from returned provenance. It does not import database adapters or reproduce dense, lexical, or RRF logic.
+`@swega/evaluation` accepts named implementations of the existing `RepositoryMemory` contract. It validates explicitly authored relevance targets, invokes strategies with identical repository/time constraints, and computes metrics from returned provenance. An optional diagnostic extension exposes the exact pre-rerank pool and stage timings without importing database adapters or reproducing dense, lexical, structured, RRF, or reranking logic.
 
-Ground truth uses stable paths and normalized source references rather than derived document/chunk IDs. Benchmark reports contain no source contents and omit timing data so identical inputs and rankings produce deterministic machine-readable output.
+Ground truth uses stable paths and normalized source references rather than derived document/chunk IDs. Benchmark reports contain no source contents. Strategies with execution diagnostics include stage timings and candidate bytes; ranking/metric fields remain deterministic while timing fields do not.
 
 ## Optional reranking is a bounded local post-retrieval stage
 
-Reranking uses a separate `Reranker` contract rather than expanding `EmbeddingProvider`; vector generation and query-document relevance scoring are different responsibilities. `RerankedRepositoryMemory` wraps the existing hybrid strategy, requests 30 fused candidates, de-duplicates by stable chunk ID, and applies reranker scores without changing dense, lexical, or RRF behavior.
+Reranking uses a separate `Reranker` contract rather than expanding `EmbeddingProvider`; vector generation and query-document relevance scoring are different responsibilities. `RerankedRepositoryMemory` wraps Candidate Generation v2, requests the configured bounded pool (50 by default), de-duplicates by stable chunk ID, and applies reranker scores without changing branch or RRF behavior.
 
-The initial adapter targets a separately started llama.cpp server with the Qwen3-Reranker-0.6B Q4 model. It accepts loopback endpoints only, never starts a runtime or downloads a model, and fails explicitly when configured but unavailable. Search without `--rerank` remains byte-for-byte on the hybrid path. Benchmarking opts into a fourth `hybrid+rerank` strategy so quality changes stay measurable.
+The initial adapter targets a separately started llama.cpp server with the Qwen3-Reranker-0.6B Q4 model. It accepts loopback endpoints only, never starts a runtime or downloads a model, and fails explicitly when configured but unavailable. Search without `--rerank` remains on the hybrid path and never invokes the reranker. Benchmarking opts into a fourth `hybrid+rerank` strategy so quality changes stay measurable.
 
 ## Repository memory uses versioned temporal documents
 

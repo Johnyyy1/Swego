@@ -136,6 +136,48 @@ describe("CLI arguments", () => {
     });
   });
 
+  test("parses configurable candidate generation bounds", () => {
+    expect(
+      parseCliArguments([
+        "benchmark",
+        "benchmarks/formbricks-smoke.json",
+        "--rerank",
+        "--candidate-limit",
+        "75",
+        "--path-limit",
+        "3",
+      ]),
+    ).toEqual({
+      command: "benchmark",
+      benchmarkFile: "benchmarks/formbricks-smoke.json",
+      rerank: true,
+      candidateLimit: 75,
+      pathLimit: 3,
+    });
+  });
+
+  test("rejects invalid candidate generation bounds", () => {
+    expect(() =>
+      parseCliArguments([
+        "benchmark",
+        "benchmark.json",
+        "--candidate-limit",
+        "101",
+      ]),
+    ).toThrow();
+    expect(() =>
+      parseCliArguments([
+        "benchmark",
+        "benchmark.json",
+        "--candidate-limit",
+        "50",
+      ]),
+    ).toThrow("requires --rerank");
+    expect(() => parseCliArguments(["doctor", "--path-limit", "2"])).toThrow(
+      "Usage: swega doctor",
+    );
+  });
+
   test("rejects hybrid search debugging on other commands", () => {
     expect(() => parseCliArguments(["doctor", "--debug"])).toThrow(
       "Usage: swega doctor",

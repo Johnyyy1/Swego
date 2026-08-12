@@ -49,7 +49,7 @@ bun run swega build-memory <repository-id>
 
 TypeScript, TSX, JavaScript, and JSX files are split at declarations such as functions, methods, classes, interfaces, types, and module-level variables. Every structural chunk carries its language, symbol, parent, and line provenance. Unsupported or malformed source falls back to bounded text chunks, so parser coverage never blocks a memory rebuild.
 
-Generate embeddings, then inspect hybrid dense and lexical retrieval directly:
+Generate embeddings, then inspect dense, lexical, and structured hybrid retrieval directly:
 
 ```bash
 bun run swega embed-memory <repository-id>
@@ -62,7 +62,7 @@ bun run swega benchmark benchmarks/formbricks-smoke.json --rerank
 bun run swega benchmark benchmarks/formbricks-smoke.json --json
 ```
 
-Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. PostgreSQL full-text search supplies an independent lexical candidate pool, and Reciprocal Rank Fusion combines the two rankings. `--before` is enforced in PostgreSQL against each chunk's temporal validity interval in both branches. Optional `--rerank` sends only the top 30 hybrid candidates to an explicitly configured loopback llama.cpp reranker; normal search behavior is unchanged. Use `--debug` to show retrieval and reranker ranks and scores.
+Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. PostgreSQL supplies independent lexical and structural symbol/path pools; Reciprocal Rank Fusion and deterministic path diversification combine them with dense retrieval. `--before` is enforced in PostgreSQL in all three branches. Optional `--rerank` sends the bounded 50-candidate default pool to an explicitly configured loopback llama.cpp reranker. Use `--debug` to show branch, fusion, and reranker diagnostics; use `--candidate-limit` and `--path-limit` for measured experiments.
 
 The default embedding configuration is:
 

@@ -75,6 +75,34 @@ describe("reciprocalRankFusion", () => {
   test("returns an empty result when both candidate sets are empty", () => {
     expect(reciprocalRankFusion([], [], { limit: 10 })).toEqual([]);
   });
+
+  test("fuses structured ranks without adding incomparable raw scores", () => {
+    const shared = result("shared", {
+      structuredScore: 8,
+      structuredExactMatch: true,
+    });
+    const structuredOnly = result("structured-only", { structuredScore: 20 });
+    const fused = reciprocalRankFusion(
+      [result("dense-only"), result("shared")],
+      [result("lexical-only")],
+      { limit: 10, k: 60 },
+      [shared, structuredOnly],
+    );
+
+    expect(fused.map((candidate) => candidate.sourceMetadata.chunkId)).toEqual([
+      "shared",
+      "dense-only",
+      "lexical-only",
+      "structured-only",
+    ]);
+    expect(fused[0]).toMatchObject({
+      denseRank: 2,
+      structuredRank: 1,
+      structuredScore: 8,
+      structuredExactMatch: true,
+      rrfRank: 1,
+    });
+  });
 });
 
 function result(

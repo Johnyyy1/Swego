@@ -487,6 +487,11 @@ export const documentChunks = pgTable(
     searchVector: tsvector("search_vector").generatedAlwaysAs(
       sql`setweight(to_tsvector('simple', coalesce("path", '') || ' ' || coalesce("symbol_name", '')), 'A') || setweight(to_tsvector('english', coalesce("content", '')), 'B') || setweight(to_tsvector('simple', coalesce("parent_symbol", '')), 'C') || setweight(to_tsvector('simple', coalesce("source_type", '') || ' ' || coalesce("source_reference", '') || ' ' || coalesce("language", '') || ' ' || coalesce("symbol_kind", '')), 'D')`,
     ),
+    structuralSearchVector: tsvector(
+      "structural_search_vector",
+    ).generatedAlwaysAs(
+      sql`setweight(to_tsvector('simple', lower(translate(coalesce("symbol_name", ''), '/._-', '    '))), 'A') || setweight(to_tsvector('simple', lower(translate(coalesce("path", ''), '/._-', '    '))), 'A') || setweight(to_tsvector('simple', lower(translate(coalesce("parent_symbol", ''), '/._-', '    '))), 'B') || setweight(to_tsvector('simple', coalesce("symbol_kind", '')), 'D')`,
+    ),
     contentHash: text("content_hash").notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     availableAt: timestamp("available_at", { withTimezone: true }).notNull(),
@@ -539,6 +544,14 @@ export const documentChunks = pgTable(
     index("document_chunks_search_vector_gin_index").using(
       "gin",
       table.searchVector,
+    ),
+    index("document_chunks_structural_search_vector_gin_index").using(
+      "gin",
+      table.structuralSearchVector,
+    ),
+    index("document_chunks_repository_symbol_name_index").on(
+      table.repositoryId,
+      table.symbolName,
     ),
     check(
       "document_chunks_source_type_check",

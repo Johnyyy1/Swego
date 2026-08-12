@@ -1,4 +1,9 @@
-import type { MemorySearchResult, RepositoryMemory } from "@swega/retrieval";
+import {
+  supportsSearchMemoryDiagnostics,
+  type MemorySearchResult,
+  type RepositoryMemory,
+  type SearchMemoryExecutionDiagnostics,
+} from "@swega/retrieval";
 
 import { evaluateRanking, type CutoffMetrics } from "./metrics";
 import type {
@@ -32,13 +37,37 @@ export interface BenchmarkCaseReport {
   at: Readonly<Record<string, CutoffMetrics>>;
   matchedRelevant: readonly RelevanceTarget[];
   missingRelevant: readonly RelevanceTarget[];
+  candidateDiagnostics?: BenchmarkCandidateDiagnostics;
   results: readonly ObservedSearchResult[];
+}
+
+export type MissingRelevantReason =
+  "absent_from_candidate_pool" | "reranked_below_cutoff";
+
+export interface MissingRelevantDiagnostic {
+  target: RelevanceTarget;
+  reason: MissingRelevantReason;
+  candidateRank: number | null;
+}
+
+export interface BenchmarkCandidateDiagnostics extends SearchMemoryExecutionDiagnostics {
+  candidateRecall: number;
+  missingRelevant: readonly MissingRelevantDiagnostic[];
 }
 
 export interface AggregateStrategyMetrics {
   cases: number;
   mrr: number;
   at: Readonly<Record<string, CutoffMetrics>>;
+  candidateDiagnostics?: AggregateCandidateDiagnostics;
+}
+
+export interface AggregateCandidateDiagnostics {
+  candidateRecall: number;
+  meanCandidateCount: number;
+  meanCandidateBytes: number;
+  meanCandidateGenerationDurationMs: number;
+  meanRerankingDurationMs: number;
 }
 
 export interface StrategyBenchmarkReport {
@@ -81,14 +110,19 @@ export async function evaluateRetrievalBenchmark(
   for (const strategy of strategies) {
     const caseReports: BenchmarkCaseReport[] = [];
     for (const benchmarkCase of benchmark.cases) {
-      const results = await strategy.memory.searchMemory({
+      const searchInput = {
         repositoryId: benchmarkCase.repositoryId,
         query: benchmarkCase.query,
         limit: maximumCutoff,
         ...(benchmarkCase.before
           ? { before: new Date(benchmarkCase.before) }
           : {}),
-      });
+      };
+      const execution = supportsSearchMemoryDiagnostics(strategy.memory)
+        ? await strategy.memory.searchMemoryWithDiagnostics(searchInput)
+        : null;
+      const results =
+        execution?.results ?? (await strategy.memory.searchMemory(searchInput));
       const mismatched = results.find(
         (result) => result.repositoryId !== benchmarkCase.repositoryId,
       );
@@ -101,7 +135,13 @@ export async function evaluateRetrievalBenchmark(
       }
 
       caseReports.push(
-        evaluateBenchmarkCase(benchmarkCase, results, benchmark.cutoffs),
+        evaluateBenchmarkCase(
+          benchmarkCase,
+          results,
+          benchmark.cutoffs,
+          execution?.candidates,
+          execution?.diagnostics,
+        ),
       );
     }
     strategyReports.push({
@@ -125,6 +165,8 @@ function evaluateBenchmarkCase(
   benchmarkCase: RetrievalBenchmarkCase,
   results: readonly MemorySearchResult[],
   cutoffs: readonly number[],
+  candidates?: readonly MemorySearchResult[],
+  executionDiagnostics?: SearchMemoryExecutionDiagnostics,
 ): BenchmarkCaseReport {
   const evaluation = evaluateRanking(results, benchmarkCase.relevant, cutoffs);
   const matchedRelevant = benchmarkCase.relevant.filter(
@@ -134,6 +176,29 @@ function evaluateBenchmarkCase(
     (_, index) => evaluation.targetRanks[index] === null,
   );
   const maximumCutoff = Math.max(...cutoffs);
+  const candidateEvaluation = candidates
+    ? evaluateRanking(candidates, benchmarkCase.relevant, [
+        candidates.length || 1,
+      ])
+    : null;
+  const missingRelevantDiagnostics = candidateEvaluation
+    ? benchmarkCase.relevant.flatMap((target, index) => {
+        if (evaluation.targetRanks[index] !== null) {
+          return [];
+        }
+        const candidateRank = candidateEvaluation.targetRanks[index] ?? null;
+        return [
+          {
+            target,
+            reason:
+              candidateRank === null
+                ? ("absent_from_candidate_pool" as const)
+                : ("reranked_below_cutoff" as const),
+            candidateRank,
+          },
+        ];
+      })
+    : [];
 
   return {
     id: benchmarkCase.id,
@@ -146,6 +211,17 @@ function evaluateBenchmarkCase(
     at: evaluation.at,
     matchedRelevant,
     missingRelevant,
+    ...(candidateEvaluation && executionDiagnostics
+      ? {
+          candidateDiagnostics: {
+            ...executionDiagnostics,
+            candidateRecall:
+              candidateEvaluation.at[String(candidates?.length || 1)]?.recall ??
+              0,
+            missingRelevant: missingRelevantDiagnostics,
+          },
+        }
+      : {}),
     results: results.slice(0, maximumCutoff).map((result, index) => ({
       rank: index + 1,
       path: result.path,
@@ -171,10 +247,36 @@ function aggregateCaseReports(
       ndcg: mean(cases.map((report) => report.at[key]?.ndcg ?? 0)),
     };
   }
+  const candidateDiagnostics = cases.flatMap((report) =>
+    report.candidateDiagnostics ? [report.candidateDiagnostics] : [],
+  );
   return {
     cases: cases.length,
     mrr: mean(cases.map((report) => report.reciprocalRank)),
     at,
+    ...(candidateDiagnostics.length === cases.length
+      ? {
+          candidateDiagnostics: {
+            candidateRecall: mean(
+              candidateDiagnostics.map((item) => item.candidateRecall),
+            ),
+            meanCandidateCount: mean(
+              candidateDiagnostics.map((item) => item.candidateCount),
+            ),
+            meanCandidateBytes: mean(
+              candidateDiagnostics.map((item) => item.candidateBytes),
+            ),
+            meanCandidateGenerationDurationMs: mean(
+              candidateDiagnostics.map(
+                (item) => item.candidateGenerationDurationMs,
+              ),
+            ),
+            meanRerankingDurationMs: mean(
+              candidateDiagnostics.map((item) => item.rerankingDurationMs),
+            ),
+          },
+        }
+      : {}),
   };
 }
 

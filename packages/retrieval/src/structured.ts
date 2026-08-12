@@ -12,7 +12,7 @@ import type {
   SearchMemoryInput,
 } from "./types";
 
-export class PgLexicalRepositoryMemory implements RepositoryMemory {
+export class PgStructuredRepositoryMemory implements RepositoryMemory {
   constructor(private readonly database: Database) {}
 
   async searchMemory(
@@ -22,19 +22,23 @@ export class PgLexicalRepositoryMemory implements RepositoryMemory {
       input,
       MAX_INTERNAL_CANDIDATE_LIMIT,
     );
-    const lexicalQuery = sql`(
-      replace(plainto_tsquery('english', ${query})::text, ' & ', ' | ')::tsquery
-      ||
-      replace(plainto_tsquery('simple', ${query})::text, ' & ', ' | ')::tsquery
-    )`;
-    const lexicalScore = sql<number>`ts_rank_cd(${documentChunks.searchVector}, ${lexicalQuery})`;
+    const queryTerms = structuralQueryTerms(query);
+    if (queryTerms.length === 0) {
+      return [];
+    }
+    const prefixQuery = queryTerms.map((term) => `${term}:*`).join(" | ");
+    const structuredQuery = sql`to_tsquery('simple', ${prefixQuery})`;
+    const exactMatch = sql<boolean>`coalesce(${documentChunks.symbolName} = ${query}, false)`;
+    const structuralMatch = sql<boolean>`${documentChunks.structuralSearchVector} @@ ${structuredQuery}`;
+    const structuredScore = sql<number>`ts_rank_cd(${documentChunks.structuralSearchVector}, ${structuredQuery})`;
     const rows = await this.database
       .select({
         repositoryId: documentChunks.repositoryId,
         documentId: documentChunks.documentId,
         chunkId: documentChunks.id,
         content: documentChunks.content,
-        lexicalScore,
+        structuredScore,
+        exactMatch,
         sourceType: documentChunks.sourceType,
         sourceId: documentChunks.sourceEntityId,
         sourceReference: documentChunks.sourceReference,
@@ -63,18 +67,19 @@ export class PgLexicalRepositoryMemory implements RepositoryMemory {
             isNull(documentChunks.supersededAt),
             gt(documentChunks.supersededAt, before),
           ),
-          sql`${documentChunks.searchVector} @@ ${lexicalQuery}`,
+          or(exactMatch, structuralMatch),
         ),
       )
-      .orderBy(desc(lexicalScore), asc(documentChunks.id))
+      .orderBy(desc(exactMatch), desc(structuredScore), asc(documentChunks.id))
       .limit(limit);
 
     return rows.map((row, index) => ({
       repositoryId: row.repositoryId,
       content: row.content,
       similarity: 0,
-      lexicalRank: index + 1,
-      lexicalScore: row.lexicalScore,
+      structuredRank: index + 1,
+      structuredScore: row.structuredScore,
+      structuredExactMatch: row.exactMatch,
       sourceType: row.sourceType,
       sourceId: row.sourceId,
       timestamp: row.availableAt,
@@ -101,4 +106,70 @@ export class PgLexicalRepositoryMemory implements RepositoryMemory {
       },
     }));
   }
+}
+
+export function normalizeStructuralQuery(query: string): string {
+  return query
+    .replace(/([A-Z]+)([A-Z][a-z])/gu, "$1 $2")
+    .replace(/([a-z\d])([A-Z])/gu, "$1 $2")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .toLowerCase();
+}
+
+const STRUCTURAL_QUERY_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "be",
+  "been",
+  "being",
+  "did",
+  "do",
+  "does",
+  "find",
+  "for",
+  "get",
+  "how",
+  "implementation",
+  "implemented",
+  "in",
+  "is",
+  "located",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "this",
+  "to",
+  "was",
+  "were",
+  "what",
+  "where",
+  "which",
+  "with",
+  "work",
+  "works",
+]);
+
+export function structuralQueryTerms(query: string): readonly string[] {
+  const normalized = normalizeStructuralQuery(query);
+  const primary = normalized
+    .split(" ")
+    .filter((term) => term && !STRUCTURAL_QUERY_STOP_WORDS.has(term));
+  const terms = new Set(primary);
+  for (const term of primary) {
+    if (term.length > 3 && term.endsWith("s")) {
+      terms.add(term.slice(0, -1));
+    }
+    if (term.length > 4 && term.endsWith("ed") && term.at(-3) !== "z") {
+      terms.add(term.slice(0, -2));
+    }
+    if (term.length > 5 && term.endsWith("ing")) {
+      terms.add(term.slice(0, -3));
+    }
+  }
+  return [...terms];
 }

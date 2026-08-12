@@ -11,8 +11,11 @@ interface FusionCandidate {
   result: MemorySearchResult;
   denseRank?: number;
   lexicalRank?: number;
+  structuredRank?: number;
   denseSimilarity?: number;
   lexicalScore?: number;
+  structuredScore?: number;
+  structuredExactMatch?: boolean;
   rrfScore: number;
 }
 
@@ -20,6 +23,7 @@ export function reciprocalRankFusion(
   denseResults: readonly MemorySearchResult[],
   lexicalResults: readonly MemorySearchResult[],
   options: ReciprocalRankFusionOptions,
+  structuredResults: readonly MemorySearchResult[] = [],
 ): readonly MemorySearchResult[] {
   const k = options.k ?? DEFAULT_RRF_K;
   if (!Number.isFinite(k) || k < 0) {
@@ -32,6 +36,7 @@ export function reciprocalRankFusion(
   const candidates = new Map<string, FusionCandidate>();
   addRankedResults(candidates, denseResults, "dense", k);
   addRankedResults(candidates, lexicalResults, "lexical", k);
+  addRankedResults(candidates, structuredResults, "structured", k);
 
   return [...candidates.entries()]
     .sort(([leftId, left], [rightId, right]) => {
@@ -45,7 +50,7 @@ export function reciprocalRankFusion(
         : leftId.localeCompare(rightId);
     })
     .slice(0, options.limit)
-    .map(([, candidate]) => ({
+    .map(([, candidate], index) => ({
       ...candidate.result,
       similarity: candidate.denseSimilarity ?? 0,
       ...(candidate.denseRank === undefined
@@ -54,20 +59,30 @@ export function reciprocalRankFusion(
       ...(candidate.lexicalRank === undefined
         ? {}
         : { lexicalRank: candidate.lexicalRank }),
+      ...(candidate.structuredRank === undefined
+        ? {}
+        : { structuredRank: candidate.structuredRank }),
       ...(candidate.denseSimilarity === undefined
         ? {}
         : { denseSimilarity: candidate.denseSimilarity }),
       ...(candidate.lexicalScore === undefined
         ? {}
         : { lexicalScore: candidate.lexicalScore }),
+      ...(candidate.structuredScore === undefined
+        ? {}
+        : { structuredScore: candidate.structuredScore }),
+      ...(candidate.structuredExactMatch === undefined
+        ? {}
+        : { structuredExactMatch: candidate.structuredExactMatch }),
       rrfScore: candidate.rrfScore,
+      rrfRank: index + 1,
     }));
 }
 
 function addRankedResults(
   candidates: Map<string, FusionCandidate>,
   results: readonly MemorySearchResult[],
-  retriever: "dense" | "lexical",
+  retriever: "dense" | "lexical" | "structured",
   k: number,
 ): void {
   const seen = new Set<string>();
@@ -85,10 +100,18 @@ function addRankedResults(
     if (retriever === "dense") {
       candidate.denseRank = rank;
       candidate.denseSimilarity = result.denseSimilarity ?? result.similarity;
-    } else {
+    } else if (retriever === "lexical") {
       candidate.lexicalRank = rank;
       if (result.lexicalScore !== undefined) {
         candidate.lexicalScore = result.lexicalScore;
+      }
+    } else {
+      candidate.structuredRank = rank;
+      if (result.structuredScore !== undefined) {
+        candidate.structuredScore = result.structuredScore;
+      }
+      if (result.structuredExactMatch !== undefined) {
+        candidate.structuredExactMatch = result.structuredExactMatch;
       }
     }
     candidates.set(chunkId, candidate);
@@ -99,5 +122,6 @@ function bestRank(candidate: FusionCandidate): number {
   return Math.min(
     candidate.denseRank ?? Number.POSITIVE_INFINITY,
     candidate.lexicalRank ?? Number.POSITIVE_INFINITY,
+    candidate.structuredRank ?? Number.POSITIVE_INFINITY,
   );
 }

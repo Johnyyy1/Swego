@@ -4,6 +4,7 @@ import type { SearchMemoryInput } from "./types";
 
 export const DEFAULT_SEARCH_LIMIT = 10;
 export const MAX_SEARCH_LIMIT = 100;
+export const MAX_INTERNAL_CANDIDATE_LIMIT = 1_000;
 
 export interface NormalizedSearchMemoryInput {
   repositoryId: string;
@@ -14,6 +15,7 @@ export interface NormalizedSearchMemoryInput {
 
 export function normalizeSearchMemoryInput(
   input: SearchMemoryInput,
+  maximumLimit = MAX_SEARCH_LIMIT,
 ): NormalizedSearchMemoryInput {
   const repositoryId = repositoryIdSchema.parse(input.repositoryId);
   const query = input.query.trim();
@@ -21,9 +23,9 @@ export function normalizeSearchMemoryInput(
     throw new Error("Memory search query must not be empty");
   }
   const limit = input.limit ?? DEFAULT_SEARCH_LIMIT;
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_SEARCH_LIMIT) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > maximumLimit) {
     throw new Error(
-      `Memory search limit must be between 1 and ${MAX_SEARCH_LIMIT}`,
+      `Memory search limit must be between 1 and ${maximumLimit}`,
     );
   }
   const before = input.before ?? new Date();

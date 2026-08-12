@@ -14,7 +14,10 @@ import { chunkEmbeddings, documentChunks, type Database } from "@swega/db";
 import { validateEmbeddings, type EmbeddingProvider } from "@swega/embeddings";
 import { EMBEDDING_DIMENSIONS } from "@swega/shared";
 
-import { normalizeSearchMemoryInput } from "./search-input";
+import {
+  MAX_INTERNAL_CANDIDATE_LIMIT,
+  normalizeSearchMemoryInput,
+} from "./search-input";
 import type {
   MemorySearchResult,
   RepositoryMemory,
@@ -36,8 +39,10 @@ export class PgVectorRepositoryMemory implements RepositoryMemory {
   async searchMemory(
     input: SearchMemoryInput,
   ): Promise<readonly MemorySearchResult[]> {
-    const { repositoryId, query, limit, before } =
-      normalizeSearchMemoryInput(input);
+    const { repositoryId, query, limit, before } = normalizeSearchMemoryInput(
+      input,
+      MAX_INTERNAL_CANDIDATE_LIMIT,
+    );
 
     await this.assertCompatibleProjection(repositoryId);
 

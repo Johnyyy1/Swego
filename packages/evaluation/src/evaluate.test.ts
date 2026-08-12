@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   RerankedRepositoryMemory,
+  type DiagnosticRepositoryMemory,
   type MemorySearchResult,
   type RepositoryMemory,
 } from "@swega/retrieval";
@@ -115,6 +116,71 @@ describe("retrieval benchmark evaluation", () => {
     ]);
     expect(report.strategies[0]?.aggregate.mrr).toBe(0.5);
     expect(report.strategies[1]?.aggregate.mrr).toBe(1);
+  });
+
+  test("distinguishes absent candidates from targets reranked below K", async () => {
+    const benchmark = parseRetrievalBenchmark({
+      version: 1,
+      name: "candidate diagnostics",
+      cutoffs: [1],
+      cases: [
+        {
+          id: "session-flow",
+          query: "session implementation",
+          repositoryId,
+          relevant: [
+            { path: "src/session.ts", grade: 3 },
+            { path: "src/proxy-session.ts", grade: 2 },
+          ],
+        },
+      ],
+    });
+    const finalResults = [result("src/unrelated.ts")];
+    const candidates = [result("src/unrelated.ts"), result("src/session.ts")];
+    const memory: DiagnosticRepositoryMemory = {
+      searchMemory: async () => finalResults,
+      searchMemoryWithDiagnostics: async () => ({
+        results: finalResults,
+        candidates,
+        diagnostics: {
+          candidateGenerationDurationMs: 4,
+          rerankingDurationMs: 12,
+          candidateCount: 2,
+          candidateBytes: 1024,
+        },
+      }),
+    };
+
+    const report = await evaluateRetrievalBenchmark(benchmark, [
+      { name: "hybrid+rerank", memory },
+    ]);
+    const diagnostics = report.strategies[0]?.cases[0]?.candidateDiagnostics;
+
+    expect(diagnostics).toMatchObject({
+      candidateRecall: 0.5,
+      candidateCount: 2,
+      missingRelevant: [
+        {
+          target: { path: "src/session.ts" },
+          reason: "reranked_below_cutoff",
+          candidateRank: 2,
+        },
+        {
+          target: { path: "src/proxy-session.ts" },
+          reason: "absent_from_candidate_pool",
+          candidateRank: null,
+        },
+      ],
+    });
+    expect(report.strategies[0]?.aggregate.candidateDiagnostics).toMatchObject({
+      candidateRecall: 0.5,
+      meanCandidateBytes: 1024,
+      meanRerankingDurationMs: 12,
+    });
+    expect(formatBenchmarkReport(report)).toContain(
+      "absent_from_candidate_pool",
+    );
+    expect(formatBenchmarkReport(report)).toContain("reranked_below_cutoff");
   });
 });
 

@@ -47,8 +47,11 @@ export interface MemorySearchResult {
   sourceMetadata: MemorySourceMetadata;
   denseRank?: number;
   lexicalRank?: number;
+  structuredRank?: number;
   denseSimilarity?: number;
   lexicalScore?: number;
+  structuredScore?: number;
+  structuredExactMatch?: boolean;
   rrfScore?: number;
   rrfRank?: number;
   rerankerScore?: number;
@@ -60,4 +63,29 @@ export interface RepositoryMemory {
   searchMemory(
     input: SearchMemoryInput,
   ): Promise<readonly MemorySearchResult[]>;
+}
+
+export interface SearchMemoryExecutionDiagnostics {
+  candidateGenerationDurationMs: number;
+  rerankingDurationMs: number;
+  candidateCount: number;
+  candidateBytes: number;
+}
+
+export interface SearchMemoryExecution {
+  results: readonly MemorySearchResult[];
+  candidates: readonly MemorySearchResult[];
+  diagnostics: SearchMemoryExecutionDiagnostics;
+}
+
+export interface DiagnosticRepositoryMemory extends RepositoryMemory {
+  searchMemoryWithDiagnostics(
+    input: SearchMemoryInput,
+  ): Promise<SearchMemoryExecution>;
+}
+
+export function supportsSearchMemoryDiagnostics(
+  memory: RepositoryMemory,
+): memory is DiagnosticRepositoryMemory {
+  return "searchMemoryWithDiagnostics" in memory;
 }

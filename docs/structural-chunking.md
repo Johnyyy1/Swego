@@ -60,7 +60,7 @@ Embedding projection orders stale chunks by content length and then stable chunk
 
 ## Retrieval behavior
 
-Dense scoring, lexical scoring, RRF, and optional reranking remain separate production stages. Structural chunking changes the candidate documents rather than adding query-specific ranking rules. The lexical projection places path and symbol name at weight A, content at B, parent symbol at C, and secondary provenance/structural fields at D. This gives an exact query such as `getProxySession` direct evidence for its definition while preserving the existing general retrieval architecture.
+Dense scoring, lexical scoring, structured scoring, RRF, and optional reranking remain separate production stages. The lexical projection places path and symbol name at weight A, content at B, parent symbol at C, and secondary provenance/structural fields at D. Candidate Generation v2 additionally maintains a structural-only projection: symbol and normalized path/filename terms use weight A, parent symbols use B, and symbol kind uses D. CamelCase/PascalCase queries are split at the query boundary; kebab/snake/path separators are normalized in PostgreSQL. Exact raw symbol equality is ranked first and protected during path diversification.
 
 ## Operational limits
 

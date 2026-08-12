@@ -13,7 +13,7 @@ hybrid
 hybrid+rerank (only with --rerank and a configured local provider)
 ```
 
-Each strategy receives the same query, repository ID, cutoff, and maximum requested metric cutoff.
+Each strategy receives the same query, repository ID, cutoff, and maximum requested metric cutoff. A strategy that implements the optional diagnostic interface also returns its exact pre-rerank pool and stage measurements in the same execution.
 
 ## Benchmark format
 
@@ -67,12 +67,17 @@ The evaluator reports per-case values and macro-averages across cases:
 
 Defaults are `@1`, `@3`, `@5`, and `@10`. Human output includes aggregate tables and every query with incomplete recall at the largest cutoff. JSON output includes aggregates, per-case metrics, missing targets, and compact top-result provenance without source contents.
 
+For diagnostic strategies such as `hybrid+rerank`, the report additionally includes candidate recall across the complete pre-rerank pool, candidate count and UTF-8 formatted-candidate bytes, candidate-generation/reranking durations, and a cause for every final missing target. Causes are `absent_from_candidate_pool` or `reranked_below_cutoff`, with candidate rank when present.
+
+Existing Precision/Recall/MRR/nDCG definitions are unchanged. Candidate recall is separately named and never substituted for final Recall@K. Timing fields make diagnostic reports intentionally nondeterministic; ranking and metric fields remain reproducible for deterministic providers.
+
 ## CLI usage
 
 ```bash
 bun run swega benchmark benchmarks/formbricks-smoke.json
 bun run swega benchmark benchmarks/formbricks-smoke.json --rerank
 bun run swega benchmark benchmarks/formbricks-smoke.json --json
+bun run swega benchmark benchmarks/formbricks-smoke.json --rerank --candidate-limit 50 --path-limit 2
 ```
 
 The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available. `--rerank` additionally requires `RERANKER_PROVIDER=llama.cpp`, evaluates `hybrid+rerank` against the same cases, and fails rather than silently falling back if that provider is unavailable.
@@ -124,3 +129,18 @@ The structural rebuild increased source chunks from 7,582 to 23,430 (3.09×), wi
 ## Benchmark size
 
 Eleven cases are enough only for wiring and regression smoke tests. For meaningful directional iteration on one repository, target at least 50 reviewed cases with roughly 5–10 cases per major intent category. Prefer 100 or more cases, multiple reviewers, and a held-out subset before making strong retrieval-quality claims or tuning parameters.
+
+## Candidate Generation v2 smoke result
+
+The selected 50-candidate/two-per-path configuration raised complete pre-rerank target coverage from 0.667 to 0.833. Hybrid+rerank changed from MRR 0.697, Recall@5 0.636, Recall@10 0.667, Hit Rate@10 0.818, and nDCG@10 0.610 to 0.652, 0.697, 0.788, 0.909, and 0.629 respectively. Candidate recall, final recall, hit rate, and nDCG improved; MRR regressed and is explicitly not presented as an across-the-board quality gain.
+
+| Strategy      |   MRR | Recall@5 | Recall@10 | Hit Rate@10 | nDCG@10 |
+| ------------- | ----: | -------: | --------: | ----------: | ------: |
+| dense         | 0.561 |    0.576 |     0.576 |       0.727 |   0.477 |
+| lexical       | 0.091 |    0.273 |     0.273 |       0.273 |   0.136 |
+| hybrid        | 0.405 |    0.500 |     0.545 |       0.636 |   0.433 |
+| hybrid+rerank | 0.652 |    0.697 |     0.788 |       0.909 |   0.629 |
+
+The direct hybrid top-10 ranking regressed from the pre-change structural baseline (MRR 0.530, Recall@10 0.667, nDCG@10 0.518). Candidate Generation v2 deliberately optimizes a broader, more diverse pre-rerank pool; RRF alone does not reliably order its three heterogeneous intent signals. Non-reranked search therefore remains a known regression requiring broader evaluation before another fusion change.
+
+The exact pool-size measurements and per-query changes are recorded in [Local reranking](reranking.md). The remaining unauthorized-request failure demonstrates both diagnostic categories: one implementation file is present but reranked below 10, while the other is absent from the pool.

@@ -118,6 +118,31 @@ describe("RerankedRepositoryMemory", () => {
     expect(rerankInputs[0]?.candidates).toHaveLength(20);
   });
 
+  test("reports the exact candidate pool, byte size, and stage timings", async () => {
+    const reranked = new RerankedRepositoryMemory(
+      memoryStub([result("one"), result("two")]),
+      rerankerStub([
+        { candidateId: "one", score: 0.2 },
+        { candidateId: "two", score: 0.1 },
+      ]),
+    );
+
+    const execution = await reranked.searchMemoryWithDiagnostics({
+      repositoryId,
+      query: "session",
+      limit: 1,
+    });
+
+    expect(execution.results).toHaveLength(1);
+    expect(execution.candidates).toHaveLength(2);
+    expect(execution.diagnostics).toMatchObject({ candidateCount: 2 });
+    expect(execution.diagnostics.candidateBytes).toBeGreaterThan(0);
+    expect(
+      execution.diagnostics.candidateGenerationDurationMs,
+    ).toBeGreaterThanOrEqual(0);
+    expect(execution.diagnostics.rerankingDurationMs).toBeGreaterThanOrEqual(0);
+  });
+
   test("rejects missing, unknown, duplicate, and non-finite scores", async () => {
     const malformedScores = [
       [{ candidateId: "one", score: 0.2 }],
@@ -171,6 +196,7 @@ describe("RerankedRepositoryMemory", () => {
     const hybrid = new HybridRepositoryMemory(
       memoryStub([result("dense-only"), result("shared")]),
       memoryStub([result("shared"), result("lexical-only")]),
+      memoryStub([]),
     );
     const reranked = new RerankedRepositoryMemory(
       hybrid,

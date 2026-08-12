@@ -1,0 +1,2 @@
+ALTER TABLE "document_chunks" drop column "structural_search_vector";--> statement-breakpoint
+ALTER TABLE "document_chunks" ADD COLUMN "structural_search_vector" "tsvector" GENERATED ALWAYS AS (setweight(to_tsvector('simple', lower(translate(coalesce("symbol_name", ''), '/._-', '    '))), 'A') || setweight(to_tsvector('simple', lower(translate(coalesce("path", ''), '/._-', '    '))), 'A') || setweight(to_tsvector('simple', lower(translate(coalesce("parent_symbol", ''), '/._-', '    '))), 'B') || setweight(to_tsvector('simple', coalesce("symbol_kind", '')), 'D')) STORED;

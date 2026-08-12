@@ -4,7 +4,11 @@ export {
 } from "./evaluate";
 export type {
   AggregateStrategyMetrics,
+  AggregateCandidateDiagnostics,
   BenchmarkCaseReport,
+  BenchmarkCandidateDiagnostics,
+  MissingRelevantDiagnostic,
+  MissingRelevantReason,
   ObservedSearchResult,
   RetrievalBenchmarkReport,
   RetrievalStrategy,
