@@ -7,6 +7,7 @@ import {
 
 import {
   evaluateRanking,
+  matchesRelevanceTarget,
   matchesRelevanceTargetFile,
   type CutoffMetrics,
 } from "./metrics";
@@ -72,6 +73,10 @@ export interface BenchmarkCandidateDiagnostics extends SearchMemoryExecutionDiag
   candidateRecall: number;
   missingRelevant: readonly MissingRelevantDiagnostic[];
   targetOutcomes: readonly TargetOutcomeDiagnostic[];
+  relationshipCandidateCount: number;
+  relationshipOnlyCandidateCount: number;
+  relationshipFalsePositiveCandidateCount: number;
+  targetsRecoveredOnlyByRelationship: readonly RelevanceTarget[];
 }
 
 export interface AggregateStrategyMetrics {
@@ -88,6 +93,10 @@ export interface AggregateCandidateDiagnostics {
   meanCandidateGenerationDurationMs: number;
   meanRerankingDurationMs: number;
   targetOutcomeCounts: Readonly<Record<TargetOutcome, number>>;
+  meanRelationshipCandidateCount: number;
+  meanRelationshipOnlyCandidateCount: number;
+  relationshipFalsePositiveCandidateCount: number;
+  targetsRecoveredOnlyByRelationshipCount: number;
 }
 
 export interface CategoryStrategyMetrics extends AggregateStrategyMetrics {
@@ -240,6 +249,19 @@ function evaluateBenchmarkCase(
         ];
       })
     : [];
+  const relationshipCandidates =
+    candidates?.filter(
+      (candidate) => candidate.relationshipRank !== undefined,
+    ) ?? [];
+  const relationshipOnlyCandidates = relationshipCandidates.filter(
+    (candidate) => candidate.retrievedDirectly === false,
+  );
+  const targetsRecoveredOnlyByRelationship = benchmarkCase.relevant.filter(
+    (target) =>
+      relationshipOnlyCandidates.some((candidate) =>
+        matchesRelevanceTarget(candidate, target),
+      ),
+  );
 
   return {
     id: benchmarkCase.id,
@@ -297,6 +319,16 @@ function evaluateBenchmarkCase(
                 finalRank,
               };
             }),
+            relationshipCandidateCount: relationshipCandidates.length,
+            relationshipOnlyCandidateCount: relationshipOnlyCandidates.length,
+            relationshipFalsePositiveCandidateCount:
+              relationshipOnlyCandidates.filter(
+                (candidate) =>
+                  !benchmarkCase.relevant.some((target) =>
+                    matchesRelevanceTarget(candidate, target),
+                  ),
+              ).length,
+            targetsRecoveredOnlyByRelationship,
           },
         }
       : {}),
@@ -353,6 +385,28 @@ function aggregateCaseReports(
               candidateDiagnostics.map((item) => item.rerankingDurationMs),
             ),
             targetOutcomeCounts: countTargetOutcomes(candidateDiagnostics),
+            meanRelationshipCandidateCount: mean(
+              candidateDiagnostics.map(
+                (item) => item.relationshipCandidateCount,
+              ),
+            ),
+            meanRelationshipOnlyCandidateCount: mean(
+              candidateDiagnostics.map(
+                (item) => item.relationshipOnlyCandidateCount,
+              ),
+            ),
+            relationshipFalsePositiveCandidateCount:
+              candidateDiagnostics.reduce(
+                (total, item) =>
+                  total + item.relationshipFalsePositiveCandidateCount,
+                0,
+              ),
+            targetsRecoveredOnlyByRelationshipCount:
+              candidateDiagnostics.reduce(
+                (total, item) =>
+                  total + item.targetsRecoveredOnlyByRelationship.length,
+                0,
+              ),
           },
         }
       : {}),

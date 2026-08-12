@@ -79,6 +79,8 @@ For diagnostic strategies such as `hybrid+rerank`, the report additionally inclu
 
 Category aggregates are emitted for inspection, while the human report suppresses categories with fewer than three cases to avoid over-interpreting tiny samples.
 
+Relationship-enabled diagnostic reports also count relationship-only candidates, authored targets recovered only by those candidates, and relationship-only candidates matching no authored target in the case. Baseline/enabled JSON reports can be compared to identify direct targets displaced from the fixed pool. “False positive” in this report is corpus-relative and does not claim that an unlabeled candidate is universally irrelevant.
+
 Existing Precision/Recall/MRR/nDCG definitions are unchanged. Candidate recall is separately named and never substituted for final Recall@K. Timing fields make diagnostic reports intentionally nondeterministic; ranking and metric fields remain reproducible for deterministic providers.
 
 ## CLI usage
@@ -89,6 +91,7 @@ bun run swega benchmark benchmarks/formbricks-smoke.json --rerank
 bun run swega benchmark benchmarks/formbricks-smoke.json --json
 bun run swega benchmark benchmarks/formbricks-smoke.json --rerank --candidate-limit 50 --path-limit 2
 bun run swega benchmark benchmarks/formbricks-development.json --file-evidence multi-branch
+bun run swega benchmark benchmarks/formbricks-development.json --rerank --relationship-expansion none
 ```
 
 The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available. `--rerank` additionally requires `RERANKER_PROVIDER=llama.cpp`, evaluates `hybrid+rerank` against the same cases, and fails rather than silently falling back if that provider is unavailable.
@@ -237,3 +240,40 @@ The unchanged 11-case smoke suite was rerun after selection. Dense, lexical, and
 Compared with Candidate Generation v2's reranked smoke baseline, MRR moved 0.652→0.642, Recall@5 0.697→0.621, Recall@10 0.788→0.758, and nDCG@10 0.629→0.618; Hit@10 stayed 0.909 and candidate recall stayed 0.833. This is the main observed regression and reinforces why ranking decisions were based on the larger development split rather than the smoke fixture.
 
 The motivating unauthorized-request case is not solved. Multi-branch propagation now promotes representative `apiWrapper` chunks to fused ranks 26–27, but Qwen still places the file below top 10; `authenticate-request.ts` remains absent because no bounded raw branch retrieved one of its chunks. The next bottleneck is therefore bounded structural/relationship expansion for collaborating symbols and files, followed by reranker discrimination—not a stronger unbounded file aggregate.
+
+## Structural relationship evaluation
+
+The bounded structural relationship milestone compared the unchanged multi-branch 50-candidate pool with one-hop expansion on the 40-case development split. An order-preserving deterministic reranker exposed the exact pool without spending model time during parameter selection.
+
+| Development configuration |   MRR | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall |   A |   B |   C |   D | Generation |
+| ------------------------- | ----: | -------: | --------: | -----: | ------: | ---------------: | --: | --: | --: | --: | ---------: |
+| file evidence baseline    | 0.342 |    0.388 |     0.454 |  0.550 |   0.348 |            0.667 |  13 |   8 |  13 |  23 |   760.6 ms |
+| + bounded relationships   | 0.347 |    0.425 |     0.467 |  0.575 |   0.358 |            0.675 |  11 |   9 |  13 |  24 |   950.8 ms |
+
+Two targets entered the pool that were absent from the baseline pool: the AI survey-generation `POST` route at candidate rank 41 and `apps/web/lib/env.ts` for object-storage configuration at rank 48. Only the latter was relationship-only; the route also existed in a raw branch outside the baseline selected pool. One directly retrieved `apps/web/lib/env.ts` target for BullMQ configuration was displaced from baseline candidate rank 49. Exact-symbol, migration, and test candidate recall remained 1.0.
+
+The relationship-only pool contained 140 candidates across the run; one matched an authored target and 139 did not. Those are corpus-relative false positives—labels are intentionally sparse—but the ratio and the marginal net candidate gain do not justify enabling expansion by default. The experimental stage therefore remains available through `--relationship-expansion bounded` while the normal direct and reranked defaults remain `none`.
+
+Mean candidate generation increased by 190.1 ms (25.0%) but remained below one second and small relative to the roughly 39-second local reranker. The motivating `authenticate-request.ts` target was absent from every raw branch and entered the 50-candidate pool at rank 48 through a direct `IMPORTS` edge from retrieved API-wrapper/authentication evidence.
+
+After the architecture, relationship types, anchor policy, and budgets were frozen, live Qwen3 reranking used the required 8K llama.cpp context. Query embeddings were computed once and Ollama's model was unloaded before reranking to keep both models from exceeding a 16 GB machine. Qwen scores were cached by query and chunk identity so candidates shared by the baseline and enabled pools were not reranked twice. The live baseline exactly reproduced the previously recorded baseline, validating this resource-safe execution method.
+
+| Live development configuration |   MRR | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall |   A |   B |   C |   D | Generation |
+| ------------------------------ | ----: | -------: | --------: | -----: | ------: | ---------------: | --: | --: | --: | --: | ---------: |
+| file evidence baseline         | 0.500 |    0.537 |     0.608 |  0.725 |   0.497 |            0.667 |  13 |   8 |   6 |  30 |   648.5 ms |
+| + bounded relationships        | 0.500 |    0.546 |     0.617 |  0.725 |   0.503 |            0.675 |  11 |   9 |   6 |  31 |   770.8 ms |
+
+The AI survey-generation `POST` target entered at candidate rank 41 and Qwen promoted it to final rank 4. It was not strictly relationship-only because a direct branch had retrieved it outside the baseline's selected pool. The object-storage `apps/web/lib/env.ts` target was the one strict relationship-only recovery at candidate rank 48 and stayed below top 10. A directly retrieved BullMQ `apps/web/lib/env.ts` target at baseline candidate rank 49 was displaced. Feature-flow Recall@10 improved from 0.333 to 0.444; configuration's recovery and displacement canceled. Exact-symbol, migration, and test Recall@10 and candidate recall remained 1.0. No development category's final metrics declined.
+
+Live development candidate generation increased by 122.3 ms (18.9%). Reranking time is not compared between the two rows because the enabled run intentionally reused identical Qwen scores from the baseline.
+
+The sealed 15-case held-out split was evaluated once after development selection, with no subsequent architecture or parameter changes:
+
+| Live held-out configuration |   MRR | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall |   A |   B |   C |   D | Generation |
+| --------------------------- | ----: | -------: | --------: | -----: | ------: | ---------------: | --: | --: | --: | --: | ---------: |
+| file evidence baseline      | 0.568 |    0.622 |     0.711 |  0.867 |   0.581 |            0.767 |   5 |   3 |   2 |  16 |   746.6 ms |
+| + bounded relationships     | 0.568 |    0.622 |     0.711 |  0.867 |   0.581 |            0.789 |   4 |   3 |   3 |  16 |   977.0 ms |
+
+The SMTP configuration `apps/web/lib/env.ts` target entered only through a relationship at candidate rank 48 and was reranked below top 10. No authored target was displaced, and final metrics were unchanged. Held-out candidate generation increased by 230.4 ms (30.9%). The 54 relationship-only held-out candidates contained one authored target and 53 corpus-relative false positives.
+
+These results preserve the development decision: bounded relationships demonstrably reduce failure class A, but the marginal recall gain and predominantly unlabeled expansion candidates do not justify enabling the feature by default. The next bottleneck is relationship precision and reranker discrimination, evaluated on a larger corpus rather than by tuning against this held-out split.

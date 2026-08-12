@@ -7,9 +7,11 @@ import {
   documentChunks,
   documents,
   repositories,
+  sourceRelationships,
   type Database,
 } from "@swega/db";
 import {
+  extractSourceRelationships,
   normalizeIssueDocument,
   normalizeSourceCodeDocument,
   type SourceStructureParser,
@@ -306,5 +308,57 @@ describeWithDatabase("repository-memory persistence", () => {
       .from(documentChunks)
       .where(eq(documentChunks.documentId, structuralDocument.document.id));
     expect(repeatedChunks).toHaveLength(structuralDocument.chunks.length);
+  });
+
+  test("reconciles stale derived relationships after a rebuild", async () => {
+    const committedAt = new Date("2025-05-03T10:00:00.000Z");
+    const commitSha = "f".repeat(40);
+    const targetContent = "export const helper = () => true;";
+    const sourceContent =
+      'import { helper } from "./helper"; export const use = helper();';
+    const target = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "src/helper.ts",
+      commitSha,
+      committedAt,
+      content: targetContent,
+      sourceReference: `git:${commitSha}:src/helper.ts`,
+    });
+    const source = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "src/source.ts",
+      commitSha,
+      committedAt,
+      content: sourceContent,
+      sourceReference: `git:${commitSha}:src/source.ts`,
+    });
+    const relationships = extractSourceRelationships([
+      { document: target, content: targetContent },
+      { document: source, content: sourceContent },
+    ]);
+
+    await persistMemoryDocuments(database, [target, source], new Date(), {
+      reconcileSourceCodeForRepositoryId: repositoryId,
+      sourceRelationships: relationships,
+    });
+    expect(
+      await database
+        .select({ id: sourceRelationships.id })
+        .from(sourceRelationships)
+        .where(eq(sourceRelationships.repositoryId, repositoryId)),
+    ).toHaveLength(1);
+
+    await persistMemoryDocuments(database, [target, source], new Date(), {
+      reconcileSourceCodeForRepositoryId: repositoryId,
+      sourceRelationships: [],
+    });
+    expect(
+      await database
+        .select({ id: sourceRelationships.id })
+        .from(sourceRelationships)
+        .where(eq(sourceRelationships.repositoryId, repositoryId)),
+    ).toEqual([]);
   });
 });

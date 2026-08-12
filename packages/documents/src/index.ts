@@ -16,6 +16,21 @@ export type {
   SourceStructureParser,
   SourceSymbolKind,
 } from "./source-structure";
+export type {
+  ParsedSourceRelationship,
+  SourceRelationshipExtractor,
+  SourceRelationshipParseInput,
+  SourceRelationshipParseResult,
+} from "./source-relationships";
+export {
+  TypeScriptSourceRelationshipExtractor,
+  typeScriptSourceRelationshipExtractor,
+} from "./typescript-relationships";
+export { extractSourceRelationships } from "./relationships";
+export type {
+  RelationshipSourceFile,
+  SourceRelationship,
+} from "./relationships";
 export {
   TypeScriptSourceStructureParser,
   typeScriptSourceStructureParser,

@@ -3,7 +3,9 @@ import { parseArgs } from "node:util";
 import { z } from "zod";
 import {
   fileEvidenceStrategies,
+  relationshipExpansionStrategies,
   type FileEvidenceStrategy,
+  type RelationshipExpansionStrategy,
 } from "@swega/retrieval";
 
 export const DEFAULT_INGESTION_LIMIT = 100;
@@ -52,6 +54,7 @@ export interface SearchMemoryArguments {
   candidateLimit?: number;
   pathLimit?: number;
   fileEvidence?: FileEvidenceStrategy;
+  relationshipExpansion?: RelationshipExpansionStrategy;
 }
 
 export interface BenchmarkArguments {
@@ -62,6 +65,7 @@ export interface BenchmarkArguments {
   candidateLimit?: number;
   pathLimit?: number;
   fileEvidence?: FileEvidenceStrategy;
+  relationshipExpansion?: RelationshipExpansionStrategy;
 }
 
 export type CliArguments =
@@ -94,6 +98,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       "candidate-limit": { type: "string" },
       "path-limit": { type: "string" },
       "file-evidence": { type: "string" },
+      "relationship-expansion": { type: "string" },
     },
   });
 
@@ -112,7 +117,8 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.rerank ||
       parsed.values["candidate-limit"] ||
       parsed.values["path-limit"] ||
-      parsed.values["file-evidence"]
+      parsed.values["file-evidence"] ||
+      parsed.values["relationship-expansion"]
     ) {
       throw new Error("Usage: swega doctor");
     }
@@ -129,7 +135,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.json
     ) {
       throw new Error(
-        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--debug]",
+        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--debug]",
       );
     }
     if (parsed.values["candidate-limit"] && !parsed.values.rerank) {
@@ -164,6 +170,13 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
               .parse(parsed.values["file-evidence"]),
           }
         : {}),
+      ...(parsed.values["relationship-expansion"]
+        ? {
+            relationshipExpansion: z
+              .enum(relationshipExpansionStrategies)
+              .parse(parsed.values["relationship-expansion"]),
+          }
+        : {}),
     };
   }
 
@@ -178,7 +191,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.debug
     ) {
       throw new Error(
-        "Usage: swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--json]",
+        "Usage: swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--json]",
       );
     }
     if (parsed.values["candidate-limit"] && !parsed.values.rerank) {
@@ -206,6 +219,13 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
               .parse(parsed.values["file-evidence"]),
           }
         : {}),
+      ...(parsed.values["relationship-expansion"]
+        ? {
+            relationshipExpansion: z
+              .enum(relationshipExpansionStrategies)
+              .parse(parsed.values["relationship-expansion"]),
+          }
+        : {}),
     };
   }
 
@@ -227,7 +247,8 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   if (
     parsed.values["candidate-limit"] ||
     parsed.values["path-limit"] ||
-    parsed.values["file-evidence"]
+    parsed.values["file-evidence"] ||
+    parsed.values["relationship-expansion"]
   ) {
     throw new Error(
       "Candidate generation options apply only to search and benchmark",
@@ -279,14 +300,15 @@ export function helpText(): string {
     "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
     "  swega build-memory <repository-id>",
     "  swega embed-memory <repository-id>",
-    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--debug]',
-    "  swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--json]",
+    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--debug]',
+    "  swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--json]",
     "",
     "Options:",
     "  --limit N        Bound ingestion or the number of search results",
     "  --since DATE     Ingest records updated at or after an ISO-8601 date",
     "  --before DATE    Exclude memory unavailable at this historical cutoff",
     "  --debug          Include retrieval and reranker ranking diagnostics",
+    "  --relationship-expansion STRATEGY  none or bounded (default: none)",
     "  --rerank         Rerank a bounded hybrid candidate set locally",
     "  --candidate-limit N  Bound the pre-rerank candidate pool",
     "  --path-limit N   Bound pre-rerank chunks retained per file path",

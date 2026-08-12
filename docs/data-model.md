@@ -15,6 +15,7 @@ SWEGA stores provider data in a normalized, repository-scoped model. UUID primar
 - Each `document_chunks.search_vector` is a generated, rebuildable full-text projection. A GIN index supports lexical candidate retrieval without duplicating a separately synchronized search entity.
 - Each `document_chunks.structural_search_vector` is a separate generated projection containing only normalized symbol, parent-symbol, kind, and path metadata. Its GIN index supports the structured candidate branch without treating complete chunk content as structural evidence. A repository/symbol-name B-tree supports exact-name access paths.
 - `chunk_embeddings` is a rebuildable pgvector projection of the current embedding for each chunk. It records repository, provider, model, dimensions, content hash, and embedding time so stale vectors can be replaced safely.
+- `source_relationships` is a rebuildable, repository-scoped projection of statically resolved imports and re-exports between versioned source documents. It retains paths, optional symbols, revisions, temporal validity, parser provenance, line, reason, and confidence.
 
 Mutable provider entities include `sourceUpdatedAt`, `lastSyncedAt`, and `deletedAt` where applicable. `sourceUpdatedAt` is the provider's last known modification time, `lastSyncedAt` is SWEGA's latest observation time, and `deletedAt` represents a retained tombstone instead of silently losing provenance.
 
@@ -27,11 +28,12 @@ Repository
 ├── Issue
 │   └── IssueComment
 ├── PullRequest
-    ├── PullRequestFile
-    └── Review
-└── Document
-    └── DocumentChunk
-        └── ChunkEmbedding
+│   ├── PullRequestFile
+│   └── Review
+├── Document
+│   └── DocumentChunk
+│       └── ChunkEmbedding
+└── SourceRelationship (source Document → target Document)
 ```
 
 All source tables include `repositoryId`. Direct children reference `repositories.id`. Nested children use composite foreign keys such as `(repositoryId, issueId) -> issues(repositoryId, id)`, preventing a record scoped to one repository from referencing a parent in another repository. Cascading deletes keep the graph internally consistent if a repository or parent record is removed.
@@ -49,6 +51,7 @@ All source tables include `repositoryId`. Direct children reference `repositorie
 - `(repositoryId, sourceType, sourceEntityId, sourceVersion)` uniquely identifies a document version. `(repositoryId, documentId, chunkIndex)` uniquely identifies a chunk position, and deterministic primary IDs make unchanged re-indexing idempotent.
 - `(repositoryId, chunkId)` is a composite foreign key from embeddings to chunks. This makes cross-repository vector associations invalid even though deterministic chunk IDs are globally unique primary keys.
 - The HNSW index uses cosine distance. Stored rows identify their embedding provider, model, fixed dimensions, and source content hash; retrieval only compares compatible query and chunk vectors.
+- Relationship source and target use composite `(repositoryId, documentId)` foreign keys. Source/target traversal indexes include repository, document, and availability; rebuild reconciliation removes stale edges.
 - The document-chunk GIN index covers a weighted full-text vector: path tokens have the highest weight, content has the next weight, and source type/reference metadata contributes only a low-weight provenance signal.
 - The structural GIN index weights symbol names and normalized path/filename components equally at A, parent symbols at B, and symbol kinds at D. It is derived from existing chunk metadata and requires no independent synchronization lifecycle.
 - Repository creation times, default branches, bodies, provider update times, deletion times, and hosted-service authors are nullable when the source can legitimately omit them. An unknown repository creation time stays unknown rather than being replaced with an ingestion timestamp. Commit authors remain required because they are intrinsic to a Git commit.

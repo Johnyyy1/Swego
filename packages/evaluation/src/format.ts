@@ -54,6 +54,9 @@ export function formatBenchmarkReport(
             formatBytes(diagnostics.meanCandidateBytes),
             formatMilliseconds(diagnostics.meanCandidateGenerationDurationMs),
             formatMilliseconds(diagnostics.meanRerankingDurationMs),
+            formatMetric(diagnostics.meanRelationshipOnlyCandidateCount),
+            String(diagnostics.targetsRecoveredOnlyByRelationshipCount),
+            String(diagnostics.relationshipFalsePositiveCandidateCount),
           ],
         ]
       : [];
@@ -70,6 +73,9 @@ export function formatBenchmarkReport(
           "Candidate Bytes",
           "Generation",
           "Reranking",
+          "Rel-only",
+          "Targets recovered",
+          "Rel false positives",
         ],
         ...candidateRows,
       ]),

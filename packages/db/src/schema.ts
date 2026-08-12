@@ -19,6 +19,7 @@ import {
 import {
   EMBEDDING_DIMENSIONS,
   type MemorySourceType,
+  type SourceRelationshipType,
   type SourceSymbolKind,
 } from "@swega/shared";
 
@@ -589,6 +590,73 @@ export const documentChunks = pgTable(
   ],
 );
 
+export const sourceRelationships = pgTable(
+  "source_relationships",
+  {
+    id: text("id").primaryKey(),
+    repositoryId: uuid("repository_id").notNull(),
+    sourceDocumentId: text("source_document_id").notNull(),
+    targetDocumentId: text("target_document_id").notNull(),
+    relationshipType: text("relationship_type")
+      .$type<SourceRelationshipType>()
+      .notNull(),
+    sourcePath: text("source_path").notNull(),
+    targetPath: text("target_path").notNull(),
+    sourceSymbol: text("source_symbol"),
+    targetSymbol: text("target_symbol"),
+    language: text("language").notNull(),
+    sourceCommitSha: text("source_commit_sha").notNull(),
+    targetCommitSha: text("target_commit_sha").notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true }).notNull(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+    provenance: text("provenance").notNull(),
+    reason: text("reason").notNull(),
+    sourceStartLine: integer("source_start_line").notNull(),
+    confidence: integer("confidence").notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.repositoryId, table.sourceDocumentId],
+      foreignColumns: [documents.repositoryId, documents.id],
+      name: "source_relationships_repository_source_document_foreign_key",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.repositoryId, table.targetDocumentId],
+      foreignColumns: [documents.repositoryId, documents.id],
+      name: "source_relationships_repository_target_document_foreign_key",
+    }).onDelete("cascade"),
+    index("source_relationships_repository_source_index").on(
+      table.repositoryId,
+      table.sourceDocumentId,
+      table.availableAt,
+    ),
+    index("source_relationships_repository_target_index").on(
+      table.repositoryId,
+      table.targetDocumentId,
+      table.availableAt,
+    ),
+    check(
+      "source_relationships_type_check",
+      sql`${table.relationshipType} in ('imports', 'reexports')`,
+    ),
+    check(
+      "source_relationships_temporal_range_check",
+      sql`${table.supersededAt} is null or ${table.supersededAt} >= ${table.availableAt}`,
+    ),
+    check(
+      "source_relationships_line_check",
+      sql`${table.sourceStartLine} >= 1`,
+    ),
+    check(
+      "source_relationships_confidence_check",
+      sql`${table.confidence} between 0 and 1`,
+    ),
+  ],
+);
+
 export const chunkEmbeddings = pgTable(
   "chunk_embeddings",
   {
@@ -651,5 +719,7 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type DocumentChunk = typeof documentChunks.$inferSelect;
 export type NewDocumentChunk = typeof documentChunks.$inferInsert;
+export type SourceRelationship = typeof sourceRelationships.$inferSelect;
+export type NewSourceRelationship = typeof sourceRelationships.$inferInsert;
 export type ChunkEmbedding = typeof chunkEmbeddings.$inferSelect;
 export type NewChunkEmbedding = typeof chunkEmbeddings.$inferInsert;

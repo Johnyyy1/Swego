@@ -4,9 +4,13 @@ import {
   chunkEmbeddings,
   documentChunks,
   documents,
+  sourceRelationships,
   type Database,
 } from "@swega/db";
-import type { GeneratedMemoryDocument } from "@swega/documents";
+import type {
+  GeneratedMemoryDocument,
+  SourceRelationship,
+} from "@swega/documents";
 
 const CHUNK_UPSERT_BATCH_SIZE = 100;
 
@@ -24,6 +28,7 @@ export interface MemoryPersistenceResult {
 
 export interface MemoryPersistenceOptions {
   reconcileSourceCodeForRepositoryId?: string;
+  sourceRelationships?: readonly SourceRelationship[];
 }
 
 export async function persistMemoryDocuments(
@@ -186,6 +191,15 @@ export async function persistMemoryDocuments(
     }
 
     if (options.reconcileSourceCodeForRepositoryId) {
+      await persistSourceRelationships(
+        transaction,
+        options.reconcileSourceCodeForRepositoryId,
+        options.sourceRelationships ?? [],
+        indexedAt,
+      );
+    }
+
+    if (options.reconcileSourceCodeForRepositoryId) {
       reconciliation = await reconcileSourceCodeDocuments(
         transaction,
         options.reconcileSourceCodeForRepositoryId,
@@ -199,6 +213,47 @@ export async function persistMemoryDocuments(
     chunks: chunkCount,
     reconciliation,
   };
+}
+
+async function persistSourceRelationships(
+  transaction: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  repositoryId: string,
+  relationships: readonly SourceRelationship[],
+  indexedAt: Date,
+): Promise<void> {
+  for (
+    let offset = 0;
+    offset < relationships.length;
+    offset += CHUNK_UPSERT_BATCH_SIZE
+  ) {
+    const batch = relationships.slice(offset, offset + CHUNK_UPSERT_BATCH_SIZE);
+    await transaction
+      .insert(sourceRelationships)
+      .values(batch.map((relationship) => ({ ...relationship, indexedAt })))
+      .onConflictDoUpdate({
+        target: sourceRelationships.id,
+        set: {
+          sourceSymbol: sql`excluded.source_symbol`,
+          targetSymbol: sql`excluded.target_symbol`,
+          availableAt: sql`excluded.available_at`,
+          supersededAt: sql`excluded.superseded_at`,
+          provenance: sql`excluded.provenance`,
+          reason: sql`excluded.reason`,
+          sourceStartLine: sql`excluded.source_start_line`,
+          confidence: sql`excluded.confidence`,
+          indexedAt,
+        },
+      });
+  }
+  const ids = relationships.map((relationship) => relationship.id);
+  await transaction
+    .delete(sourceRelationships)
+    .where(
+      and(
+        eq(sourceRelationships.repositoryId, repositoryId),
+        ...(ids.length > 0 ? [notInArray(sourceRelationships.id, ids)] : []),
+      ),
+    );
 }
 
 async function reconcileSourceCodeDocuments(

@@ -12,6 +12,8 @@ query
           ↓
    Reciprocal Rank Fusion
           ↓
+ bounded one-hop relationships
+          ↓
    path diversification
           ↓
   top 50 unique candidates
@@ -21,7 +23,9 @@ query
       final top K
 ```
 
-It does not replace candidate generation and cannot introduce a document that was absent from the fused candidate pool. Search without `--rerank` uses the Candidate Generation v2 ranking directly.
+It does not replace candidate generation and cannot introduce a document that was absent from the final bounded candidate pool. Search without `--rerank` uses the Candidate Generation v2 ranking directly.
+
+The production reranker pool can include bounded structural relationship candidates before final diversification. This stage is part of candidate generation, not the reranker, and is documented in [Structural relationship expansion](structural-relationships.md).
 
 `@swega/reranking` defines a small provider-neutral `Reranker` contract over a query and candidate texts. `@swega/retrieval` owns conversion from `MemorySearchResult` to the minimal relevance text and attaches `rerankerScore`, `rerankerRank`, and `finalRank` while preserving dense, lexical, structured, RRF, and provenance diagnostics.
 

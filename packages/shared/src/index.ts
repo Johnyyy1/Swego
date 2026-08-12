@@ -38,4 +38,8 @@ export const sourceSymbolKinds = [
 
 export type SourceSymbolKind = (typeof sourceSymbolKinds)[number];
 
+export const sourceRelationshipTypes = ["imports", "reexports"] as const;
+
+export type SourceRelationshipType = (typeof sourceRelationshipTypes)[number];
+
 export const EMBEDDING_DIMENSIONS = 512;

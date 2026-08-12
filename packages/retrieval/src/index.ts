@@ -39,6 +39,23 @@ export {
 export type { RerankedRepositoryMemoryOptions } from "./reranked";
 export { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
 export type { ReciprocalRankFusionOptions } from "./rrf";
+export {
+  DEFAULT_RELATIONSHIP_CANDIDATE_LIMIT,
+  DEFAULT_RELATIONSHIP_MAX_ANCHORS,
+  DEFAULT_RELATIONSHIP_MAX_NEIGHBORS_PER_ANCHOR,
+  DEFAULT_RELATIONSHIP_RESERVED_CANDIDATES,
+  selectCandidatesWithRelationshipReserve,
+  selectRelationshipAnchors,
+} from "./relationship-expansion";
+export type {
+  RelationshipExpansion,
+  RelationshipExpansionInput,
+} from "./relationship-expansion";
+export {
+  PgRelationshipExpansion,
+  selectRepresentativeRelationshipChunk,
+} from "./relationship-postgres";
+export type { RelationshipRepresentativeChunk } from "./relationship-postgres";
 export type {
   DiagnosticRepositoryMemory,
   FileEvidenceSource,
@@ -50,6 +67,11 @@ export type {
   SearchMemoryExecutionDiagnostics,
   SearchMemoryInput,
   RepresentativeChunkReason,
+  RetrievalRelationshipType,
+  RelationshipExpansionStrategy,
 } from "./types";
-export { fileEvidenceStrategies } from "./types";
+export {
+  fileEvidenceStrategies,
+  relationshipExpansionStrategies,
+} from "./types";
 export { supportsSearchMemoryDiagnostics } from "./types";

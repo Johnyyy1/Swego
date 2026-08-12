@@ -132,6 +132,36 @@ describe("reciprocalRankFusion", () => {
       propagatedFromFileEvidence: true,
     });
   });
+
+  test("adds relationship candidates as a separate rank-only branch", () => {
+    const related = result("related", {
+      relationshipRank: 1,
+      relationshipType: "imports",
+      relationshipSourcePath: "src/source.ts",
+      relationshipTargetPath: "src/target.ts",
+      relationshipDepth: 1,
+      relationshipReason: "imports ./target",
+    });
+    const fused = reciprocalRankFusion(
+      [result("direct")],
+      [],
+      { limit: 2 },
+      [],
+      [],
+      [related],
+    );
+
+    expect(fused.map((candidate) => candidate.sourceMetadata.chunkId)).toEqual([
+      "direct",
+      "related",
+    ]);
+    expect(fused[1]).toMatchObject({
+      relationshipRank: 1,
+      relationshipType: "imports",
+      relationshipDepth: 1,
+      rrfScore: 1 / 61,
+    });
+  });
 });
 
 function result(

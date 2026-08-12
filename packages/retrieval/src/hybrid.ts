@@ -13,6 +13,15 @@ import {
 } from "./file-evidence";
 import { normalizeSearchMemoryInput } from "./search-input";
 import { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
+import {
+  DEFAULT_RELATIONSHIP_CANDIDATE_LIMIT,
+  DEFAULT_RELATIONSHIP_MAX_ANCHORS,
+  DEFAULT_RELATIONSHIP_MAX_NEIGHBORS_PER_ANCHOR,
+  DEFAULT_RELATIONSHIP_RESERVED_CANDIDATES,
+  selectRelationshipAnchors,
+  selectCandidatesWithRelationshipReserve,
+  type RelationshipExpansion,
+} from "./relationship-expansion";
 import { fileEvidenceStrategies } from "./types";
 import type {
   MemorySearchResult,
@@ -36,6 +45,11 @@ export interface HybridRepositoryMemoryOptions {
   fileEvidenceStrategy?: FileEvidenceStrategy;
   fileEvidenceFileLimit?: number;
   representativeChunksPerFile?: number;
+  relationshipExpansion?: RelationshipExpansion;
+  relationshipMaxAnchors?: number;
+  relationshipMaxNeighborsPerAnchor?: number;
+  relationshipCandidateLimit?: number;
+  relationshipReservedCandidates?: number;
 }
 
 export class HybridRepositoryMemory implements RepositoryMemory {
@@ -48,6 +62,11 @@ export class HybridRepositoryMemory implements RepositoryMemory {
   private readonly fileEvidenceStrategy: FileEvidenceStrategy;
   private readonly fileEvidenceFileLimit: number;
   private readonly representativeChunksPerFile: number;
+  private readonly relationshipMaxAnchors: number;
+  private readonly relationshipMaxNeighborsPerAnchor: number;
+  private readonly relationshipCandidateLimit: number;
+  private readonly relationshipReservedCandidates: number;
+  private readonly relationshipExpansion: RelationshipExpansion | undefined;
 
   constructor(
     private readonly dense: RepositoryMemory,
@@ -95,6 +114,30 @@ export class HybridRepositoryMemory implements RepositoryMemory {
         DEFAULT_REPRESENTATIVE_CHUNKS_PER_FILE,
       "Representative chunk",
     );
+    this.relationshipMaxAnchors = validateCandidateLimit(
+      options.relationshipMaxAnchors ?? DEFAULT_RELATIONSHIP_MAX_ANCHORS,
+      "Relationship anchor",
+    );
+    this.relationshipMaxNeighborsPerAnchor = validateCandidateLimit(
+      options.relationshipMaxNeighborsPerAnchor ??
+        DEFAULT_RELATIONSHIP_MAX_NEIGHBORS_PER_ANCHOR,
+      "Relationship neighbor",
+    );
+    this.relationshipCandidateLimit = validateCandidateLimit(
+      options.relationshipCandidateLimit ??
+        DEFAULT_RELATIONSHIP_CANDIDATE_LIMIT,
+      "Relationship",
+    );
+    this.relationshipReservedCandidates =
+      options.relationshipReservedCandidates ??
+      DEFAULT_RELATIONSHIP_RESERVED_CANDIDATES;
+    if (
+      !Number.isInteger(this.relationshipReservedCandidates) ||
+      this.relationshipReservedCandidates < 0
+    ) {
+      throw new Error("Relationship reserve must be a non-negative integer");
+    }
+    this.relationshipExpansion = options.relationshipExpansion;
   }
 
   async searchMemory(
@@ -154,7 +197,7 @@ export class HybridRepositoryMemory implements RepositoryMemory {
               representativeChunksPerFile: this.representativeChunksPerFile,
             },
           );
-    const fused = reciprocalRankFusion(
+    const initiallyFused = reciprocalRankFusion(
       diversifiedDense,
       diversifiedLexical,
       {
@@ -167,9 +210,49 @@ export class HybridRepositoryMemory implements RepositoryMemory {
       diversifiedStructured,
       fileEvidenceResults,
     );
-    return diversifyCandidatesByPath(fused, {
+    const relationshipResults = this.relationshipExpansion
+      ? await this.relationshipExpansion.expand({
+          repositoryId: normalized.repositoryId,
+          query: normalized.query,
+          before: normalized.before,
+          anchors: selectRelationshipAnchors(
+            initiallyFused,
+            this.relationshipMaxAnchors,
+          ),
+          maxNeighborsPerAnchor: this.relationshipMaxNeighborsPerAnchor,
+          candidateLimit: this.relationshipCandidateLimit,
+        })
+      : [];
+    const fused =
+      relationshipResults.length === 0
+        ? initiallyFused
+        : reciprocalRankFusion(
+            diversifiedDense,
+            diversifiedLexical,
+            {
+              limit:
+                diversifiedDense.length +
+                diversifiedLexical.length +
+                diversifiedStructured.length +
+                relationshipResults.length,
+              k: this.rrfK,
+            },
+            diversifiedStructured,
+            fileEvidenceResults,
+            relationshipResults,
+          );
+    const directChunkIds = new Set(
+      [...denseResults, ...lexicalResults, ...structuredResults].map(
+        (result) => result.sourceMetadata.chunkId,
+      ),
+    );
+    return selectCandidatesWithRelationshipReserve(fused, directChunkIds, {
       limit: normalized.limit,
       maxCandidatesPerPath: this.maxCandidatesPerPath,
-    });
+      reservedRelationshipCandidates: this.relationshipReservedCandidates,
+    }).map((result) => ({
+      ...result,
+      retrievedDirectly: directChunkIds.has(result.sourceMetadata.chunkId),
+    }));
   }
 }

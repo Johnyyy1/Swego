@@ -118,6 +118,11 @@ async function main(): Promise<void> {
           ...(arguments_.fileEvidence === undefined
             ? {}
             : { fileEvidenceStrategy: arguments_.fileEvidence }),
+          ...(arguments_.relationshipExpansion === undefined
+            ? {}
+            : {
+                relationshipExpansionStrategy: arguments_.relationshipExpansion,
+              }),
         },
       );
       if (arguments_.command === "benchmark") {

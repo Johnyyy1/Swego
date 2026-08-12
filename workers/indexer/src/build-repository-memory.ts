@@ -17,6 +17,7 @@ import {
   normalizePullRequestDocument,
   normalizeReviewDocument,
   normalizeSourceCodeDocument,
+  extractSourceRelationships,
   type GeneratedMemoryDocument,
 } from "@swega/documents";
 import {
@@ -59,6 +60,7 @@ export interface BuildRepositoryMemoryResult extends MemoryPersistenceResult {
   admittedSourceFiles: number;
   excludedSourceFiles: number;
   admittedSourceChunks: number;
+  sourceRelationships: number;
   structurallyChunkedSourceFiles: number;
   textuallyChunkedSourceFiles: number;
   sourceFileExclusions: Readonly<Record<SourceExclusionReason, number>>;
@@ -137,7 +139,10 @@ export async function buildRepositoryMemory(
         options.database,
         [...metadataDocuments, ...sourceCode.documents],
         new Date(),
-        { reconcileSourceCodeForRepositoryId: repositoryId },
+        {
+          reconcileSourceCodeForRepositoryId: repositoryId,
+          sourceRelationships: sourceCode.relationships,
+        },
       ),
   );
   const result: BuildRepositoryMemoryResult = {
@@ -146,6 +151,7 @@ export async function buildRepositoryMemory(
     admittedSourceFiles: sourceCode.admitted,
     excludedSourceFiles: sourceCode.excluded,
     admittedSourceChunks: sourceCode.chunks,
+    sourceRelationships: sourceCode.relationships.length,
     structurallyChunkedSourceFiles: sourceCode.structural,
     textuallyChunkedSourceFiles: sourceCode.textual,
     sourceFileExclusions: sourceCode.exclusions,
@@ -158,6 +164,7 @@ export async function buildRepositoryMemory(
     admittedSourceFiles: result.admittedSourceFiles,
     excludedSourceFiles: result.excludedSourceFiles,
     admittedSourceChunks: result.admittedSourceChunks,
+    sourceRelationships: result.sourceRelationships,
     structurallyChunkedSourceFiles: result.structurallyChunkedSourceFiles,
     textuallyChunkedSourceFiles: result.textuallyChunkedSourceFiles,
     sourceFileExclusions: result.sourceFileExclusions,
@@ -418,6 +425,10 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
   await options.git.updateRepository(managedRepository);
   const commitTimes = new Map<string, Date>();
   const documents: GeneratedMemoryDocument[] = [];
+  const relationshipFiles: {
+    document: GeneratedMemoryDocument;
+    content: string;
+  }[] = [];
   const pathClassifications = classifySourceFilePaths(
     options.files,
     options.classification,
@@ -511,6 +522,7 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
       language: file.language,
     });
     documents.push(generated);
+    relationshipFiles.push({ document: generated, content: contents });
     if (generated.document.chunkingStrategy === "source_code_structural_v1") {
       structural += 1;
     } else {
@@ -521,6 +533,7 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
 
   return {
     documents,
+    relationships: extractSourceRelationships(relationshipFiles),
     admitted,
     excluded,
     exclusions,

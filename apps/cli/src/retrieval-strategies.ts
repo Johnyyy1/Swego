@@ -7,9 +7,11 @@ import {
   PgLexicalRepositoryMemory,
   PgStructuredRepositoryMemory,
   PgVectorRepositoryMemory,
+  PgRelationshipExpansion,
   RerankedRepositoryMemory,
   type RepositoryMemory,
   type FileEvidenceStrategy,
+  type RelationshipExpansionStrategy,
 } from "@swega/retrieval";
 
 export interface ConfiguredRetrievalStrategies {
@@ -24,6 +26,8 @@ export interface RetrievalStrategyConfiguration {
   candidateLimit?: number;
   maxCandidatesPerPath?: number;
   fileEvidenceStrategy?: FileEvidenceStrategy;
+  relationshipExpansionStrategy?: RelationshipExpansionStrategy;
+  relationshipReservedCandidates?: number;
 }
 
 export function createConfiguredRetrievalStrategies(
@@ -35,10 +39,17 @@ export function createConfiguredRetrievalStrategies(
   const dense = new PgVectorRepositoryMemory(database, embeddings);
   const lexical = new PgLexicalRepositoryMemory(database);
   const structured = new PgStructuredRepositoryMemory(database);
+  const relationships = new PgRelationshipExpansion(database);
   const sharedHybridOptions = {
     ...(configuration.maxCandidatesPerPath === undefined
       ? {}
       : { maxCandidatesPerPath: configuration.maxCandidatesPerPath }),
+    ...(configuration.relationshipReservedCandidates === undefined
+      ? {}
+      : {
+          relationshipReservedCandidates:
+            configuration.relationshipReservedCandidates,
+        }),
   };
   const hybrid = new HybridRepositoryMemory(dense, lexical, structured, {
     ...sharedHybridOptions,
@@ -46,6 +57,11 @@ export function createConfiguredRetrievalStrategies(
       configuration.fileEvidenceStrategy,
       false,
     ),
+    ...(resolveRelationshipExpansionStrategy(
+      configuration.relationshipExpansionStrategy,
+    ) === "bounded"
+      ? { relationshipExpansion: relationships }
+      : {}),
   });
   const rerankHybrid = reranker
     ? new HybridRepositoryMemory(dense, lexical, structured, {
@@ -54,6 +70,11 @@ export function createConfiguredRetrievalStrategies(
           configuration.fileEvidenceStrategy,
           true,
         ),
+        ...(resolveRelationshipExpansionStrategy(
+          configuration.relationshipExpansionStrategy,
+        ) === "bounded"
+          ? { relationshipExpansion: relationships }
+          : {}),
       })
     : null;
   return {
@@ -75,6 +96,12 @@ export function createConfiguredRetrievalStrategies(
         }
       : {}),
   };
+}
+
+export function resolveRelationshipExpansionStrategy(
+  configured: RelationshipExpansionStrategy | undefined,
+): RelationshipExpansionStrategy {
+  return configured ?? "none";
 }
 
 export function resolveFileEvidenceStrategy(

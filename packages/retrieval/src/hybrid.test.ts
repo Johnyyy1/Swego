@@ -194,6 +194,67 @@ describe("HybridRepositoryMemory", () => {
       "src/available.ts",
     ]);
   });
+
+  test("expands one hop from strong file evidence and preserves direct provenance", async () => {
+    const anchor = result("wrapper", {
+      path: "src/api-wrapper.ts",
+      sourceMetadata: metadata("wrapper", "src/api-wrapper.ts", {
+        symbolName: "apiWrapper",
+        symbolKind: "function",
+      }),
+    });
+    const related = result("authenticate", {
+      path: "src/authenticate-request.ts",
+      sourceMetadata: metadata("authenticate", "src/authenticate-request.ts", {
+        symbolName: "authenticateRequest",
+        symbolKind: "function",
+      }),
+      relationshipType: "imports",
+      relationshipSourcePath: "src/api-wrapper.ts",
+      relationshipTargetPath: "src/authenticate-request.ts",
+      relationshipTargetSymbol: "authenticateRequest",
+      relationshipDepth: 1,
+      relationshipReason: "imports ./authenticate-request",
+      relationshipRank: 1,
+      retrievedDirectly: false,
+    });
+    const observedAnchors: (readonly MemorySearchResult[])[] = [];
+    const hybrid = new HybridRepositoryMemory(
+      memoryStub([anchor]),
+      memoryStub([anchor]),
+      memoryStub([]),
+      {
+        fileEvidenceStrategy: "multi-branch",
+        relationshipExpansion: {
+          expand: async (input) => {
+            observedAnchors.push(input.anchors);
+            return [related];
+          },
+        },
+      },
+    );
+
+    const results = await hybrid.searchMemory({
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+      query: "unauthorized request handling",
+      limit: 2,
+    });
+
+    expect(observedAnchors).toHaveLength(1);
+    expect(observedAnchors[0]?.map((candidate) => candidate.path)).toEqual([
+      "src/api-wrapper.ts",
+    ]);
+    expect(results.map((candidate) => candidate.path)).toEqual([
+      "src/api-wrapper.ts",
+      "src/authenticate-request.ts",
+    ]);
+    expect(results[0]?.retrievedDirectly).toBe(true);
+    expect(results[1]).toMatchObject({
+      retrievedDirectly: false,
+      relationshipDepth: 1,
+      relationshipRank: 1,
+    });
+  });
 });
 
 function memoryStub(

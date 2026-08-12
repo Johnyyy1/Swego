@@ -159,6 +159,22 @@ describe("CLI arguments", () => {
     });
   });
 
+  test("parses an explicit structural relationship comparison", () => {
+    expect(
+      parseCliArguments([
+        "benchmark",
+        "benchmarks/formbricks-development.json",
+        "--rerank",
+        "--relationship-expansion",
+        "none",
+      ]),
+    ).toMatchObject({
+      command: "benchmark",
+      rerank: true,
+      relationshipExpansion: "none",
+    });
+  });
+
   test("rejects invalid candidate generation bounds", () => {
     expect(() =>
       parseCliArguments([

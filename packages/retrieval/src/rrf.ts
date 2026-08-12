@@ -21,6 +21,14 @@ interface FusionCandidate {
   fileEvidenceScore?: number;
   representativeChunkReason?: MemorySearchResult["representativeChunkReason"];
   propagatedFromFileEvidence?: boolean;
+  relationshipRank?: number;
+  relationshipType?: MemorySearchResult["relationshipType"];
+  relationshipSourcePath?: string | null;
+  relationshipSourceSymbol?: string | null;
+  relationshipTargetPath?: string | null;
+  relationshipTargetSymbol?: string | null;
+  relationshipDepth?: 1;
+  relationshipReason?: string;
   rrfScore: number;
 }
 
@@ -30,6 +38,7 @@ export function reciprocalRankFusion(
   options: ReciprocalRankFusionOptions,
   structuredResults: readonly MemorySearchResult[] = [],
   fileEvidenceResults: readonly MemorySearchResult[] = [],
+  relationshipResults: readonly MemorySearchResult[] = [],
 ): readonly MemorySearchResult[] {
   const k = options.k ?? DEFAULT_RRF_K;
   if (!Number.isFinite(k) || k < 0) {
@@ -44,6 +53,7 @@ export function reciprocalRankFusion(
   addRankedResults(candidates, lexicalResults, "lexical", k);
   addRankedResults(candidates, structuredResults, "structured", k);
   addFileEvidenceResults(candidates, fileEvidenceResults, k);
+  addRelationshipResults(candidates, relationshipResults, k);
 
   return [...candidates.entries()]
     .sort(([leftId, left], [rightId, right]) => {
@@ -98,9 +108,70 @@ export function reciprocalRankFusion(
         : {
             propagatedFromFileEvidence: candidate.propagatedFromFileEvidence,
           }),
+      ...(candidate.relationshipRank === undefined
+        ? {}
+        : {
+            relationshipRank: candidate.relationshipRank,
+            ...(candidate.relationshipType === undefined
+              ? {}
+              : { relationshipType: candidate.relationshipType }),
+            ...(candidate.relationshipSourcePath === undefined
+              ? {}
+              : { relationshipSourcePath: candidate.relationshipSourcePath }),
+            ...(candidate.relationshipSourceSymbol === undefined
+              ? {}
+              : {
+                  relationshipSourceSymbol: candidate.relationshipSourceSymbol,
+                }),
+            ...(candidate.relationshipTargetPath === undefined
+              ? {}
+              : { relationshipTargetPath: candidate.relationshipTargetPath }),
+            ...(candidate.relationshipTargetSymbol === undefined
+              ? {}
+              : {
+                  relationshipTargetSymbol: candidate.relationshipTargetSymbol,
+                }),
+            ...(candidate.relationshipDepth === undefined
+              ? {}
+              : { relationshipDepth: candidate.relationshipDepth }),
+            ...(candidate.relationshipReason === undefined
+              ? {}
+              : { relationshipReason: candidate.relationshipReason }),
+          }),
       rrfScore: candidate.rrfScore,
       rrfRank: index + 1,
     }));
+}
+
+function addRelationshipResults(
+  candidates: Map<string, FusionCandidate>,
+  results: readonly MemorySearchResult[],
+  k: number,
+): void {
+  const seen = new Set<string>();
+  for (const result of results) {
+    const chunkId = result.sourceMetadata.chunkId;
+    if (seen.has(chunkId) || result.relationshipRank === undefined) continue;
+    seen.add(chunkId);
+    const candidate = candidates.get(chunkId) ?? { result, rrfScore: 0 };
+    candidate.rrfScore += 1 / (k + result.relationshipRank);
+    candidate.relationshipRank = result.relationshipRank;
+    if (result.relationshipType !== undefined)
+      candidate.relationshipType = result.relationshipType;
+    if (result.relationshipSourcePath !== undefined)
+      candidate.relationshipSourcePath = result.relationshipSourcePath;
+    if (result.relationshipSourceSymbol !== undefined)
+      candidate.relationshipSourceSymbol = result.relationshipSourceSymbol;
+    if (result.relationshipTargetPath !== undefined)
+      candidate.relationshipTargetPath = result.relationshipTargetPath;
+    if (result.relationshipTargetSymbol !== undefined)
+      candidate.relationshipTargetSymbol = result.relationshipTargetSymbol;
+    if (result.relationshipDepth !== undefined)
+      candidate.relationshipDepth = result.relationshipDepth;
+    if (result.relationshipReason !== undefined)
+      candidate.relationshipReason = result.relationshipReason;
+    candidates.set(chunkId, candidate);
+  }
 }
 
 function addFileEvidenceResults(
@@ -203,5 +274,6 @@ function bestRank(candidate: FusionCandidate): number {
     candidate.lexicalRank ?? Number.POSITIVE_INFINITY,
     candidate.structuredRank ?? Number.POSITIVE_INFINITY,
     candidate.fileEvidenceRank ?? Number.POSITIVE_INFINITY,
+    candidate.relationshipRank ?? Number.POSITIVE_INFINITY,
   );
 }

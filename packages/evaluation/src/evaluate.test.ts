@@ -136,7 +136,12 @@ describe("retrieval benchmark evaluation", () => {
       ],
     });
     const finalResults = [result("src/unrelated.ts")];
-    const candidates = [result("src/unrelated.ts"), result("src/session.ts")];
+    const relationshipCandidate = result("src/session.ts");
+    relationshipCandidate.relationshipRank = 1;
+    relationshipCandidate.relationshipType = "imports";
+    relationshipCandidate.relationshipDepth = 1;
+    relationshipCandidate.retrievedDirectly = false;
+    const candidates = [result("src/unrelated.ts"), relationshipCandidate];
     const memory: DiagnosticRepositoryMemory = {
       searchMemory: async () => finalResults,
       searchMemoryWithDiagnostics: async () => ({
@@ -170,6 +175,12 @@ describe("retrieval benchmark evaluation", () => {
           reason: "absent_from_candidate_pool",
           candidateRank: null,
         },
+      ],
+      relationshipCandidateCount: 1,
+      relationshipOnlyCandidateCount: 1,
+      relationshipFalsePositiveCandidateCount: 0,
+      targetsRecoveredOnlyByRelationship: [
+        expect.objectContaining({ path: "src/session.ts" }),
       ],
     });
     expect(report.strategies[0]?.aggregate.candidateDiagnostics).toMatchObject({

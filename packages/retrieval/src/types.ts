@@ -57,12 +57,27 @@ export interface MemorySearchResult {
   fileEvidenceScore?: number;
   representativeChunkReason?: RepresentativeChunkReason;
   propagatedFromFileEvidence?: boolean;
+  relationshipType?: RetrievalRelationshipType;
+  relationshipSourcePath?: string | null;
+  relationshipSourceSymbol?: string | null;
+  relationshipTargetPath?: string | null;
+  relationshipTargetSymbol?: string | null;
+  relationshipDepth?: 1;
+  relationshipReason?: string;
+  relationshipRank?: number;
+  retrievedDirectly?: boolean;
   rrfScore?: number;
   rrfRank?: number;
   rerankerScore?: number;
   rerankerRank?: number;
   finalRank?: number;
 }
+
+export type RetrievalRelationshipType = "imports" | "imported_by" | "reexports";
+
+export const relationshipExpansionStrategies = ["none", "bounded"] as const;
+export type RelationshipExpansionStrategy =
+  (typeof relationshipExpansionStrategies)[number];
 
 export const fileEvidenceStrategies = [
   "none",

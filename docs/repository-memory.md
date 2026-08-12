@@ -6,6 +6,8 @@ Repository memory is a provider-independent, rebuildable layer between normalize
 
 Embeddings and retrieval ranking are downstream projections and are not part of this normalization layer.
 
+Static source relationships are also downstream, rebuildable enrichment. The current TypeScript-family adapter extracts relative imports and re-exports from the same admitted source text during a memory build; Git ingestion does not depend on it. See [Structural relationship expansion](structural-relationships.md).
+
 ## Model
 
 A `Document` identifies one searchable version of one source entity. It stores:

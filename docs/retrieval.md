@@ -24,6 +24,10 @@ query
     bounded rank-only file evidence
       → representative code chunks
                     ↓
+          strong direct anchors
+                    ↓
+     bounded one-hop relationship branch
+                    ↓
           path diversification
                     ↓
        bounded 50-candidate pool
@@ -85,6 +89,12 @@ None of the methods counts every chunk or mixes cosine, lexical, and structural 
 
 Use `--file-evidence none|max|multi-branch|bounded-top-n` to reproduce an approach. The benchmark comparison is recorded in [Retrieval evaluation](retrieval-evaluation.md).
 
+## Structural relationship expansion
+
+When explicitly enabled, reranked candidate generation expands at most one hop from bounded strong anchors after file evidence. The initial TypeScript-family adapter stores high-confidence resolved relative imports and re-exports; `IMPORTED_BY` is their query-time inverse. A separate rank-only relationship branch contributes at most 16 representative chunks and never enlarges the 50-candidate reranker pool. Expansion remains disabled by default after the development diagnostic showed predominantly unlabeled relationship-only candidates.
+
+The complete taxonomy, 12-anchor/3-neighbor bounds, representative selection, language fallback, rebuild lifecycle, and historical semantics are documented in [Structural relationship expansion](structural-relationships.md). Use `--relationship-expansion none|bounded` for controlled comparisons.
+
 ## Reciprocal Rank Fusion
 
 Candidates merge by deterministic `document_chunks.id`, so a chunk returned by multiple branches is one result. RRF uses 1-based ranks and the conventional default `k = 60`:
@@ -122,6 +132,7 @@ Every result retains content and source provenance. Hybrid results may additiona
 - `fileEvidenceRank`, `fileEvidenceSources`, and rank-derived `fileEvidenceScore` for propagated representatives;
 - `representativeChunkReason` and `propagatedFromFileEvidence` for the bounded synthetic branch;
 - `rrfScore` and pre-diversification `rrfRank` for the fused score/order;
+- `relationshipType`, source/target path and symbol, depth, reason, rank, and `retrievedDirectly` when relationship evidence contributed;
 - `rerankerScore`, `rerankerRank`, and `finalRank` when reranking is enabled.
 
 Source-code results also expose `language`, deterministic `symbolId`, `symbolName`, `symbolKind`, `parentSymbol`, and symbol part/count metadata. The CLI's debug output and benchmark failure records may show the symbol name and kind, but never log complete candidate source contents.
@@ -149,8 +160,8 @@ An exploratory comparison used the existing Formbricks snapshot at commit `88a38
 - PostgreSQL structural search is token/prefix based; it does not provide trigram typo correction or semantic symbol resolution.
 - Repeated terms in large authored catalogs can produce noisy lexical candidates; a relevance corpus is needed before selecting a general mitigation.
 - Unsupported and malformed languages still use conservative fixed-size code chunks that can split a declaration from its context.
-- Optional reranking adds substantial latency and cannot recover relevant material absent from the bounded candidate pool. There is no relationship expansion or source-type/path filter.
-- File propagation can only select chunks already present in one of the bounded raw branches. It does not perform relationship or neighboring-symbol expansion.
+- Optional reranking adds substantial latency and cannot recover relevant material absent from both direct branches and the bounded one-hop relationship graph. There is no source-type/path filter.
+- Relationship v1 resolves only relative TypeScript-family modules. Package aliases, semantic references, call graphs, inferred tests, and unsupported languages do not produce edges.
 - The schema supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
 - HNSW with highly selective repository/time filters can return fewer strong dense candidates than an exact prefiltered strategy.
 - Provider adapters validate failures but do not yet retry transient upstream errors.
