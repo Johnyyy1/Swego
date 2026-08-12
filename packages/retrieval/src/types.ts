@@ -24,12 +24,21 @@ export interface MemorySourceMetadata {
 export interface MemorySearchResult {
   repositoryId: RepositoryId;
   content: string;
+  /**
+   * The legacy dense similarity field. Hybrid lexical-only results use zero
+   * because no dense score exists; consumers should use rrfScore for ranking.
+   */
   similarity: number;
   sourceType: MemorySourceType;
   sourceId: string;
   timestamp: Date;
   path: string | null;
   sourceMetadata: MemorySourceMetadata;
+  denseRank?: number;
+  lexicalRank?: number;
+  denseSimilarity?: number;
+  lexicalScore?: number;
+  rrfScore?: number;
 }
 
 export interface RepositoryMemory {

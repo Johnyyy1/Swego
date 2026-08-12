@@ -57,6 +57,13 @@
       "when": 1786464210842,
       "tag": "0007_mature_franklin_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786493048841,
+      "tag": "0008_steep_iceman",
+      "breakpoints": true
     }
   ]
 }

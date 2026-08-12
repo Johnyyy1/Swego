@@ -15,7 +15,12 @@ import {
   ingestGitHubRepository,
   synchronizeGitRepository,
 } from "@swega/indexer";
-import { PgVectorRepositoryMemory } from "@swega/retrieval";
+import {
+  HybridRepositoryMemory,
+  PgLexicalRepositoryMemory,
+  PgVectorRepositoryMemory,
+  type MemorySearchResult,
+} from "@swega/retrieval";
 import {
   loadRootEnvironment,
   parseServerEnvironment,
@@ -85,14 +90,28 @@ async function main(): Promise<void> {
         return;
       }
 
-      const memory = new PgVectorRepositoryMemory(database.db, embeddings);
+      const memory = new HybridRepositoryMemory(
+        new PgVectorRepositoryMemory(database.db, embeddings),
+        new PgLexicalRepositoryMemory(database.db),
+      );
       const results = await memory.searchMemory({
         repositoryId: arguments_.repositoryId,
         query: arguments_.query,
         limit: arguments_.limit,
         ...(arguments_.before ? { before: arguments_.before } : {}),
       });
-      console.log(JSON.stringify(results, null, 2));
+      console.log(
+        JSON.stringify(
+          arguments_.debug
+            ? results.map((result, index) => ({
+                rank: index + 1,
+                ...result,
+              }))
+            : results.map(toLegacySearchResult),
+          null,
+          2,
+        ),
+      );
       return;
     }
 
@@ -125,6 +144,19 @@ async function main(): Promise<void> {
   } finally {
     await database.close();
   }
+}
+
+function toLegacySearchResult(result: MemorySearchResult) {
+  return {
+    repositoryId: result.repositoryId,
+    content: result.content,
+    similarity: result.similarity,
+    sourceType: result.sourceType,
+    sourceId: result.sourceId,
+    timestamp: result.timestamp,
+    path: result.path,
+    sourceMetadata: result.sourceMetadata,
+  };
 }
 
 try {

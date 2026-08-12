@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -16,6 +17,10 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { EMBEDDING_DIMENSIONS, type MemorySourceType } from "@swega/shared";
+
+const tsvector = customType<{ data: string }>({
+  dataType: () => "tsvector",
+});
 
 export const issueStates = ["open", "closed"] as const;
 export type IssueState = (typeof issueStates)[number];
@@ -468,6 +473,9 @@ export const documentChunks = pgTable(
     sourceReference: text("source_reference").notNull(),
     chunkIndex: integer("chunk_index").notNull(),
     content: text("content").notNull(),
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      sql`setweight(to_tsvector('english', coalesce("content", '')), 'B') || setweight(to_tsvector('simple', coalesce("path", '')), 'A') || setweight(to_tsvector('simple', coalesce("source_type", '') || ' ' || coalesce("source_reference", '')), 'D')`,
+    ),
     contentHash: text("content_hash").notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     availableAt: timestamp("available_at", { withTimezone: true }).notNull(),
@@ -516,6 +524,10 @@ export const documentChunks = pgTable(
     index("document_chunks_repository_commit_sha_index").on(
       table.repositoryId,
       table.commitSha,
+    ),
+    index("document_chunks_search_vector_gin_index").using(
+      "gin",
+      table.searchVector,
     ),
     check(
       "document_chunks_source_type_check",

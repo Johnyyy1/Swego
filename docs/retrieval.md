@@ -1,27 +1,34 @@
-# Repository Memory Retrieval v1
+# Hybrid Repository Memory Retrieval v1
 
 ## Scope
 
-Retrieval v1 embeds normalized `DocumentChunk` text, stores vectors in PostgreSQL through pgvector, and returns cosine-ranked chunks with their original repository, entity, relationship, path, commit, and temporal provenance. It does not generate an answer or call an LLM.
+Hybrid Retrieval v1 combines the existing dense pgvector search with PostgreSQL full-text search and Reciprocal Rank Fusion (RRF). It returns repository-memory chunks with their original repository, entity, relationship, path, commit, and temporal provenance. It does not generate an answer or call an LLM.
 
-The provider-neutral `EmbeddingProvider` contract lives in `packages/embeddings`. Ollama is the default local adapter and calls `/api/embed` in bounded batches with `qwen3-embedding:0.6b`. It explicitly requests 512 dimensions to match the existing pgvector column and a 32,768-token context while keeping truncation disabled, so repository chunks are not silently shortened by Ollama's lower runtime default. OpenAI remains an optional adapter using `text-embedding-3-small` by default. The indexer and retrieval package import only the provider contract and never import a vendor SDK or response type.
+The provider-neutral `EmbeddingProvider` contract remains in `packages/embeddings`. Ollama is the default local adapter and calls `/api/embed` in bounded batches with `qwen3-embedding:0.6b`. It requests 512 dimensions to match the pgvector column and a 32,768-token context while keeping truncation disabled. OpenAI remains an optional adapter using `text-embedding-3-small` by default. The indexer and retrieval package import only the provider contract and never import a vendor SDK or response type.
 
 ## Pipeline
 
 ```text
-DocumentChunk
-  -> EmbeddingProvider.embed()
-  -> chunk_embeddings.embedding vector(512)
-  -> repository- and time-filtered cosine search
-  -> provenance-rich MemorySearchResult
+query
+  ├─ EmbeddingProvider.embed()
+  │    └─ repository/time/projection-filtered pgvector top 30
+  └─ PostgreSQL full-text query
+       └─ repository/time-filtered lexical top 30
+                    ↓
+          merge by stable chunk ID
+                    ↓
+           Reciprocal Rank Fusion
+                    ↓
+             final top N chunks
 ```
 
-Run the projection after building repository memory:
+Run the projection after building repository memory, then search:
 
 ```bash
 swega embed-memory <repository-id>
 swega search <repository-id> "authentication redirect"
 swega search <repository-id> "authentication redirect" --before 2025-03-15
+swega search <repository-id> "authentication redirect" --debug
 ```
 
 The default local configuration requires no paid API key:
@@ -32,78 +39,79 @@ OLLAMA_URL=http://localhost:11434
 OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
 ```
 
-Install the model with `ollama pull qwen3-embedding:0.6b`, then run `swega doctor`. To use OpenAI instead, set `EMBEDDING_PROVIDER=openai`, `OPENAI_API_KEY`, and optionally `OPENAI_EMBEDDING_MODEL`. Environment validation requires the OpenAI key only in that configuration. Programmatic callers can inject any provider that produces the configured 512 dimensions.
+Embedding writes remain restart-safe and idempotent. A chunk is embedded only when no projection exists or its content hash, provider, model, or dimensions changed. Each completed batch is upserted immediately, so a retry resumes from remaining stale chunks. Switching providers or models rebuilds the single current projection rather than mixing vector spaces.
 
-Embedding writes are restart-safe and idempotent. A chunk is embedded only when no projection exists or its content hash, provider, model, or dimensions changed. Each completed batch is upserted immediately, so a retry resumes from the remaining stale chunks. Switching providers or models rebuilds the single current projection rather than mixing vector spaces.
+## Candidate generation
+
+Dense retrieval preserves the existing cosine-distance query over `chunk_embeddings.embedding vector(512)`. It checks that the repository's complete stored projection matches the configured provider, model, and dimensions before embedding the query. Missing or incompatible embeddings remain actionable errors that instruct the caller to rerun `embed-memory`.
+
+Lexical retrieval uses a stored `tsvector` on `document_chunks` and a GIN index. Inputs are weighted deliberately rather than flattened as equally important text:
+
+- path uses the `simple` text-search configuration at weight A, retaining exact path and identifier-like tokens;
+- content uses the `english` configuration at weight B, providing natural-language normalization and stemming;
+- source type and source reference use `simple` at weight D, contributing low-weight provenance hints without dominating content and paths.
+
+The query creates English and exact-token lexemes and joins terms disjunctively for candidate recall. PostgreSQL `ts_rank_cd` orders the lexical pool. The GIN match, repository predicate, and temporal predicate are all applied before the candidate limit.
+
+Dense and lexical candidate limits default independently to 30 and are centralized in `packages/retrieval`. If a caller requests more than 30 final results, each pool grows to at least the requested limit. Both branches execute concurrently; there is no query per candidate.
+
+## Reciprocal Rank Fusion
+
+Candidates merge by deterministic `document_chunks.id`, so a chunk returned by both branches is one result. RRF uses 1-based ranks and the conventional default `k = 60`:
+
+```text
+rrfScore(d) = sum(1 / (60 + rank(d)))
+```
+
+A shared candidate receives one contribution from each branch. Duplicate rows inside one branch contribute only once. Results sort by descending RRF score, then best branch rank, then chunk ID for deterministic ties.
+
+Cosine similarity and `ts_rank_cd` are not combined directly. They have unrelated scales and distributions, so a weighted raw-score sum would require model-, corpus-, and query-specific calibration. RRF uses only ordinal evidence while preserving both raw values for diagnostics.
 
 ## Temporal and repository isolation
 
-`searchMemory({ repositoryId, query, limit, before })` embeds the query and executes one pgvector query whose candidate predicate includes:
+Hybrid search resolves a missing `before` once at query start and passes that exact cutoff to both branches. Each branch applies the same predicates in PostgreSQL:
 
 ```sql
-chunk_embeddings.repository_id = :repository_id
-and chunk_embeddings.provider = :provider
-and chunk_embeddings.model = :model
-and document_chunks.available_at <= :before
+repository_id = :repository_id
+and available_at <= :before
 and (
-  document_chunks.superseded_at is null
-  or document_chunks.superseded_at > :before
+  superseded_at is null
+  or superseded_at > :before
 )
 ```
 
-The chunk join is also qualified by both repository ID and chunk ID. A missing `before` is resolved to the query start time, so even ordinary searches cannot expose data marked as becoming available in the future. This filtering happens in PostgreSQL before ranked rows are returned; no downstream model is trusted to discard future information.
+The dense chunk join is additionally qualified by repository ID and chunk ID, and filters the configured provider/model/dimensions. Neither candidate branch can expose a row from another repository or outside the requested validity interval. No downstream model is trusted to discard future information.
 
-Before embedding the query, retrieval inspects the repository's stored provider/model/dimension metadata. Missing embeddings or any incompatible projection produce an actionable error instructing the caller to rerun `embed-memory`; search never silently mixes models or operates on a partially switched vector space.
+## Result diagnostics
 
-Each result returns content, cosine similarity, source type, internal source ID, availability timestamp, optional path, and source metadata including document/chunk IDs, original source reference, parent relationship, event and availability timestamps, commit SHA, and line range.
+Every result retains content and source provenance. Hybrid results may additionally include:
 
-## Verification fixture
+- `denseRank` and `denseSimilarity` when present in the dense pool;
+- `lexicalRank` and `lexicalScore` when present in the lexical pool;
+- `rrfScore` for the final fused score.
 
-The database-backed evaluation fixture creates:
+Fields for a branch are absent when that branch did not return the chunk. The legacy `similarity` field remains the dense similarity when available and is zero for lexical-only results; consumers should use result order or `rrfScore` for hybrid ranking. Normal CLI output preserves the pre-hybrid JSON shape. `--debug` includes the ranking diagnostics and final 1-based rank.
 
-- a matching chunk available before `2025-03-15T00:00:00Z`
-- a stronger future match available after that cutoff
-- an exact match in a different repository
+## Verification
 
-Against a real pgvector PostgreSQL instance, constrained retrieval returned the past chunk, never returned the future chunk, and never crossed repository boundaries. Advancing the cutoff returned the future chunk. Re-running embedding on unchanged chunks wrote zero embeddings.
+Deterministic unit tests cover dense-only, lexical-only, shared, duplicate, tied, and empty candidate sets; exact RRF arithmetic; independent candidate pools; and projection failures. Database-gated integration tests cover PostgreSQL lexical matching, repository isolation, temporal cutoffs, hybrid deduplication, and the existing embedding idempotency and compatibility invariants. Database tests continue to use the existing `TEST_DATABASE_URL` gate.
 
-## Development-repository observations
+An exploratory comparison used the existing Formbricks snapshot at commit `88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5`, 8,013 chunks, and its complete Qwen3-Embedding-0.6B projection. These are observations, not a labeled relevance evaluation, and none of the query strings or paths are encoded in production logic.
 
-The SWEGA repository was ingested from GitHub with a limit of five, synchronized from Git with a commit limit of twenty, and built into 98 documents and 261 chunks. An earlier manual inspection used the deterministic lexical provider exported only from `@swega/embeddings/testing`. These results validate the complete storage/query/provenance path, not current Ollama semantic quality.
+| Query                                                        | Dense rank 1                                                            | Hybrid rank 1                                               | Observation                                                                                           |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `implementation of user authentication and session handling` | `docs/api-v3-reference/src/paths/api_v3_surveys_validate.yml`           | `apps/web/modules/auth/lib/session.ts`                      | The main session implementation moved from dense rank 5 to hybrid rank 1.                             |
+| `where is GitHub authentication configured`                  | `docs/self-hosting/configuration/environment-variables.mdx`             | `docs/self-hosting/configuration/environment-variables.mdx` | The configuration documentation remained first; hybrid added no clear top-result improvement.         |
+| `how are unauthorized API requests handled`                  | `docs/api-v3-reference/src/components/responses/V3Unauthorized.yml`     | `apps/web/modules/api/v2/auth/tests/api-wrapper.test.ts`    | An implementation-level auth test moved from dense rank 8 to hybrid rank 1.                           |
+| `survey redirects to external URL after completion`          | `docs/api-v3-reference/src/components/schemas/SurveyRedirectEnding.yml` | `apps/web/locales/en-US.json`                               | Repeated lexical matches in the canonical locale catalog outweighed the stronger dense schema result. |
 
-| Query                                       | Representative top results                                                          | Observation                                                                                                  |
-| ------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `temporal retrieval cutoff`                 | `AGENTS.md`, `ARCHITECTURE.md`                                                      | Relevant policy and architecture chunks ranked first.                                                        |
-| `GitHub rate limit retry`                   | `packages/github/src/url.test.ts`, `apps/cli/src/arguments.ts`, `docs/ingestion.md` | The ingestion documentation was relevant, but lexical hash collisions promoted unrelated URL and CLI chunks. |
-| `managed repository clone hooks submodules` | `packages/git/src/manager.ts`, `workers/indexer/src/persistence.ts`                 | Git manager code ranked first, but unrelated persistence code entered the top three.                         |
+## Known limitations
 
-Example result shape:
-
-```json
-{
-  "content": "...",
-  "similarity": 0.229,
-  "sourceType": "source_code",
-  "sourceId": "<internal UUID>",
-  "timestamp": "<availableAt>",
-  "path": "packages/git/src/manager.ts",
-  "sourceMetadata": {
-    "sourceReference": "git:<sha>:packages/git/src/manager.ts",
-    "commitSha": "<sha>",
-    "startLine": 1,
-    "endLine": 80
-  }
-}
-```
-
-## Known weaknesses and Retrieval v2 direction
-
-- Qwen3-Embedding-0.6B semantic ranking has not yet been measured against a stable SWEGA relevance corpus.
-- Ranking is vector-only: exact identifiers, paths, and uncommon tokens need lexical retrieval.
+- Qwen3-Embedding-0.6B ranking still needs a stable relevance corpus with judgments rather than a small set of exploratory queries.
+- PostgreSQL text search is token-based; it does not yet provide trigram typo matching or code-symbol parsing.
+- Repeated terms in large authored catalogs can produce noisy lexical candidates; a relevance corpus is needed before selecting a general mitigation.
 - Conservative fixed-size code chunks can split a declaration from its context.
-- There is no reranker, result diversification, relationship expansion, or source-type/path filtering.
-- The schema currently supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
-- HNSW is approximate; highly selective repository/time filters can return fewer good candidates than a larger prefiltered candidate strategy.
+- There is no reranker, result diversification, relationship expansion, or source-type/path filter.
+- The schema supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
+- HNSW with highly selective repository/time filters can return fewer strong dense candidates than an exact prefiltered strategy.
 - Provider adapters validate failures but do not yet retry transient upstream errors.
-
-Retrieval v2 should add PostgreSQL full-text candidates and hybrid rank fusion, introduce a stable evaluation corpus with relevance judgments and temporal cutoffs, and measure candidate recall before considering reranking or code-aware chunking. Those improvements are intentionally not part of v1.

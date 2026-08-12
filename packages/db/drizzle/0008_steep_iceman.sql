@@ -1,0 +1,2 @@
+ALTER TABLE "document_chunks" ADD COLUMN "search_vector" "tsvector" GENERATED ALWAYS AS (setweight(to_tsvector('english', coalesce("content", '')), 'B') || setweight(to_tsvector('simple', coalesce("path", '')), 'A') || setweight(to_tsvector('simple', coalesce("source_type", '') || ' ' || coalesce("source_reference", '')), 'D')) STORED;--> statement-breakpoint
+CREATE INDEX "document_chunks_search_vector_gin_index" ON "document_chunks" USING gin ("search_vector");

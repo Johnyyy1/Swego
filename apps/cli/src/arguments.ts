@@ -43,6 +43,7 @@ export interface SearchMemoryArguments {
   query: string;
   limit: number;
   before?: Date;
+  debug?: true;
 }
 
 export type CliArguments =
@@ -68,6 +69,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       limit: { type: "string" },
       since: { type: "string" },
       before: { type: "string" },
+      debug: { type: "boolean" },
     },
   });
 
@@ -80,7 +82,8 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.positionals.length !== 1 ||
       parsed.values.limit ||
       parsed.values.since ||
-      parsed.values.before
+      parsed.values.before ||
+      parsed.values.debug
     ) {
       throw new Error("Usage: swega doctor");
     }
@@ -91,7 +94,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   if (command === "search") {
     if (!target || !query || unexpected.length > 0 || parsed.values.since) {
       throw new Error(
-        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE]",
+        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--debug]",
       );
     }
     return {
@@ -104,6 +107,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       ...(parsed.values.before
         ? { before: parseDate(parsed.values.before, "before") }
         : {}),
+      ...(parsed.values.debug ? { debug: true as const } : {}),
     };
   }
 
@@ -112,6 +116,9 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   }
   if (parsed.values.before) {
     throw new Error("--before applies only to search");
+  }
+  if (parsed.values.debug) {
+    throw new Error("--debug applies only to search");
   }
 
   if (command === "ingest" || command === "ingest-git") {
@@ -159,12 +166,13 @@ export function helpText(): string {
     "  swega ingest-git <repository-id> [--limit N] [--since ISO_DATE]",
     "  swega build-memory <repository-id>",
     "  swega embed-memory <repository-id>",
-    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE]',
+    '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--debug]',
     "",
     "Options:",
     "  --limit N        Bound ingestion or the number of search results",
     "  --since DATE     Ingest records updated at or after an ISO-8601 date",
     "  --before DATE    Exclude memory unavailable at this historical cutoff",
+    "  --debug          Include dense, lexical, and RRF ranking diagnostics",
     "  -h, --help       Show this help",
   ].join("\n");
 }

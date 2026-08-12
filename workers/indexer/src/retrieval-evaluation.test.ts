@@ -6,6 +6,8 @@ import { normalizeIssueDocument } from "@swega/documents";
 import { DeterministicEmbeddingProvider } from "@swega/embeddings/testing";
 import {
   EmbeddingCompatibilityError,
+  HybridRepositoryMemory,
+  PgLexicalRepositoryMemory,
   PgVectorRepositoryMemory,
 } from "@swega/retrieval";
 import { EMBEDDING_DIMENSIONS } from "@swega/shared";
@@ -144,6 +146,66 @@ describeWithDatabase("repository memory retrieval", () => {
     expect(results.some((result) => result.sourceId === futureSourceId)).toBe(
       true,
     );
+  });
+
+  test("lexical retrieval enforces repository and temporal isolation", async () => {
+    const memory = new PgLexicalRepositoryMemory(database);
+    const results = await memory.searchMemory({
+      repositoryId,
+      query: "stable redirect handler future-only-token",
+      limit: 10,
+      before: cutoff,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(
+      results.every((result) => result.repositoryId === repositoryId),
+    ).toBe(true);
+    expect(
+      results.every(
+        (result) =>
+          result.sourceMetadata.availableAt.getTime() <= cutoff.getTime(),
+      ),
+    ).toBe(true);
+    expect(results.some((result) => result.sourceId === pastSourceId)).toBe(
+      true,
+    );
+    expect(results.some((result) => result.sourceId === futureSourceId)).toBe(
+      false,
+    );
+    expect(results[0]).toMatchObject({ lexicalRank: 1, similarity: 0 });
+    expect(results[0]?.lexicalScore).toBeGreaterThan(0);
+  });
+
+  test("hybrid retrieval preserves filtering and prevents duplicate chunks", async () => {
+    const memory = new HybridRepositoryMemory(
+      new PgVectorRepositoryMemory(database, embeddings),
+      new PgLexicalRepositoryMemory(database),
+    );
+    const results = await memory.searchMemory({
+      repositoryId,
+      query: "authentication redirect stable handler",
+      limit: 10,
+      before: cutoff,
+    });
+    const chunkIds = results.map((result) => result.sourceMetadata.chunkId);
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(new Set(chunkIds).size).toBe(chunkIds.length);
+    expect(
+      results.every(
+        (result) =>
+          result.repositoryId === repositoryId &&
+          result.sourceMetadata.availableAt.getTime() <= cutoff.getTime(),
+      ),
+    ).toBe(true);
+    expect(results.some((result) => result.sourceId === pastSourceId)).toBe(
+      true,
+    );
+    expect(results.some((result) => result.sourceId === futureSourceId)).toBe(
+      false,
+    );
+    expect(results[0]?.rrfScore).toBeGreaterThan(0);
   });
 
   test("re-embedding unchanged chunks is idempotent", async () => {

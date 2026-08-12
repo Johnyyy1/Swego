@@ -2,7 +2,7 @@
 
 SWEGA is a repository-agnostic memory and intelligence layer for AI coding agents. It is intended to ingest source-code and development history, preserve it as searchable repository memory, and provide relevant historical context to downstream tools.
 
-The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, repository-memory document generation, and repository-scoped semantic retrieval with temporal cutoffs. Agent integrations will be added incrementally.
+The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, repository-memory document generation, and repository-scoped hybrid retrieval with temporal cutoffs. Agent integrations will be added incrementally.
 
 ## Prerequisites
 
@@ -47,15 +47,16 @@ Build versioned repository-memory documents and text chunks after metadata and G
 bun run swega build-memory <repository-id>
 ```
 
-Generate embeddings, then inspect semantic retrieval directly:
+Generate embeddings, then inspect hybrid dense and lexical retrieval directly:
 
 ```bash
 bun run swega embed-memory <repository-id>
 bun run swega search <repository-id> "authentication redirect"
 bun run swega search <repository-id> "authentication redirect" --before 2025-03-15
+bun run swega search <repository-id> "authentication redirect" --debug
 ```
 
-Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. `--before` is enforced in PostgreSQL against each chunk's temporal validity interval.
+Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. PostgreSQL full-text search supplies an independent lexical candidate pool, and Reciprocal Rank Fusion combines the two rankings. `--before` is enforced in PostgreSQL against each chunk's temporal validity interval in both branches. Use `--debug` to show dense, lexical, and fused ranks and scores.
 
 The default embedding configuration is:
 

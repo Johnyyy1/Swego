@@ -101,4 +101,27 @@ describe("CLI arguments", () => {
       parseCliArguments(["search", "123e4567-e89b-42d3-a456-426614174000"]),
     ).toThrow("Usage");
   });
+
+  test("parses hybrid search debugging", () => {
+    expect(
+      parseCliArguments([
+        "search",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "authentication redirect",
+        "--debug",
+      ]),
+    ).toEqual({
+      command: "search",
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+      query: "authentication redirect",
+      limit: DEFAULT_SEARCH_LIMIT,
+      debug: true,
+    });
+  });
+
+  test("rejects hybrid search debugging on other commands", () => {
+    expect(() => parseCliArguments(["doctor", "--debug"])).toThrow(
+      "Usage: swega doctor",
+    );
+  });
 });

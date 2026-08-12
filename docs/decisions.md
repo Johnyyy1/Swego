@@ -42,6 +42,12 @@ PostgreSQL remains the data system of record and pgvector supplies cosine search
 
 Repository ID and the complete temporal validity interval are mandatory SQL predicates. Temporal safety is a data-access invariant, not an instruction delegated to a future language model.
 
+## Hybrid retrieval fuses independent PostgreSQL candidate pools
+
+Dense pgvector retrieval remains the semantic baseline. PostgreSQL full-text search adds exact lexical, identifier, and path evidence without another infrastructure dependency. Both branches apply repository and temporal predicates before limiting candidates, then merge by stable chunk ID through Reciprocal Rank Fusion with `k = 60`.
+
+Raw cosine similarity and full-text rank are retained as diagnostics but are not added together because their scales are not comparable. The full-text projection is generated from document chunks and indexed with GIN, so it remains rebuildable derived data and requires no separate synchronization workflow.
+
 ## Repository memory uses versioned temporal documents
 
 Searchable documents are derived from normalized entities and Git rather than queried directly from provider-shaped tables. Each version carries both its event time and a conservative availability interval. Deterministic document and chunk IDs make unchanged re-indexing idempotent, while new source versions supersede older versions without destroying historical provenance.

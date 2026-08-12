@@ -114,6 +114,28 @@ describe("PgVectorRepositoryMemory", () => {
     ).rejects.toBeInstanceOf(EmbeddingCompatibilityError);
     expect(queryEmbedded).toBe(false);
   });
+
+  test("rejects a repository without stored embeddings", async () => {
+    const repositoryId = "123e4567-e89b-42d3-a456-426614174000";
+    const provider: EmbeddingProvider = {
+      provider: "configured-provider",
+      model: "configured-model",
+      dimensions: EMBEDDING_DIMENSIONS,
+      embed: async () => [unitVector()],
+    };
+    const database = {
+      select: () => ({
+        from: () => ({
+          where: () => ({ groupBy: async () => [] }),
+        }),
+      }),
+    } as unknown as Database;
+    const memory = new PgVectorRepositoryMemory(database, provider);
+
+    await expect(
+      memory.searchMemory({ repositoryId, query: "semantic query" }),
+    ).rejects.toThrow("has no stored embeddings");
+  });
 });
 
 function unitVector(): number[] {
