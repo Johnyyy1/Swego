@@ -4,6 +4,9 @@ import type {
   SourceSymbolKind,
 } from "@swega/shared";
 
+import type { QueryIntentSignal } from "./query-intent";
+import type { SourceRole } from "./source-role";
+
 export interface SearchMemoryInput {
   repositoryId: RepositoryId;
   query: string;
@@ -66,6 +69,15 @@ export interface MemorySearchResult {
   relationshipReason?: string;
   relationshipRank?: number;
   retrievedDirectly?: boolean;
+  queryIntents?: readonly QueryIntentSignal[];
+  sourceRole?: SourceRole;
+  sourceRoleConfidence?: number;
+  sourceRoleEvidence?: readonly string[];
+  roleCompatibility?: number;
+  roleCompatibilityReason?: string;
+  intentRoleRank?: number;
+  intentRoleScore?: number;
+  rrfRankBeforeIntentRole?: number;
   rrfScore?: number;
   rrfRank?: number;
   rerankerScore?: number;

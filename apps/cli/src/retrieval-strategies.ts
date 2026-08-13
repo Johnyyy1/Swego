@@ -11,6 +11,7 @@ import {
   RerankedRepositoryMemory,
   type RepositoryMemory,
   type FileEvidenceStrategy,
+  type IntentRolePriorStrategy,
   type RelationshipExpansionStrategy,
 } from "@swega/retrieval";
 
@@ -28,6 +29,7 @@ export interface RetrievalStrategyConfiguration {
   fileEvidenceStrategy?: FileEvidenceStrategy;
   relationshipExpansionStrategy?: RelationshipExpansionStrategy;
   relationshipReservedCandidates?: number;
+  intentRolePriorStrategy?: IntentRolePriorStrategy;
 }
 
 export function createConfiguredRetrievalStrategies(
@@ -50,6 +52,9 @@ export function createConfiguredRetrievalStrategies(
           relationshipReservedCandidates:
             configuration.relationshipReservedCandidates,
         }),
+    ...(configuration.intentRolePriorStrategy === undefined
+      ? {}
+      : { intentRolePriorStrategy: configuration.intentRolePriorStrategy }),
   };
   const hybrid = new HybridRepositoryMemory(dense, lexical, structured, {
     ...sharedHybridOptions,

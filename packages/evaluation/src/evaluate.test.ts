@@ -254,6 +254,79 @@ describe("retrieval benchmark evaluation", () => {
       category: "implementation",
       cases: 1,
     });
+    const benchmarkCase = report.strategies[0]?.cases[0];
+    expect(benchmarkCase?.predictedQueryIntents[0]).toMatchObject({
+      intent: "implementation",
+    });
+    expect(benchmarkCase?.relevantTargetSourceRoles[0]).toMatchObject({
+      target: { path: "src/session.ts" },
+      classification: { role: "production_implementation" },
+    });
+    expect(
+      benchmarkCase?.retrievedSourceRoleDistribution.production_implementation,
+    ).toBe(1);
+    expect(
+      report.strategies[0]?.cases[0]?.candidateDiagnostics
+        ?.intentRoleTargetEffects,
+    ).toEqual([
+      expect.objectContaining({
+        targetSourceRole: "production_implementation",
+        effect: "wrong_chunk_from_target_file",
+      }),
+    ]);
+    expect(formatBenchmarkReport(report)).toContain("Predicted intents");
+    expect(formatBenchmarkReport(report)).toContain("Retrieved roles");
+    expect(formatBenchmarkReport(report)).toContain("Role analysis");
+  });
+
+  test("reports a target promoted across the intent-role cutoff", async () => {
+    const benchmark = parseRetrievalBenchmark({
+      version: 1,
+      name: "intent-role diagnostics",
+      cutoffs: [1],
+      cases: [
+        {
+          id: "session-flow",
+          query: "session implementation",
+          repositoryId,
+          relevant: [{ path: "src/session.ts" }],
+        },
+      ],
+    });
+    const promoted = result("src/session.ts");
+    promoted.rrfRankBeforeIntentRole = 2;
+    promoted.intentRoleRank = 1;
+    const displaced = result("src/unrelated.test.ts");
+    displaced.rrfRankBeforeIntentRole = 1;
+    const memory: DiagnosticRepositoryMemory = {
+      searchMemory: async () => [promoted],
+      searchMemoryWithDiagnostics: async () => ({
+        results: [promoted],
+        candidates: [promoted, displaced],
+        diagnostics: {
+          candidateGenerationDurationMs: 1,
+          rerankingDurationMs: 1,
+          candidateCount: 2,
+          candidateBytes: 2,
+        },
+      }),
+    };
+
+    const report = await evaluateRetrievalBenchmark(benchmark, [
+      { name: "hybrid+rerank", memory },
+    ]);
+
+    expect(
+      report.strategies[0]?.cases[0]?.candidateDiagnostics
+        ?.intentRoleTargetEffects,
+    ).toEqual([
+      expect.objectContaining({
+        effect: "role_prior_promoted_candidate",
+        beforeIntentRoleRank: 2,
+        candidateRank: 1,
+        finalRank: 1,
+      }),
+    ]);
   });
 });
 

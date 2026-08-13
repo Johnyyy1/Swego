@@ -68,6 +68,12 @@ Reranking uses a separate `Reranker` contract rather than expanding `EmbeddingPr
 
 The initial adapter targets a separately started llama.cpp server with the Qwen3-Reranker-0.6B Q4 model. It accepts loopback endpoints only, never starts a runtime or downloads a model, and fails explicitly when configured but unavailable. Search without `--rerank` remains on the hybrid path and never invokes the reranker. Benchmarking opts into a fourth `hybrid+rerank` strategy so quality changes stay measurable.
 
+## Intent-role compatibility is a weak derived rank branch
+
+Query intent is a deterministic, composable retrieval concern, not another AI-provider call. Source role is derived from source type, path, filename, extension, and symbol kind over the already bounded candidate set. Language metadata alone is not enough to turn arbitrary data files into implementation evidence. The role is not persisted: these inputs are stable repository-memory metadata, derivation needs no additional query or scan, and a stored value would be redundant rebuildable state requiring migration and synchronization.
+
+Compatibility remains rank based. Candidates above the conservative compatibility threshold form an additional branch in their existing fused order; the selected weak setting contributes `0.2 / (60 + roleRank)`. `none` and `moderate` (`0.5`) exist for development comparisons. Candidates are never filtered or assigned negative evidence, raw similarity/rank scales remain unmixed, and file/chunk granularity plus relationship-anchor selection remain independent. The weak setting was selected on the frozen development split because it improved top-rank and nDCG metrics with unchanged candidate recall; held-out data did not participate in taxonomy, threshold, mechanism, or weight selection.
+
 ## Repository memory uses versioned temporal documents
 
 Searchable documents are derived from normalized entities and Git rather than queried directly from provider-shaped tables. Each version carries both its event time and a conservative availability interval. Deterministic document and chunk IDs make unchanged re-indexing idempotent, while new source versions supersede older versions without destroying historical provenance.

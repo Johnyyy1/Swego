@@ -13,6 +13,13 @@ import {
 } from "./file-evidence";
 import { normalizeSearchMemoryInput } from "./search-input";
 import { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
+import { analyzeQueryIntent } from "./query-intent";
+import {
+  applyIntentRolePrior,
+  DEFAULT_INTENT_ROLE_PRIOR_STRATEGY,
+  intentRolePriorStrategies,
+  type IntentRolePriorStrategy,
+} from "./intent-role";
 import {
   DEFAULT_RELATIONSHIP_CANDIDATE_LIMIT,
   DEFAULT_RELATIONSHIP_MAX_ANCHORS,
@@ -50,6 +57,7 @@ export interface HybridRepositoryMemoryOptions {
   relationshipMaxNeighborsPerAnchor?: number;
   relationshipCandidateLimit?: number;
   relationshipReservedCandidates?: number;
+  intentRolePriorStrategy?: IntentRolePriorStrategy;
 }
 
 export class HybridRepositoryMemory implements RepositoryMemory {
@@ -67,6 +75,7 @@ export class HybridRepositoryMemory implements RepositoryMemory {
   private readonly relationshipCandidateLimit: number;
   private readonly relationshipReservedCandidates: number;
   private readonly relationshipExpansion: RelationshipExpansion | undefined;
+  private readonly intentRolePriorStrategy: IntentRolePriorStrategy;
 
   constructor(
     private readonly dense: RepositoryMemory,
@@ -138,6 +147,13 @@ export class HybridRepositoryMemory implements RepositoryMemory {
       throw new Error("Relationship reserve must be a non-negative integer");
     }
     this.relationshipExpansion = options.relationshipExpansion;
+    this.intentRolePriorStrategy =
+      options.intentRolePriorStrategy ?? DEFAULT_INTENT_ROLE_PRIOR_STRATEGY;
+    if (!intentRolePriorStrategies.includes(this.intentRolePriorStrategy)) {
+      throw new Error(
+        `Unsupported intent-role prior strategy '${this.intentRolePriorStrategy}'`,
+      );
+    }
   }
 
   async searchMemory(
@@ -165,6 +181,7 @@ export class HybridRepositoryMemory implements RepositoryMemory {
         }),
       ],
     );
+    const queryIntents = analyzeQueryIntent(normalized.query);
 
     const branchDiversification = {
       limit: Math.max(normalized.limit, this.fusionBranchCandidateLimit),
@@ -223,7 +240,7 @@ export class HybridRepositoryMemory implements RepositoryMemory {
           candidateLimit: this.relationshipCandidateLimit,
         })
       : [];
-    const fused =
+    const fusedBeforeIntentRole =
       relationshipResults.length === 0
         ? initiallyFused
         : reciprocalRankFusion(
@@ -241,6 +258,10 @@ export class HybridRepositoryMemory implements RepositoryMemory {
             fileEvidenceResults,
             relationshipResults,
           );
+    const fused = applyIntentRolePrior(fusedBeforeIntentRole, queryIntents, {
+      strategy: this.intentRolePriorStrategy,
+      rrfK: this.rrfK,
+    });
     const directChunkIds = new Set(
       [...denseResults, ...lexicalResults, ...structuredResults].map(
         (result) => result.sourceMetadata.chunkId,

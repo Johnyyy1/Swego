@@ -175,6 +175,28 @@ describe("CLI arguments", () => {
     });
   });
 
+  test("parses an explicit intent-role prior comparison", () => {
+    expect(
+      parseCliArguments([
+        "benchmark",
+        "benchmarks/formbricks-development.json",
+        "--intent-role-prior",
+        "moderate",
+      ]),
+    ).toMatchObject({
+      command: "benchmark",
+      intentRolePrior: "moderate",
+    });
+    expect(() =>
+      parseCliArguments([
+        "benchmark",
+        "benchmark.json",
+        "--intent-role-prior",
+        "strong",
+      ]),
+    ).toThrow();
+  });
+
   test("rejects invalid candidate generation bounds", () => {
     expect(() =>
       parseCliArguments([

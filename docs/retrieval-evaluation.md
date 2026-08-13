@@ -81,6 +81,8 @@ Category aggregates are emitted for inspection, while the human report suppresse
 
 Relationship-enabled diagnostic reports also count relationship-only candidates, authored targets recovered only by those candidates, and relationship-only candidates matching no authored target in the case. Baseline/enabled JSON reports can be compared to identify direct targets displaced from the fixed pool. “False positive” in this report is corpus-relative and does not claim that an unlabeled candidate is universally irrelevant.
 
+Intent-aware reports preserve the benchmark category and add predicted query intents with confidence/evidence, classified roles for every relevance target, the returned source-role distribution, and compact result roles/ranks. Diagnostic strategies also classify each target as missing, represented only by the wrong chunk, promoted or demoted across the compatibility stage, still below the candidate cutoff, reversed by the reranker, or unchanged. These fields analyze ranking behavior only; they do not alter ground-truth matching or relevance grades.
+
 Existing Precision/Recall/MRR/nDCG definitions are unchanged. Candidate recall is separately named and never substituted for final Recall@K. Timing fields make diagnostic reports intentionally nondeterministic; ranking and metric fields remain reproducible for deterministic providers.
 
 ## CLI usage
@@ -92,6 +94,7 @@ bun run swega benchmark benchmarks/formbricks-smoke.json --json
 bun run swega benchmark benchmarks/formbricks-smoke.json --rerank --candidate-limit 50 --path-limit 2
 bun run swega benchmark benchmarks/formbricks-development.json --file-evidence multi-branch
 bun run swega benchmark benchmarks/formbricks-development.json --rerank --relationship-expansion none
+bun run swega benchmark benchmarks/formbricks-development.json --intent-role-prior weak
 ```
 
 The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available. `--rerank` additionally requires `RERANKER_PROVIDER=llama.cpp`, evaluates `hybrid+rerank` against the same cases, and fails rather than silently falling back if that provider is unavailable.
@@ -277,3 +280,49 @@ The sealed 15-case held-out split was evaluated once after development selection
 The SMTP configuration `apps/web/lib/env.ts` target entered only through a relationship at candidate rank 48 and was reranked below top 10. No authored target was displaced, and final metrics were unchanged. Held-out candidate generation increased by 230.4 ms (30.9%). The 54 relationship-only held-out candidates contained one authored target and 53 corpus-relative false positives.
 
 These results preserve the development decision: bounded relationships demonstrably reduce failure class A, but the marginal recall gain and predominantly unlabeled expansion candidates do not justify enabling the feature by default. The next bottleneck is relationship precision and reranker discrimination, evaluated on a larger corpus rather than by tuning against this held-out split.
+
+## Deterministic query intent and source-role evaluation
+
+The intent taxonomy, conservative role classifier, rank-only fusion mechanism, `0.75` compatibility threshold, and three candidate settings were fixed using only the 40-case development split. An order-preserving diagnostic reranker exposed the exact default multi-branch 50-candidate pool, so this selection compared candidate ordering and coverage without using Qwen scores as a tuning signal.
+
+| Intent-role setting | Weight |   MRR | Recall@1 | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall | Mean bytes | Generation |
+| ------------------- | -----: | ----: | -------: | -------: | --------: | -----: | ------: | ---------------: | ---------: | ---------: |
+| none                |    0.0 | 0.342 |    0.233 |    0.388 |     0.454 |  0.550 |   0.348 |            0.667 |    133,211 |   613.3 ms |
+| weak                |    0.2 | 0.380 |    0.271 |    0.421 |     0.467 |  0.575 |   0.379 |            0.667 |    130,804 |   598.0 ms |
+| moderate            |    0.5 | 0.403 |    0.296 |    0.421 |     0.533 |  0.650 |   0.410 |            0.667 |    129,389 |   606.4 ms |
+
+`weak` is the selected default despite the larger moderate gain: it is the smallest bounded signal with useful improvements in every aggregate ranking metric and no candidate-recall regression. The single-run timing differences are measurement noise, not claimed speedups or slowdowns; every setting stayed within 15.3 ms of the baseline against an existing roughly 600–1000 ms pipeline. Candidate count remained fixed at 50.
+
+On categories with three or more development cases, weak versus none improved API endpoint MRR from 0.208 to 0.448 and Recall@5 from 0.167 to 0.500; database-schema MRR from 0.167 to 0.333 and Recall@1 from 0 to 0.333; implementation MRR from 0.222 to 0.278; feature-flow Recall@5 from 0.333 to 0.444; and repository-infrastructure MRR from 0.100 to 0.125. Configuration changed from a complete top-10 miss to Recall@10 0.167. Exact-symbol, test, and migration Recall@10 remained 1.0. No development category metric declined in this order-preserving comparison. These three-case slices are failure-analysis evidence, not statistical claims.
+
+The selected architecture and weight were frozen after this comparison. The compatibility branch preserves the pre-prior order of all eligible roles so multi-intent queries can prefer both, for example, configuration and implementation evidence without forcing one exclusive source class. Relationship expansion remains independent and disabled by default.
+
+### Live Qwen development result
+
+After selection, the weak default was compared with the exact pre-change Qwen baseline under the same default 50-candidate, multi-branch, no-relationship pipeline and an 8K one-slot llama.cpp profile:
+
+| Live development configuration |   MRR | Recall@1 | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall |   A |   B |   C |   D |
+| ------------------------------ | ----: | -------: | -------: | --------: | -----: | ------: | ---------------: | --: | --: | --: | --: |
+| no intent-role prior           | 0.500 |    0.396 |    0.537 |     0.608 |  0.725 |   0.497 |            0.667 |  13 |   8 |   6 |  30 |
+| weak intent-role prior         | 0.500 |    0.396 |    0.537 |     0.621 |  0.725 |   0.499 |            0.667 |  13 |   8 |   5 |  31 |
+
+The exact MRR change was 0.50045→0.50010 (−0.00035); nDCG@10 changed 0.49708→0.49933. Configuration Recall@10 improved from 0.500 to 0.667 and its nDCG@10 from 0.213 to 0.246. The only material category movement in the other direction was a small API-endpoint MRR/nDCG change from 0.375/0.416 to 0.370/0.412; its recall at every reported cutoff was unchanged. Exact-symbol, migration, and test metrics remained 1.0 throughout. Broad `general` queries received zero role compatibility and were not narrowed.
+
+The diagnostics show the interaction boundary clearly. The webhook-creation implementation moved from fused rank 3 to candidate rank 2, but Qwen placed it at final rank 4 behind a superficial webhook test and documentation. The CI unit-test workflow moved 10→8 in the candidate pool and Qwen promoted the correct configuration to final rank 1 while retaining test/configuration as simultaneous intents. A Prisma response/contact target moved 2→1 before reranking. Conversely, Qwen moved the relevant public-response route from candidate rank 3 below the top-10 cutoff, which is reported as `reranker_reversed_useful_order`. Exact symbol targets stayed at candidate and final rank 1.
+
+Mean candidate payload decreased from 133,211 to 130,804 bytes. Live candidate generation measured 818.0 ms before and 636.1 ms after, but the paired deterministic run measured only −15.3 ms; both differences are treated as runtime noise rather than an algorithmic speedup. The added work is bounded in-memory string/metadata classification with no model, scan, or query. Mean reranking was 25,806.6 ms before and 27,283.0 ms after, also runtime noise because the reranker and candidate bound are unchanged.
+
+### Sealed held-out result
+
+After the taxonomy, threshold, fusion mechanism, and weak weight were frozen, the 15-case held-out split was opened for exactly one direct benchmark and one Qwen-reranked benchmark. No implementation or parameter was changed afterward. Because every category has one case, category aggregates are not interpreted as general results.
+
+| Held-out configuration |   MRR | Recall@1 | Recall@5 | Recall@10 | Hit@10 | nDCG@10 | Candidate recall |
+| ---------------------- | ----: | -------: | -------: | --------: | -----: | ------: | ---------------: |
+| direct baseline        | 0.282 |    0.117 |    0.250 |     0.406 |  0.533 |   0.286 |                — |
+| direct weak prior      | 0.296 |    0.117 |    0.283 |     0.472 |  0.600 |   0.311 |                — |
+| Qwen baseline          | 0.568 |    0.333 |    0.622 |     0.711 |  0.867 |   0.581 |            0.767 |
+| Qwen weak prior        | 0.568 |    0.333 |    0.656 |     0.711 |  0.867 |   0.582 |            0.767 |
+
+The weak reranked pool averaged 141,497 bytes, candidate generation 658.2 ms, and reranking 28,722.1 ms. Outcomes remained A/B/C/D = 5/3/2/16. The workflow-foundation migration is the clearest role-aware recovery: it moved from pre-prior rank 22 to candidate rank 9 and Qwen returned it first. The file-upload implementation moved 10→7 and finished second. Exact-symbol, test, and migration cases remained final rank 1.
+
+The sealed split also exposed limitations left unchanged. The OAuth write-authorization query emitted only `general`, so it received no role prior and missed both labeled symbols even though the target file was present. The workflow schema remained absent, and two offline-response flow symbols remained absent. Qwen continued to put a superficial test above the correct feedback-token route and put storage tests above the cross-file upload collaborators. These results suggest the next bottleneck is candidate/symbol coverage plus reranker discrimination; expanding the deterministic vocabulary from one held-out query would be overfitting.

@@ -17,6 +17,8 @@ SWEGA stores provider data in a normalized, repository-scoped model. UUID primar
 - `chunk_embeddings` is a rebuildable pgvector projection of the current embedding for each chunk. It records repository, provider, model, dimensions, content hash, and embedding time so stale vectors can be replaced safely.
 - `source_relationships` is a rebuildable, repository-scoped projection of statically resolved imports and re-exports between versioned source documents. It retains paths, optional symbols, revisions, temporal validity, parser provenance, line, reason, and confidence.
 
+Query intents and source roles are retrieval-time diagnostics rather than stored entities. Intent depends on the current query, while source role is cheaply and deterministically derived from already-returned chunk provenance and structural metadata. Persisting either would add redundant rebuildable state without removing a query or repository scan.
+
 Mutable provider entities include `sourceUpdatedAt`, `lastSyncedAt`, and `deletedAt` where applicable. `sourceUpdatedAt` is the provider's last known modification time, `lastSyncedAt` is SWEGA's latest observation time, and `deletedAt` represents a retained tombstone instead of silently losing provenance.
 
 ## Relationships

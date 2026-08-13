@@ -153,6 +153,24 @@ export function formatBenchmarkReport(
         lines.push(
           `  [${strategy.strategy}] ${benchmarkCase.id}: recall=${formatMetric(metrics?.recall ?? 0)}, firstRelevant=${benchmarkCase.firstRelevantRank ?? "none"}`,
           `    Query: ${benchmarkCase.query}`,
+          `    Predicted intents: ${benchmarkCase.predictedQueryIntents
+            .map(
+              (item) =>
+                `${item.intent}=${formatMetric(item.confidence)} (${item.evidence.join(", ")})`,
+            )
+            .join("; ")}`,
+          `    Relevant roles: ${benchmarkCase.relevantTargetSourceRoles
+            .map(
+              (item) =>
+                `${formatRelevanceTarget(item.target)}=${item.classification.role}`,
+            )
+            .join("; ")}`,
+          `    Retrieved roles: ${Object.entries(
+            benchmarkCase.retrievedSourceRoleDistribution,
+          )
+            .filter(([, count]) => count > 0)
+            .map(([role, count]) => `${role}=${count}`)
+            .join(", ")}`,
           `    Missing: ${benchmarkCase.missingRelevant.map(formatRelevanceTarget).join("; ")}`,
           ...(benchmarkCase.candidateDiagnostics
             ? [
@@ -164,6 +182,12 @@ export function formatBenchmarkReport(
                     )
                     .join("; ") || "none"
                 }`,
+                `    Role analysis: ${benchmarkCase.candidateDiagnostics.intentRoleTargetEffects
+                  .map(
+                    (item) =>
+                      `${formatRelevanceTarget(item.target)}=${item.effect} (role ${item.targetSourceRole}, before ${item.beforeIntentRoleRank ?? "none"}, candidate ${item.candidateRank ?? "none"}, final ${item.finalRank ?? "none"})`,
+                  )
+                  .join("; ")}`,
               ]
             : []),
           `    Top results: ${formatTopResults(benchmarkCase)}`,
@@ -223,7 +247,7 @@ function formatTopResults(benchmarkCase: BenchmarkCaseReport): string {
   return top
     .map(
       (result) =>
-        `${result.rank}:${result.path ?? result.sourceReference} (${result.sourceType})`,
+        `${result.rank}:${result.path ?? result.sourceReference} (${result.sourceType}, ${result.sourceRole})`,
     )
     .join("; ");
 }

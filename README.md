@@ -57,12 +57,13 @@ bun run swega search <repository-id> "authentication redirect"
 bun run swega search <repository-id> "authentication redirect" --before 2025-03-15
 bun run swega search <repository-id> "authentication redirect" --rerank
 bun run swega search <repository-id> "authentication redirect" --debug
+bun run swega search <repository-id> "authentication tests" --intent-role-prior weak --debug
 bun run swega benchmark benchmarks/formbricks-smoke.json
 bun run swega benchmark benchmarks/formbricks-smoke.json --rerank
 bun run swega benchmark benchmarks/formbricks-smoke.json --json
 ```
 
-Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. PostgreSQL supplies independent lexical and structural symbol/path pools; Reciprocal Rank Fusion and deterministic path diversification combine them with dense retrieval. `--before` is enforced in PostgreSQL in all three branches. Optional `--rerank` sends the bounded 50-candidate default pool to an explicitly configured loopback llama.cpp reranker. Use `--debug` to show branch, fusion, and reranker diagnostics; use `--candidate-limit` and `--path-limit` for measured experiments.
+Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. PostgreSQL supplies independent lexical and structural symbol/path pools; Reciprocal Rank Fusion and deterministic path diversification combine them with dense retrieval. A local deterministic analyzer adds a weak rank-only preference between composable query intents and conservative source roles; it makes no model call and never filters candidates. `--before` is enforced in PostgreSQL in all three branches. Optional `--rerank` sends the bounded 50-candidate default pool to an explicitly configured loopback llama.cpp reranker. Use `--debug` to show branch, intent/role, fusion, and reranker diagnostics; use `--intent-role-prior none|weak|moderate`, `--candidate-limit`, and `--path-limit` for measured experiments.
 
 The default embedding configuration is:
 

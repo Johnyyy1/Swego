@@ -10,6 +10,7 @@ The provider-neutral `EmbeddingProvider` contract remains in `packages/embedding
 
 ```text
 query
+  ├─ deterministic query-intent analysis
   ├─ EmbeddingProvider.embed()
   │    └─ repository/time/projection-filtered pgvector candidates
   ├─ PostgreSQL full-text query
@@ -27,6 +28,9 @@ query
           strong direct anchors
                     ↓
      bounded one-hop relationship branch
+                    ↓
+    weak intent-role RRF evidence
+      → roles derived from candidate metadata
                     ↓
           path diversification
                     ↓
@@ -74,6 +78,16 @@ The query creates English and exact-token lexemes and joins terms disjunctively 
 Structured retrieval uses a separate generated `structural_search_vector` and GIN index. It searches only `symbolName`, `symbolKind`, `parentSymbol`, and normalized path/filename components. Query normalization splits camelCase and PascalCase, path/kebab/snake separators, removes common question framing, and adds conservative singular/suffix variants. Exact raw symbol equality is an independent match condition and orders ahead of ranked metadata matches. Missing structural metadata simply contributes no branch match.
 
 All three branches execute concurrently. Each may internally overfetch up to the centralized default of 300 so repeated structural chunks cannot prevent a relevant path from reaching diversification. Each branch is reduced to at most 100 candidates with the configured per-path cap before fusion. Public search and reranker pools remain bounded at 100 and 50 respectively; there is no query per candidate.
+
+## Query intent and source roles
+
+Every hybrid query is analyzed locally with deterministic engineering-language signals. The compact, composable taxonomy is `implementation`, `tests`, `configuration`, `documentation`, `database_schema`, `migration`, `api_endpoint`, `exact_symbol`, `error_handling`, `authentication`, `authorization`, `history_rationale`, and `general`. A query can emit several signals; each records a bounded confidence and human-readable evidence such as explicit terminology, an engineering phrase, or an identifier/path/filename shape. No model, embedding call, external service, repository scan, or benchmark-specific string participates.
+
+Retrieved evidence is classified conservatively as `production_implementation`, `unit_test`, `integration_test`, `e2e_test`, `configuration`, `documentation`, `generated_reference_documentation`, `database_schema`, `migration`, `api_definition`, `script`, `type_definition`, `fixture`, `generated`, `development_history`, or `unknown`. Classification uses only the already-returned source type, normalized path/filename/extension, and structural symbol kind. Arbitrary JSON or YAML is not assigned an authored role without a recognized filename or directory context; language metadata alone is deliberately insufficient.
+
+Source role is derived over the bounded fused candidate set rather than persisted. The inputs are already stable repository-memory metadata, classification is cheap and deterministic, and persistence would add a rebuildable column and migration without avoiding a database query or scan. This leaves faithful Git data and normalized repository memory unchanged. File paths provide a file-level role while every structural chunk remains an independently ranked result.
+
+After direct, file-evidence, and optional relationship ranks have fused, compatible candidates form one additional rank-only branch. The branch preserves their existing fused order and contributes `weight / (60 + roleRank)` only when the best intent-role compatibility is at least `0.75`. The selected `weak` weight is `0.2`; `none` and `moderate` (`0.5`) remain available for controlled evaluation through `--intent-role-prior`. Incompatible evidence is never removed or penalized, so this is a bounded preference rather than a source-role filter. Exact-symbol compatibility additionally requires exact structural metadata for its strongest preference.
 
 ## File-level evidence propagation
 
@@ -133,6 +147,8 @@ Every result retains content and source provenance. Hybrid results may additiona
 - `representativeChunkReason` and `propagatedFromFileEvidence` for the bounded synthetic branch;
 - `rrfScore` and pre-diversification `rrfRank` for the fused score/order;
 - `relationshipType`, source/target path and symbol, depth, reason, rank, and `retrievedDirectly` when relationship evidence contributed;
+- `queryIntents` with confidence/evidence plus `sourceRole`, confidence/evidence, and the best `roleCompatibility` reason;
+- `rrfRankBeforeIntentRole`, `intentRoleRank`, and rank-derived `intentRoleScore` when the compatibility branch contributed;
 - `rerankerScore`, `rerankerRank`, and `finalRank` when reranking is enabled.
 
 Source-code results also expose `language`, deterministic `symbolId`, `symbolName`, `symbolKind`, `parentSymbol`, and symbol part/count metadata. The CLI's debug output and benchmark failure records may show the symbol name and kind, but never log complete candidate source contents.
@@ -141,7 +157,7 @@ Fields for a branch are absent when that branch did not return the chunk. The le
 
 ## Verification
 
-Deterministic unit tests cover dense/lexical/structured fusion, exact RRF arithmetic, query normalization, exact/camel/Pascal/kebab/snake/path matching, multiple chunks per path, diversification and exact preservation, configurable pools, deterministic ties, null metadata, and projection failures. Database-gated integration tests cover PostgreSQL structured/lexical matching, repository isolation, temporal cutoffs, hybrid deduplication, and embedding idempotency/compatibility. Database tests continue to use the existing `TEST_DATABASE_URL` gate.
+Deterministic unit tests cover dense/lexical/structured fusion, exact RRF arithmetic, query normalization, multi-intent extraction, conservative source-role classification, weak intent-role ranking, exact/camel/Pascal/kebab/snake/path matching, multiple chunks per path, file-evidence interaction, diversification and exact preservation, configurable pools, deterministic ties, null metadata, and projection failures. Database-gated integration tests cover PostgreSQL structured/lexical matching, repository isolation, temporal cutoffs, hybrid deduplication, and embedding idempotency/compatibility. Database tests continue to use the existing `TEST_DATABASE_URL` gate.
 
 The reproducible benchmark format, metrics, and strategy comparison workflow are documented in [Retrieval evaluation](retrieval-evaluation.md). The exploratory examples below predate that harness and remain observations rather than a relevance corpus.
 
@@ -160,7 +176,9 @@ An exploratory comparison used the existing Formbricks snapshot at commit `88a38
 - PostgreSQL structural search is token/prefix based; it does not provide trigram typo correction or semantic symbol resolution.
 - Repeated terms in large authored catalogs can produce noisy lexical candidates; a relevance corpus is needed before selecting a general mitigation.
 - Unsupported and malformed languages still use conservative fixed-size code chunks that can split a declaration from its context.
-- Optional reranking adds substantial latency and cannot recover relevant material absent from both direct branches and the bounded one-hop relationship graph. There is no source-type/path filter.
+- Deterministic intent signals recognize explicit engineering language and identifier shapes; they do not perform semantic query understanding. Conservative `unknown` roles and weak compatibility intentionally limit their influence.
+- Role classification uses ordered path/filename heuristics. Ambiguous names can still collide—for example, a CI workflow whose filename contains `integration` can resemble an integration test—and should remain visible in debug output rather than being silently filtered.
+- Optional reranking adds substantial latency and cannot recover relevant material absent from both direct branches and the bounded one-hop relationship graph. There is no hard source-type/path filter.
 - Relationship v1 resolves only relative TypeScript-family modules. Package aliases, semantic references, call graphs, inferred tests, and unsupported languages do not produce edges.
 - The schema supports one active embedding projection per chunk and a fixed 512-dimensional vector column.
 - HNSW with highly selective repository/time filters can return fewer strong dense candidates than an exact prefiltered strategy.

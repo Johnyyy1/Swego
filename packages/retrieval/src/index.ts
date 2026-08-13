@@ -39,6 +39,29 @@ export {
 export type { RerankedRepositoryMemoryOptions } from "./reranked";
 export { DEFAULT_RRF_K, reciprocalRankFusion } from "./rrf";
 export type { ReciprocalRankFusionOptions } from "./rrf";
+export { analyzeQueryIntent, queryIntents } from "./query-intent";
+export type { QueryIntent, QueryIntentSignal } from "./query-intent";
+export {
+  classifySourceRole,
+  classifySourceRoleMetadata,
+  sourceRoles,
+} from "./source-role";
+export type {
+  SourceRole,
+  SourceRoleClassification,
+  SourceRoleInput,
+} from "./source-role";
+export {
+  applyIntentRolePrior,
+  DEFAULT_INTENT_ROLE_PRIOR_STRATEGY,
+  INTENT_ROLE_PRIOR_WEIGHTS,
+  MIN_INTENT_ROLE_BRANCH_COMPATIBILITY,
+  intentRolePriorStrategies,
+} from "./intent-role";
+export type {
+  IntentRolePriorOptions,
+  IntentRolePriorStrategy,
+} from "./intent-role";
 export {
   DEFAULT_RELATIONSHIP_CANDIDATE_LIMIT,
   DEFAULT_RELATIONSHIP_MAX_ANCHORS,

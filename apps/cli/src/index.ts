@@ -123,6 +123,9 @@ async function main(): Promise<void> {
             : {
                 relationshipExpansionStrategy: arguments_.relationshipExpansion,
               }),
+          ...(arguments_.intentRolePrior === undefined
+            ? {}
+            : { intentRolePriorStrategy: arguments_.intentRolePrior }),
         },
       );
       if (arguments_.command === "benchmark") {

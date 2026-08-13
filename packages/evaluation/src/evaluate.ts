@@ -1,8 +1,15 @@
 import {
+  analyzeQueryIntent,
+  classifySourceRole,
+  classifySourceRoleMetadata,
+  sourceRoles,
   supportsSearchMemoryDiagnostics,
   type MemorySearchResult,
+  type QueryIntentSignal,
   type RepositoryMemory,
   type SearchMemoryExecutionDiagnostics,
+  type SourceRole,
+  type SourceRoleClassification,
 } from "@swega/retrieval";
 
 import {
@@ -29,6 +36,15 @@ export interface ObservedSearchResult {
   sourceReference: string;
   symbolName: string | null;
   symbolKind: MemorySearchResult["sourceMetadata"]["symbolKind"];
+  sourceRole: SourceRole;
+  roleCompatibility: number | null;
+  rrfRankBeforeIntentRole: number | null;
+  intentRoleRank: number | null;
+}
+
+export interface RelevantTargetSourceRole {
+  target: RelevanceTarget;
+  classification: SourceRoleClassification;
 }
 
 export interface BenchmarkCaseReport {
@@ -40,6 +56,9 @@ export interface BenchmarkCaseReport {
   difficulty?: RetrievalBenchmarkCase["difficulty"];
   notes?: string;
   tags?: readonly string[];
+  predictedQueryIntents: readonly QueryIntentSignal[];
+  relevantTargetSourceRoles: readonly RelevantTargetSourceRole[];
+  retrievedSourceRoleDistribution: Readonly<Record<SourceRole, number>>;
   reciprocalRank: number;
   firstRelevantRank: number | null;
   at: Readonly<Record<string, CutoffMetrics>>;
@@ -69,6 +88,24 @@ export interface TargetOutcomeDiagnostic {
   finalRank: number | null;
 }
 
+export type IntentRoleTargetEffect =
+  | "candidate_missing"
+  | "wrong_chunk_from_target_file"
+  | "role_prior_promoted_candidate"
+  | "role_prior_demoted_candidate"
+  | "compatible_candidate_below_cutoff"
+  | "reranker_reversed_useful_order"
+  | "unchanged";
+
+export interface IntentRoleTargetDiagnostic {
+  target: RelevanceTarget;
+  targetSourceRole: SourceRole;
+  effect: IntentRoleTargetEffect;
+  beforeIntentRoleRank: number | null;
+  candidateRank: number | null;
+  finalRank: number | null;
+}
+
 export interface BenchmarkCandidateDiagnostics extends SearchMemoryExecutionDiagnostics {
   candidateRecall: number;
   missingRelevant: readonly MissingRelevantDiagnostic[];
@@ -77,6 +114,7 @@ export interface BenchmarkCandidateDiagnostics extends SearchMemoryExecutionDiag
   relationshipOnlyCandidateCount: number;
   relationshipFalsePositiveCandidateCount: number;
   targetsRecoveredOnlyByRelationship: readonly RelevanceTarget[];
+  intentRoleTargetEffects: readonly IntentRoleTargetDiagnostic[];
 }
 
 export interface AggregateStrategyMetrics {
@@ -262,6 +300,11 @@ function evaluateBenchmarkCase(
         matchesRelevanceTarget(candidate, target),
       ),
   );
+  const predictedQueryIntents = analyzeQueryIntent(benchmarkCase.query);
+  const relevantTargetSourceRoles = benchmarkCase.relevant.map((target) => ({
+    target,
+    classification: classifyTargetSourceRole(target),
+  }));
 
   return {
     id: benchmarkCase.id,
@@ -274,6 +317,9 @@ function evaluateBenchmarkCase(
       : {}),
     ...(benchmarkCase.notes ? { notes: benchmarkCase.notes } : {}),
     ...(benchmarkCase.tags ? { tags: benchmarkCase.tags } : {}),
+    predictedQueryIntents,
+    relevantTargetSourceRoles,
+    retrievedSourceRoleDistribution: countSourceRoles(results),
     reciprocalRank: evaluation.reciprocalRank,
     firstRelevantRank: evaluation.firstRelevantRank,
     at: evaluation.at,
@@ -329,6 +375,17 @@ function evaluateBenchmarkCase(
                   ),
               ).length,
             targetsRecoveredOnlyByRelationship,
+            intentRoleTargetEffects: benchmarkCase.relevant.map(
+              (target, index) =>
+                diagnoseIntentRoleTargetEffect(
+                  target,
+                  relevantTargetSourceRoles[index]?.classification.role ??
+                    "unknown",
+                  results,
+                  candidates ?? [],
+                  maximumCutoff,
+                ),
+            ),
           },
         }
       : {}),
@@ -339,7 +396,104 @@ function evaluateBenchmarkCase(
       sourceReference: result.sourceMetadata.sourceReference,
       symbolName: result.sourceMetadata.symbolName,
       symbolKind: result.sourceMetadata.symbolKind,
+      sourceRole: result.sourceRole ?? classifySourceRole(result).role,
+      roleCompatibility: result.roleCompatibility ?? null,
+      rrfRankBeforeIntentRole: result.rrfRankBeforeIntentRole ?? null,
+      intentRoleRank: result.intentRoleRank ?? null,
     })),
+  };
+}
+
+function classifyTargetSourceRole(
+  target: RelevanceTarget,
+): SourceRoleClassification {
+  if (target.sourceType) {
+    return classifySourceRoleMetadata({
+      sourceType: target.sourceType,
+      path: target.path ?? null,
+    });
+  }
+  if (target.path) {
+    return classifySourceRoleMetadata({
+      sourceType: "source_code",
+      path: target.path,
+    });
+  }
+  return {
+    role: "unknown",
+    confidence: 1,
+    evidence: ["relevance target source type unavailable"],
+  };
+}
+
+function countSourceRoles(
+  results: readonly MemorySearchResult[],
+): Readonly<Record<SourceRole, number>> {
+  const counts = Object.fromEntries(
+    sourceRoles.map((role) => [role, 0]),
+  ) as Record<SourceRole, number>;
+  for (const result of results) {
+    counts[result.sourceRole ?? classifySourceRole(result).role] += 1;
+  }
+  return counts;
+}
+
+function diagnoseIntentRoleTargetEffect(
+  target: RelevanceTarget,
+  targetSourceRole: SourceRole,
+  results: readonly MemorySearchResult[],
+  candidates: readonly MemorySearchResult[],
+  cutoff: number,
+): IntentRoleTargetDiagnostic {
+  const candidateIndex = candidates.findIndex((candidate) =>
+    matchesRelevanceTarget(candidate, target),
+  );
+  const finalIndex = results.findIndex((result) =>
+    matchesRelevanceTarget(result, target),
+  );
+  const candidate = candidateIndex < 0 ? null : candidates[candidateIndex];
+  const candidateRank = candidateIndex < 0 ? null : candidateIndex + 1;
+  const finalRank = finalIndex < 0 ? null : finalIndex + 1;
+  const beforeIntentRoleRank = candidate?.rrfRankBeforeIntentRole ?? null;
+  let effect: IntentRoleTargetEffect = "unchanged";
+  if (!candidate) {
+    effect = candidates.some((item) => matchesRelevanceTargetFile(item, target))
+      ? "wrong_chunk_from_target_file"
+      : "candidate_missing";
+  } else if (
+    beforeIntentRoleRank !== null &&
+    beforeIntentRoleRank > cutoff &&
+    candidateRank !== null &&
+    candidateRank <= cutoff
+  ) {
+    effect = "role_prior_promoted_candidate";
+  } else if (
+    beforeIntentRoleRank !== null &&
+    beforeIntentRoleRank <= cutoff &&
+    candidateRank !== null &&
+    candidateRank > cutoff
+  ) {
+    effect = "role_prior_demoted_candidate";
+  } else if (
+    candidateRank !== null &&
+    candidateRank <= cutoff &&
+    finalRank === null
+  ) {
+    effect = "reranker_reversed_useful_order";
+  } else if (
+    candidateRank !== null &&
+    candidateRank > cutoff &&
+    finalRank === null
+  ) {
+    effect = "compatible_candidate_below_cutoff";
+  }
+  return {
+    target,
+    targetSourceRole,
+    effect,
+    beforeIntentRoleRank,
+    candidateRank,
+    finalRank,
   };
 }
 
