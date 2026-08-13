@@ -107,3 +107,6 @@ bun run swega:mcp    # Start the local read-only stdio MCP server
 ```
 
 See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [structural chunking](docs/structural-chunking.md), [retrieval design](docs/retrieval.md), [Evidence Packs](docs/context-packs.md), [Agent Context API](docs/agent-context-api.md), [local MCP server](docs/mcp.md), [local reranking](docs/reranking.md), [retrieval evaluation](docs/retrieval-evaluation.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.
+
+For the isolated local PostgreSQL + pgvector environment used by the controlled
+agent-effectiveness benchmark, see [Local benchmark database](docs/local-benchmark.md).

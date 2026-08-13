@@ -1,0 +1,21 @@
+name: swega-benchmark
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: swega_benchmark
+      POSTGRES_PASSWORD: swega
+      POSTGRES_USER: swega
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - swega-benchmark-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swega -d swega_benchmark"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  swega-benchmark-pgdata:
