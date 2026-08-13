@@ -34,6 +34,22 @@ export {
   retrievalBenchmarkCaseSchema,
   retrievalBenchmarkSchema,
 } from "./schema";
+export {
+  ContextBenchmarkValidationError,
+  contextBenchmarkSchema,
+  parseContextBenchmark,
+} from "./context-schema";
+export type { ContextBenchmark, ContextBenchmarkCase } from "./context-schema";
+export { evaluateContextBenchmark } from "./context-evaluate";
+export type {
+  AggregateContextStrategyReport,
+  ContextBenchmarkCaseReport,
+  ContextBenchmarkReport,
+  ContextCaseStrategyReport,
+  ContextCategoryReport,
+  ContextMetrics,
+} from "./context-evaluate";
+export { formatContextBenchmarkReport } from "./context-format";
 export type {
   RelevanceTarget,
   RetrievalBenchmark,

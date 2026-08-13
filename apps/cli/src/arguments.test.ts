@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import {
+  DEFAULT_CONTEXT_BUDGET,
+  DEFAULT_CONTEXT_PRIMARY_ANCHORS,
+} from "@swega/retrieval";
 
 import {
   DEFAULT_INGESTION_LIMIT,
@@ -117,6 +121,59 @@ describe("CLI arguments", () => {
       limit: DEFAULT_SEARCH_LIMIT,
       debug: true,
     });
+  });
+
+  test("parses an agent-oriented context request", () => {
+    expect(
+      parseCliArguments([
+        "context",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "how is authentication implemented",
+        "--before",
+        "2025-03-15",
+        "--context-budget",
+        "12000",
+        "--debug",
+        "--json",
+      ]),
+    ).toEqual({
+      command: "context",
+      repositoryId: "123e4567-e89b-42d3-a456-426614174000",
+      query: "how is authentication implemented",
+      limit: DEFAULT_CONTEXT_PRIMARY_ANCHORS,
+      contextBudget: 12_000,
+      before: new Date("2025-03-15"),
+      debug: true,
+      json: true,
+    });
+    expect(
+      parseCliArguments([
+        "context",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "getSession",
+      ]),
+    ).toMatchObject({ contextBudget: DEFAULT_CONTEXT_BUDGET });
+  });
+
+  test("bounds context anchors and character budgets", () => {
+    expect(() =>
+      parseCliArguments([
+        "context",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "query",
+        "--limit",
+        "6",
+      ]),
+    ).toThrow();
+    expect(() =>
+      parseCliArguments([
+        "context",
+        "123e4567-e89b-42d3-a456-426614174000",
+        "query",
+        "--context-budget",
+        "100",
+      ]),
+    ).toThrow();
   });
 
   test("parses optional local reranking without changing the default", () => {
@@ -246,6 +303,20 @@ describe("CLI arguments", () => {
       benchmarkFile: "benchmarks/formbricks-smoke.json",
       json: true,
       rerank: true,
+    });
+  });
+
+  test("parses a development context benchmark", () => {
+    expect(
+      parseCliArguments([
+        "context-benchmark",
+        "benchmarks/formbricks-context-development.json",
+        "--json",
+      ]),
+    ).toEqual({
+      command: "context-benchmark",
+      benchmarkFile: "benchmarks/formbricks-context-development.json",
+      json: true,
     });
   });
 

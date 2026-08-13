@@ -2,6 +2,9 @@ import { parseArgs } from "node:util";
 
 import { z } from "zod";
 import {
+  DEFAULT_CONTEXT_BUDGET,
+  DEFAULT_CONTEXT_PRIMARY_ANCHORS,
+  MAX_CONTEXT_PRIMARY_ANCHORS,
   fileEvidenceStrategies,
   intentRolePriorStrategies,
   relationshipExpansionStrategies,
@@ -60,8 +63,37 @@ export interface SearchMemoryArguments {
   intentRolePrior?: IntentRolePriorStrategy;
 }
 
+export interface ContextArguments {
+  command: "context";
+  repositoryId: string;
+  query: string;
+  limit: number;
+  contextBudget: number;
+  before?: Date;
+  debug?: true;
+  json?: true;
+  rerank?: true;
+  candidateLimit?: number;
+  pathLimit?: number;
+  fileEvidence?: FileEvidenceStrategy;
+  relationshipExpansion?: RelationshipExpansionStrategy;
+  intentRolePrior?: IntentRolePriorStrategy;
+}
+
 export interface BenchmarkArguments {
   command: "benchmark";
+  benchmarkFile: string;
+  json?: true;
+  rerank?: true;
+  candidateLimit?: number;
+  pathLimit?: number;
+  fileEvidence?: FileEvidenceStrategy;
+  relationshipExpansion?: RelationshipExpansionStrategy;
+  intentRolePrior?: IntentRolePriorStrategy;
+}
+
+export interface ContextBenchmarkArguments {
+  command: "context-benchmark";
   benchmarkFile: string;
   json?: true;
   rerank?: true;
@@ -78,12 +110,20 @@ export type CliArguments =
   | BuildMemoryArguments
   | EmbedMemoryArguments
   | SearchMemoryArguments
+  | ContextArguments
   | BenchmarkArguments
+  | ContextBenchmarkArguments
   | DoctorArguments
   | HelpArguments;
 
 const ingestionLimitSchema = z.coerce.number().int().positive().max(1_000);
 const searchLimitSchema = z.coerce.number().int().positive().max(100);
+const contextAnchorLimitSchema = z.coerce
+  .number()
+  .int()
+  .positive()
+  .max(MAX_CONTEXT_PRIMARY_ANCHORS);
+const contextBudgetSchema = z.coerce.number().int().min(256).max(1_000_000);
 const repositoryIdSchema = z.string().uuid();
 
 export function parseCliArguments(args: readonly string[]): CliArguments {
@@ -104,6 +144,7 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       "file-evidence": { type: "string" },
       "relationship-expansion": { type: "string" },
       "intent-role-prior": { type: "string" },
+      "context-budget": { type: "string" },
     },
   });
 
@@ -124,7 +165,8 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values["path-limit"] ||
       parsed.values["file-evidence"] ||
       parsed.values["relationship-expansion"] ||
-      parsed.values["intent-role-prior"]
+      parsed.values["intent-role-prior"] ||
+      parsed.values["context-budget"]
     ) {
       throw new Error("Usage: swega doctor");
     }
@@ -132,28 +174,27 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
   }
 
   const [command, target, query, ...unexpected] = parsed.positionals;
-  if (command === "search") {
+  if (command === "search" || command === "context") {
     if (
       !target ||
       !query ||
       unexpected.length > 0 ||
       parsed.values.since ||
-      parsed.values.json
+      (command === "search" &&
+        (parsed.values.json || parsed.values["context-budget"]))
     ) {
       throw new Error(
-        "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--intent-role-prior STRATEGY] [--debug]",
+        command === "search"
+          ? "Usage: swega search <repository-id> <query> [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--intent-role-prior STRATEGY] [--debug]"
+          : "Usage: swega context <repository-id> <query> [--limit N] [--context-budget N] [--before ISO_DATE] [--rerank] [--relationship-expansion STRATEGY] [--debug] [--json]",
       );
     }
     if (parsed.values["candidate-limit"] && !parsed.values.rerank) {
       throw new Error("--candidate-limit requires --rerank");
     }
-    return {
-      command,
+    const shared = {
       repositoryId: repositoryIdSchema.parse(target),
       query,
-      limit: searchLimitSchema.parse(
-        parsed.values.limit ?? DEFAULT_SEARCH_LIMIT,
-      ),
       ...(parsed.values.before
         ? { before: parseDate(parsed.values.before, "before") }
         : {}),
@@ -191,9 +232,28 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
           }
         : {}),
     };
+    return command === "context"
+      ? {
+          command,
+          ...shared,
+          limit: contextAnchorLimitSchema.parse(
+            parsed.values.limit ?? DEFAULT_CONTEXT_PRIMARY_ANCHORS,
+          ),
+          contextBudget: contextBudgetSchema.parse(
+            parsed.values["context-budget"] ?? DEFAULT_CONTEXT_BUDGET,
+          ),
+          ...(parsed.values.json ? { json: true as const } : {}),
+        }
+      : {
+          command,
+          ...shared,
+          limit: searchLimitSchema.parse(
+            parsed.values.limit ?? DEFAULT_SEARCH_LIMIT,
+          ),
+        };
   }
 
-  if (command === "benchmark") {
+  if (command === "benchmark" || command === "context-benchmark") {
     if (
       !target ||
       query ||
@@ -201,10 +261,11 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
       parsed.values.limit ||
       parsed.values.since ||
       parsed.values.before ||
-      parsed.values.debug
+      parsed.values.debug ||
+      parsed.values["context-budget"]
     ) {
       throw new Error(
-        "Usage: swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--intent-role-prior STRATEGY] [--json]",
+        `Usage: swega ${command} <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--intent-role-prior STRATEGY] [--json]`,
       );
     }
     if (parsed.values["candidate-limit"] && !parsed.values.rerank) {
@@ -253,26 +314,27 @@ export function parseCliArguments(args: readonly string[]): CliArguments {
     throw new Error("Run 'swega --help' for usage");
   }
   if (parsed.values.before) {
-    throw new Error("--before applies only to search");
+    throw new Error("--before applies only to search and context");
   }
   if (parsed.values.debug) {
-    throw new Error("--debug applies only to search");
+    throw new Error("--debug applies only to search and context");
   }
   if (parsed.values.json) {
-    throw new Error("--json applies only to benchmark");
+    throw new Error("--json applies only to benchmark and context");
   }
   if (parsed.values.rerank) {
-    throw new Error("--rerank applies only to search and benchmark");
+    throw new Error("--rerank applies only to search, context, and benchmark");
   }
   if (
     parsed.values["candidate-limit"] ||
     parsed.values["path-limit"] ||
     parsed.values["file-evidence"] ||
     parsed.values["relationship-expansion"] ||
-    parsed.values["intent-role-prior"]
+    parsed.values["intent-role-prior"] ||
+    parsed.values["context-budget"]
   ) {
     throw new Error(
-      "Candidate generation options apply only to search and benchmark",
+      "Candidate generation options apply only to search, context, and benchmark",
     );
   }
 
@@ -322,20 +384,23 @@ export function helpText(): string {
     "  swega build-memory <repository-id>",
     "  swega embed-memory <repository-id>",
     '  swega search <repository-id> "query" [--limit N] [--before ISO_DATE] [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--intent-role-prior STRATEGY] [--debug]',
+    '  swega context <repository-id> "query" [--limit N] [--context-budget N] [--before ISO_DATE] [--rerank] [--relationship-expansion STRATEGY] [--debug] [--json]',
     "  swega benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--intent-role-prior STRATEGY] [--json]",
+    "  swega context-benchmark <benchmark-file> [--rerank] [--candidate-limit N] [--path-limit N] [--file-evidence STRATEGY] [--relationship-expansion STRATEGY] [--intent-role-prior STRATEGY] [--json]",
     "",
     "Options:",
-    "  --limit N        Bound ingestion or the number of search results",
+    "  --limit N        Bound ingestion, search results, or context anchors (maximum 5)",
     "  --since DATE     Ingest records updated at or after an ISO-8601 date",
     "  --before DATE    Exclude memory unavailable at this historical cutoff",
+    `  --context-budget N  Bound Evidence Pack content (default: ${DEFAULT_CONTEXT_BUDGET} characters)`,
     "  --debug          Include retrieval and reranker ranking diagnostics",
-    "  --relationship-expansion STRATEGY  none or bounded (default: none)",
+    "  --relationship-expansion STRATEGY  none or bounded (search default: none; context default: bounded)",
     "  --intent-role-prior STRATEGY  none, weak (default), or moderate",
     "  --rerank         Rerank a bounded hybrid candidate set locally",
     "  --candidate-limit N  Bound the pre-rerank candidate pool",
     "  --path-limit N   Bound pre-rerank chunks retained per file path",
     "  --file-evidence STRATEGY  Select none, max, multi-branch, or bounded-top-n propagation",
-    "  --json           Emit a machine-readable benchmark report",
+    "  --json           Emit a machine-readable benchmark or Evidence Pack",
     "  -h, --help       Show this help",
   ].join("\n");
 }

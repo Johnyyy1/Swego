@@ -1,0 +1,737 @@
+{
+  "version": 1,
+  "name": "Formbricks Evidence Pack development corpus",
+  "description": "Twenty-five manually reviewed agent-context tasks for comparing raw top-K chunks with bounded Evidence Packs under the same character budget. This is development-only and must not be treated as sealed retrieval held-out evidence.",
+  "split": "development",
+  "repositoryRevision": "88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5",
+  "groundTruthMethod": "Required and supporting evidence was authored by reading the pinned Git snapshot directly with git show and git grep. Required selectors are the minimum source evidence needed to reason about each task; SWEGA output was not used to derive expectations.",
+  "contextBudget": 30000,
+  "primaryAnchors": 5,
+  "cases": [
+    {
+      "id": "context-server-session-validation",
+      "query": "How is server authentication session validation implemented, including inactive users?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "implementation",
+      "difficulty": "medium",
+      "notes": "getSession is the request entry point and isUserActive supplies the authoritative active-user check in the same source file.",
+      "required": [
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getSession",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "symbolName": "isUserActive",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "packages/types/auth.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-webhook-create-flow",
+      "query": "Trace a v2 webhook creation request through validation, secret generation, and database persistence.",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "The route delegates to createWebhook, which calls validateWebhookUrl and then persists the generated secret.",
+      "required": [
+        {
+          "path": "apps/web/modules/api/v2/management/webhooks/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/v2/management/webhooks/lib/webhook.ts",
+          "sourceType": "source_code",
+          "symbolName": "createWebhook",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/utils/validate-webhook-url.ts",
+          "sourceType": "source_code",
+          "symbolName": "validateWebhookUrl",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/api/v2/management/webhooks/types/webhooks.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-ai-survey-generation-flow",
+      "query": "How does a v3 request turn an AI prompt into a validated survey draft and map provider errors?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "The route invokes generation after authorization, the service creates and validates the draft, and error-mapping converts failures.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/service.ts",
+          "sourceType": "source_code",
+          "symbolName": "generateV3SurveyCreatePayloadFromPrompt",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/error-mapping.ts",
+          "sourceType": "source_code",
+          "symbolName": "mapV3SurveyGenerateError",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/schemas.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-client-response-submission",
+      "query": "Trace public survey response submission from validation to persistence and pipeline dispatch.",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "The route performs request and survey checks, delegates persistence, and sends the resulting response to the pipeline.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/responses/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/responses/lib/response.ts",
+          "sourceType": "source_code",
+          "symbolName": "createResponse",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/lib/pipelines.ts",
+          "sourceType": "source_code",
+          "symbolName": "sendToPipeline",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/client/[workspaceId]/responses/lib/response-error.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-health-endpoint",
+      "query": "How is the v2 health API endpoint implemented and how does it check Postgres and Redis?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "api_endpoint",
+      "difficulty": "medium",
+      "notes": "The route delegates to performHealthChecks, which coordinates the database and cache checks.",
+      "required": [
+        {
+          "path": "apps/web/modules/api/v2/health/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "GET",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/v2/health/lib/health-checks.ts",
+          "sourceType": "source_code",
+          "symbolName": "performHealthChecks",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/api/v2/health/types/health-status.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-private-upload-endpoint",
+      "query": "How does the public client storage endpoint validate a survey file and create a private S3 upload URL?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "api_endpoint",
+      "difficulty": "hard",
+      "notes": "The route owns request, workspace, survey, permission, and size checks before calling the storage service.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/storage/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/storage/service.ts",
+          "sourceType": "source_code",
+          "symbolName": "getSignedUrlForUpload",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/storage/utils.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        },
+        {
+          "path": "apps/web/lib/constants.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-workflow-enable-endpoint",
+      "query": "POST api v3 workflows workflowId enable",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "exact_symbol",
+      "difficulty": "easy",
+      "notes": "The exact route symbol is the navigation target; its local declaration shows wrapper configuration and delegation.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v3/workflows/[workflowId]/enable/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/v3/workflows/lib/context.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-api-key-authentication",
+      "query": "authenticateApiKeyFromHeaders",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "exact_symbol",
+      "difficulty": "easy",
+      "notes": "The exact authentication symbol plus its adjacent bearer/key parsing helpers are sufficient local context.",
+      "required": [
+        {
+          "path": "apps/web/modules/api/lib/api-key-auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "authenticateApiKeyFromHeaders",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/api/lib/api-key-auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "getApiKeyFromHeaders",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-bullmq-configuration",
+      "query": "Where are BullMQ worker enablement count concurrency and Redis requirements configured and consumed?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "configuration",
+      "difficulty": "medium",
+      "notes": "The job configuration derives runtime values from env; both the policy and validated source values are needed.",
+      "required": [
+        {
+          "path": "apps/web/lib/jobs/config.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/env.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/lib/jobs/config.test.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-object-storage-configuration",
+      "query": "How are S3 endpoint bucket credentials path style and upload size limits configured and used?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "configuration",
+      "difficulty": "medium",
+      "notes": "Validated environment inputs and derived constants jointly define storage behavior.",
+      "required": [
+        {
+          "path": "apps/web/lib/env.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/constants.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/storage/service.ts",
+          "sourceType": "source_code",
+          "symbolName": "getSignedUrlForUpload",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-survey-resource-authorization",
+      "query": "How does the v3 API authorize access to a survey without leaking whether it exists?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "authorization",
+      "difficulty": "medium",
+      "notes": "The survey helper deliberately maps absent resources to forbidden and delegates workspace access to the shared gate.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v3/surveys/authorization.ts",
+          "sourceType": "source_code",
+          "symbolName": "getAuthorizedV3Survey",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/lib/auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "requireV3WorkspaceAccess",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/v3/lib/response.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-api-key-workspace-isolation",
+      "query": "How are API key workspace permissions filtered to the key organization during authentication?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "authorization",
+      "difficulty": "medium",
+      "notes": "authenticateApiKeyFromHeaders filters the provider-neutral authentication result; the data loader supplies organization and workspace permission fields.",
+      "required": [
+        {
+          "path": "apps/web/modules/api/lib/api-key-auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "authenticateApiKeyFromHeaders",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/organization/settings/api-keys/lib/api-key.ts",
+          "sourceType": "source_code",
+          "symbolName": "getApiKeyWithPermissions",
+          "grade": 2
+        }
+      ],
+      "supporting": []
+    },
+    {
+      "id": "context-response-contact-schema",
+      "query": "How are survey responses related to contacts displays tags and workflow runs in Prisma?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "database_schema",
+      "difficulty": "medium",
+      "notes": "The Response model is the required schema evidence; the response persistence implementation is a useful consumer.",
+      "required": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/responses/lib/response.ts",
+          "sourceType": "source_code",
+          "symbolName": "createResponse",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-api-key-permission-schema",
+      "query": "Where are organization API keys and per-workspace read write manage permissions modeled and consumed?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "database_schema",
+      "difficulty": "medium",
+      "notes": "The Prisma schema defines ApiKey, ApiKeyWorkspace, and permission values; authentication consumes those relations.",
+      "required": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/lib/api-key-auth.ts",
+          "sourceType": "source_code",
+          "symbolName": "authenticateApiKeyFromHeaders",
+          "grade": 2
+        }
+      ],
+      "supporting": []
+    },
+    {
+      "id": "context-session-schema-migration",
+      "query": "Which migration created Session and VerificationToken, and how does proxy session validation consume Session?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "migration",
+      "difficulty": "medium",
+      "notes": "The migration is the source of the tables and proxy-session is the relevant runtime consumer.",
+      "required": [
+        {
+          "path": "packages/database/migration/20260325090000_add_auth_sessions/migration.sql",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getProxySession",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-v1-api-error-boundary",
+      "query": "How are expected 4xx errors and unexpected 5xx errors converted without leaking Prisma details?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "error_handling",
+      "difficulty": "medium",
+      "notes": "handleApiError owns safe client mapping and threads the original unexpected error back for reporting.",
+      "required": [
+        {
+          "path": "apps/web/app/lib/api/handle-api-error.ts",
+          "sourceType": "source_code",
+          "symbolName": "handleApiError",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/lib/api/with-api-logging.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        },
+        {
+          "path": "apps/web/app/lib/api/response.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-ai-error-boundary",
+      "query": "Where are AI survey quota provider availability invalid payload and upstream errors mapped to problem responses?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "error_handling",
+      "difficulty": "medium",
+      "notes": "mapV3SurveyGenerateError is the mapping boundary; service-defined validation errors are its direct dependencies.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/error-mapping.ts",
+          "sourceType": "source_code",
+          "symbolName": "mapV3SurveyGenerateError",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/surveys/generate/service.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/v3/lib/response.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-job-config-tests",
+      "query": "Where is BullMQ worker enablement and missing Redis configuration tested, and what implementation is under test?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "tests",
+      "difficulty": "medium",
+      "notes": "The test and implementation form the minimum evidence needed to understand the validated behavior.",
+      "required": [
+        {
+          "path": "apps/web/lib/jobs/config.test.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/jobs/config.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/lib/env.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-proxy-session-tests",
+      "query": "Where are proxy sessions tested against the real session table expiry and inactive users, and what code is exercised?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "tests",
+      "difficulty": "medium",
+      "notes": "The integration suite and getProxySession implementation are jointly required.",
+      "required": [
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.integration.test.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getProxySession",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/auth/lib/session-cookie.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-language-switch-ui",
+      "query": "How does the survey language switch deduplicate canonical languages, show display names, update i18n, and change text direction?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "ui_component",
+      "difficulty": "hard",
+      "notes": "The component coordinates the UI flow and its imported helper definitions provide language selection and labels.",
+      "required": [
+        {
+          "path": "packages/surveys/src/components/general/language-switch.tsx",
+          "sourceType": "source_code",
+          "symbolName": "LanguageSwitch",
+          "grade": 3
+        },
+        {
+          "path": "packages/surveys/src/lib/i18n-utils.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        },
+        {
+          "path": "packages/surveys/src/lib/language-display-name.ts",
+          "sourceType": "source_code",
+          "grade": 2
+        }
+      ],
+      "supporting": []
+    },
+    {
+      "id": "context-ending-card-ui",
+      "query": "How does the runtime EndingCard finish or redirect a survey while preserving accessible focus behavior?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "ui_component",
+      "difficulty": "medium",
+      "notes": "The structural component declaration contains the control flow and local prop interface provides the required inputs.",
+      "required": [
+        {
+          "path": "packages/surveys/src/components/general/ending-card.tsx",
+          "sourceType": "source_code",
+          "symbolName": "EndingCard",
+          "grade": 3
+        },
+        {
+          "path": "packages/surveys/src/components/general/ending-card.tsx",
+          "sourceType": "source_code",
+          "symbolName": "EndingCardProps",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "packages/surveys/src/lib/i18n.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-html-accessibility-helper",
+      "query": "How does htmlToPlainText convert survey HTML into accessible labels and fall back outside the browser?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "utility",
+      "difficulty": "easy",
+      "notes": "The exact helper and nearby HTML validation/sanitization functions provide complete local behavior.",
+      "required": [
+        {
+          "path": "packages/surveys/src/lib/html-utils.ts",
+          "sourceType": "source_code",
+          "symbolName": "htmlToPlainText",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "packages/surveys/src/lib/html-utils.ts",
+          "sourceType": "source_code",
+          "symbolName": "stripInlineStyles",
+          "grade": 1
+        },
+        {
+          "path": "packages/surveys/src/lib/html-utils.ts",
+          "sourceType": "source_code",
+          "symbolName": "isValidHTML",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-webhook-url-safety",
+      "query": "How does webhook URL validation reject private internal and unsafe destination addresses before webhook creation?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "utility",
+      "difficulty": "medium",
+      "notes": "validateWebhookUrl owns DNS/address safety; createWebhook is the production caller that gates persistence.",
+      "required": [
+        {
+          "path": "apps/web/lib/utils/validate-webhook-url.ts",
+          "sourceType": "source_code",
+          "symbolName": "validateWebhookUrl",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/v2/management/webhooks/lib/webhook.ts",
+          "sourceType": "source_code",
+          "symbolName": "createWebhook",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/lib/constants.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-onboarding-decision-flow",
+      "query": "How is an onboarding workspace selected and redirected between plan, survey, and completed destinations?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "cross_file",
+      "difficulty": "hard",
+      "notes": "Workspace selection/context and redirect calculation are separate collaborators in the onboarding flow.",
+      "required": [
+        {
+          "path": "apps/web/app/(app)/(onboarding)/lib/onboarding-workspace.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/(app)/(onboarding)/lib/redirect-if-onboarding-complete.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        }
+      ],
+      "supporting": []
+    },
+    {
+      "id": "context-active-user-session-flow",
+      "query": "How are deactivated users rejected in both server session reads and proxy middleware sessions?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "cross_file",
+      "difficulty": "hard",
+      "notes": "The application and middleware paths independently enforce user activity through different session sources.",
+      "required": [
+        {
+          "path": "apps/web/modules/auth/lib/session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getSession",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/auth/lib/proxy-session.ts",
+          "sourceType": "source_code",
+          "symbolName": "getProxySession",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/auth/lib/session-cookie.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    }
+  ]
+}

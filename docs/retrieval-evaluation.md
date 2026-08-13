@@ -85,6 +85,8 @@ Intent-aware reports preserve the benchmark category and add predicted query int
 
 Existing Precision/Recall/MRR/nDCG definitions are unchanged. Candidate recall is separately named and never substituted for final Recall@K. Timing fields make diagnostic reports intentionally nondeterministic; ranking and metric fields remain reproducible for deterministic providers.
 
+Evidence Pack evaluation is intentionally separate from ranked retrieval evaluation. The checked-in 25-case development corpus compares raw top-ranked chunks and assembled context under the same exact character budget, reporting required/supporting recall, complete-pack rate, precision, duplicate ratio, noise, relevant-file diversity, payload, and stage latency without an opaque combined score. Its labels are development-only and were authored by direct source inspection at a pinned revision. See [Evidence Packs](context-packs.md) for the schema, methodology, anchor comparison, results, and limitations.
+
 ## CLI usage
 
 ```bash
@@ -95,6 +97,8 @@ bun run swega benchmark benchmarks/formbricks-smoke.json --rerank --candidate-li
 bun run swega benchmark benchmarks/formbricks-development.json --file-evidence multi-branch
 bun run swega benchmark benchmarks/formbricks-development.json --rerank --relationship-expansion none
 bun run swega benchmark benchmarks/formbricks-development.json --intent-role-prior weak
+bun run swega context-benchmark benchmarks/formbricks-context-development.json
+bun run swega context-benchmark benchmarks/formbricks-context-development.json --json
 ```
 
 The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available. `--rerank` additionally requires `RERANKER_PROVIDER=llama.cpp`, evaluates `hybrid+rerank` against the same cases, and fails rather than silently falling back if that provider is unavailable.

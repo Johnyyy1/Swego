@@ -43,6 +43,8 @@ query
 
 An optional post-retrieval stage scores the bounded fused candidates with a local cross-encoder and returns the requested top K. See [Local reranking](reranking.md).
 
+Agent-facing context assembly is a separate consumer of this pipeline. `swega context` starts from a small final result set, adds bounded structural and one-hop support, deduplicates and budgets it, and returns a structured Evidence Pack without changing `search`. See [Evidence Packs](context-packs.md).
+
 Run the projection after building repository memory, then search:
 
 ```bash

@@ -6,8 +6,11 @@ import { fileURLToPath } from "node:url";
 
 import { createDatabase } from "@swega/db";
 import {
+  evaluateContextBenchmark,
   evaluateRetrievalBenchmark,
   formatBenchmarkReport,
+  formatContextBenchmarkReport,
+  parseContextBenchmark,
   parseRetrievalBenchmark,
 } from "@swega/evaluation";
 import { GitCliRepositoryManager } from "@swega/git";
@@ -21,7 +24,14 @@ import {
   ingestGitHubRepository,
   synchronizeGitRepository,
 } from "@swega/indexer";
-import type { MemorySearchResult } from "@swega/retrieval";
+import {
+  EvidencePackBuilder,
+  PgContextEvidenceSource,
+  PgRelationshipExpansion,
+  formatEvidencePack,
+  formatEvidencePackJson,
+  type MemorySearchResult,
+} from "@swega/retrieval";
 import {
   loadRootEnvironment,
   parseServerEnvironment,
@@ -87,7 +97,9 @@ async function main(): Promise<void> {
     if (
       arguments_.command === "embed-memory" ||
       arguments_.command === "search" ||
-      arguments_.command === "benchmark"
+      arguments_.command === "context" ||
+      arguments_.command === "benchmark" ||
+      arguments_.command === "context-benchmark"
     ) {
       const embeddings = resolveConfiguredEmbeddingProvider(environment);
 
@@ -121,7 +133,11 @@ async function main(): Promise<void> {
           ...(arguments_.relationshipExpansion === undefined
             ? {}
             : {
-                relationshipExpansionStrategy: arguments_.relationshipExpansion,
+                relationshipExpansionStrategy:
+                  arguments_.command === "context" ||
+                  arguments_.command === "context-benchmark"
+                    ? "none"
+                    : arguments_.relationshipExpansion,
               }),
           ...(arguments_.intentRolePrior === undefined
             ? {}
@@ -152,6 +168,62 @@ async function main(): Promise<void> {
           arguments_.json
             ? JSON.stringify(report, null, 2)
             : formatBenchmarkReport(report),
+        );
+        return;
+      }
+
+      if (arguments_.command === "context-benchmark") {
+        const benchmark = await loadContextBenchmark(arguments_.benchmarkFile);
+        const memory = arguments_.rerank
+          ? requireRerankedStrategy(strategies)
+          : strategies.hybrid;
+        const relationshipStrategy =
+          arguments_.relationshipExpansion ?? "bounded";
+        const builder = new EvidencePackBuilder(
+          memory,
+          new PgContextEvidenceSource(database.db),
+          relationshipStrategy === "bounded"
+            ? new PgRelationshipExpansion(database.db)
+            : undefined,
+        );
+        const report = await evaluateContextBenchmark(
+          benchmark,
+          memory,
+          builder,
+        );
+        console.log(
+          arguments_.json
+            ? JSON.stringify(report, null, 2)
+            : formatContextBenchmarkReport(report),
+        );
+        return;
+      }
+
+      if (arguments_.command === "context") {
+        const memory = arguments_.rerank
+          ? requireRerankedStrategy(strategies)
+          : strategies.hybrid;
+        const relationshipStrategy =
+          arguments_.relationshipExpansion ?? "bounded";
+        const builder = new EvidencePackBuilder(
+          memory,
+          new PgContextEvidenceSource(database.db),
+          relationshipStrategy === "bounded"
+            ? new PgRelationshipExpansion(database.db)
+            : undefined,
+        );
+        const pack = await builder.build({
+          repositoryId: arguments_.repositoryId,
+          query: arguments_.query,
+          limit: arguments_.limit,
+          contextBudget: arguments_.contextBudget,
+          ...(arguments_.before ? { before: arguments_.before } : {}),
+          ...(arguments_.debug ? { debug: true } : {}),
+        });
+        console.log(
+          arguments_.json
+            ? formatEvidencePackJson(pack)
+            : formatEvidencePack(pack),
         );
         return;
       }
@@ -212,6 +284,14 @@ async function main(): Promise<void> {
 }
 
 async function loadBenchmark(path: string) {
+  return parseRetrievalBenchmark(await loadJsonFile(path, "Benchmark"));
+}
+
+async function loadContextBenchmark(path: string) {
+  return parseContextBenchmark(await loadJsonFile(path, "Context benchmark"));
+}
+
+async function loadJsonFile(path: string, label: string): Promise<unknown> {
   const projectRoot = fileURLToPath(new URL("../../..", import.meta.url));
   const candidates = isAbsolute(path)
     ? [path]
@@ -231,7 +311,7 @@ async function loadBenchmark(path: string) {
   }
   if (source === undefined) {
     throw new Error(
-      `Unable to read benchmark '${path}': ${failures.join("; ")}`,
+      `Unable to read ${label.toLowerCase()} '${path}': ${failures.join("; ")}`,
     );
   }
 
@@ -241,11 +321,11 @@ async function loadBenchmark(path: string) {
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Benchmark '${benchmarkPath}' is not valid JSON: ${detail}`,
+      `${label} '${benchmarkPath}' is not valid JSON: ${detail}`,
       { cause: error },
     );
   }
-  return parseRetrievalBenchmark(input);
+  return input;
 }
 
 function toLegacySearchResult(result: MemorySearchResult) {

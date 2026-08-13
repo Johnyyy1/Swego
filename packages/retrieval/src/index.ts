@@ -98,3 +98,36 @@ export {
   relationshipExpansionStrategies,
 } from "./types";
 export { supportsSearchMemoryDiagnostics } from "./types";
+export {
+  DEFAULT_CONTEXT_BUDGET,
+  DEFAULT_CONTEXT_PRIMARY_ANCHORS,
+  DEFAULT_CONTEXT_SUPPORTING_PER_ANCHOR,
+  EVIDENCE_PACK_SCHEMA_VERSION,
+  EvidencePackBuilder,
+  MAX_CONTEXT_PRIMARY_ANCHORS,
+  selectEvidenceAnchors,
+} from "./context";
+export type { EvidencePackBuilderOptions } from "./context";
+export { PgContextEvidenceSource } from "./context-postgres";
+export { evidenceContextRoles, evidenceReasonKinds } from "./context-types";
+export type {
+  BuildEvidencePackInput,
+  ContextEvidenceSource,
+  EvidenceContextRole,
+  EvidenceItem,
+  EvidencePack,
+  EvidencePackBudget,
+  EvidencePackDecision,
+  EvidencePackDiagnostics,
+  EvidencePackExecution,
+  EvidencePackRepository,
+  EvidenceReason,
+  EvidenceReasonKind,
+  EvidenceRelationshipProvenance,
+  EvidenceRetrievalProvenance,
+  EvidenceSourceProvenance,
+  LoadLocalContextInput,
+  LocalContextCandidate,
+  LocalContextReason,
+} from "./context-types";
+export { formatEvidencePack, formatEvidencePackJson } from "./context-format";

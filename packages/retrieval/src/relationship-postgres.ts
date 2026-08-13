@@ -2,6 +2,7 @@ import { and, asc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
 
 import { documentChunks, sourceRelationships, type Database } from "@swega/db";
 
+import { documentChunkToMemorySearchResult } from "./chunk-result";
 import type {
   RelationshipExpansion,
   RelationshipExpansionInput,
@@ -281,13 +282,7 @@ function toResult(
   rank: number,
 ): MemorySearchResult {
   return {
-    repositoryId: chunk.repositoryId,
-    content: chunk.content,
-    similarity: 0,
-    sourceType: chunk.sourceType,
-    sourceId: chunk.sourceEntityId,
-    timestamp: chunk.availableAt,
-    path: chunk.path,
+    ...documentChunkToMemorySearchResult(chunk),
     relationshipType: neighbor.relationshipType,
     relationshipSourcePath: neighbor.anchor.path,
     relationshipSourceSymbol: neighbor.anchor.sourceMetadata.symbolName,
@@ -300,26 +295,6 @@ function toResult(
     relationshipReason: `${neighbor.relationshipType}: ${neighbor.anchor.path ?? neighbor.anchor.sourceMetadata.sourceReference} -> ${chunk.path ?? chunk.sourceReference}; ${neighbor.reason}`,
     relationshipRank: rank,
     retrievedDirectly: false,
-    sourceMetadata: {
-      documentId: chunk.documentId,
-      chunkId: chunk.id,
-      sourceReference: chunk.sourceReference,
-      parentSourceType: chunk.parentSourceType,
-      parentSourceEntityId: chunk.parentSourceEntityId,
-      occurredAt: chunk.occurredAt,
-      availableAt: chunk.availableAt,
-      path: chunk.path,
-      commitSha: chunk.commitSha,
-      startLine: chunk.startLine,
-      endLine: chunk.endLine,
-      language: chunk.language,
-      symbolId: chunk.symbolId,
-      symbolName: chunk.symbolName,
-      symbolKind: chunk.symbolKind,
-      parentSymbol: chunk.parentSymbol,
-      symbolPart: chunk.symbolPart,
-      symbolPartCount: chunk.symbolPartCount,
-    },
   };
 }
 

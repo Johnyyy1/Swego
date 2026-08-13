@@ -19,6 +19,8 @@ SWEGA stores provider data in a normalized, repository-scoped model. UUID primar
 
 Query intents and source roles are retrieval-time diagnostics rather than stored entities. Intent depends on the current query, while source role is cheaply and deterministically derived from already-returned chunk provenance and structural metadata. Persisting either would add redundant rebuildable state without removing a query or repository scan.
 
+Evidence Packs are also query-time, rebuildable outputs rather than stored entities. They retain structured references to repository-memory provenance already carried by chunks and relationships, distinguish context roles from source roles, and expose the exact cutoff and contributing commit revisions.
+
 Mutable provider entities include `sourceUpdatedAt`, `lastSyncedAt`, and `deletedAt` where applicable. `sourceUpdatedAt` is the provider's last known modification time, `lastSyncedAt` is SWEGA's latest observation time, and `deletedAt` represents a retained tombstone instead of silently losing provenance.
 
 ## Relationships
