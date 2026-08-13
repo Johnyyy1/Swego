@@ -8,6 +8,7 @@ export default typescriptEslint.config(
   {
     ignores: [
       "**/.next/**",
+      ".swega/**",
       "**/dist/**",
       "**/node_modules/**",
       "**/*.tsbuildinfo",

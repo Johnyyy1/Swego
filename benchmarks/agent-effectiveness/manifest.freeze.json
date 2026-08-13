@@ -1,0 +1,599 @@
+{
+  "benchmarkVersion": "swega-agent-effectiveness-v1",
+  "conditionConfigurationHashes": {
+    "A": "055457bbcfbc1a68ac43ee0e7e3bed237f37e0caacb096bca95ead3cf76ee731",
+    "B": "c766c927cf20b275e93805c3a3329e711c796b154dac8743276942d0e5e9c485"
+  },
+  "finalTaskIds": [
+    "FB-F01",
+    "FB-F02",
+    "FB-F03",
+    "FB-F04",
+    "FB-F05",
+    "FB-F06",
+    "FB-F07",
+    "FB-F08",
+    "FB-F09",
+    "FB-F10",
+    "FB-F11",
+    "FB-F12"
+  ],
+  "frozenAt": "2026-08-13T18:44:44.455Z",
+  "pilotTaskIds": [
+    "FB-P01",
+    "FB-P02"
+  ],
+  "privateArtifactHashes": [
+    {
+      "path": "manifest.json",
+      "sha256": "7705e6504efac93072824b27f0d768b8086256ca407ce06f77a21044c6c7a0d2"
+    },
+    {
+      "path": "references/FB-F01.patch",
+      "sha256": "97c745fc721fe17415d06aafe2972149cb2cfa4cca9a9a1c65ec22c80fd5756c"
+    },
+    {
+      "path": "references/FB-F02.patch",
+      "sha256": "7bf8766372de464a0ed3bcb15c84b0327263b9299e7b45477f4926fcb0cb02b9"
+    },
+    {
+      "path": "references/FB-F03.patch",
+      "sha256": "685f3814b6144f137d4a943a8e52d7db9a2a01377f9ec44a46b1f630de2020ed"
+    },
+    {
+      "path": "references/FB-F04.patch",
+      "sha256": "16113c579cd40de4a95154e7a4c044182968ff7ffd8da5b15b4f34bc407db93c"
+    },
+    {
+      "path": "references/FB-F05.patch",
+      "sha256": "b7e3f52ad85034899f1c8b30ec996d416cecd9988cdc40780940f3f044225680"
+    },
+    {
+      "path": "references/FB-F06.patch",
+      "sha256": "5e007bace8b25760ed9e07d77d6939f86b57c9982243de0834713028e75abb2a"
+    },
+    {
+      "path": "references/FB-F07.patch",
+      "sha256": "d3bd0b5ecef0f632a4707f3d01179539790f3f5e4151df36a63cfd74a34944cf"
+    },
+    {
+      "path": "references/FB-F08.patch",
+      "sha256": "ef2f848e5dd7d21c682f333f635c6019f3797106bec5731b3708fcbdbc0ada88"
+    },
+    {
+      "path": "references/FB-F09.patch",
+      "sha256": "a36b8162dee41c6dae45b5c67f3a1a19b5625ae073d65f840ea042c0e534e400"
+    },
+    {
+      "path": "references/FB-F10.patch",
+      "sha256": "10668015a0e509e392502c81df4fcb2aaa44699bcd41a2f806ed26e02490f763"
+    },
+    {
+      "path": "references/FB-F11.patch",
+      "sha256": "03a31a55c6b12ed2219b255e007f5d4dd1df51ec5367b74b0d6390b755837f5d"
+    },
+    {
+      "path": "references/FB-F12.patch",
+      "sha256": "8ea8ce27a74a7ad3dd89e668c555ecf5c0bdcfe1a89172561fdad53f702021a4"
+    },
+    {
+      "path": "references/FB-P01.patch",
+      "sha256": "c7eadac6ec4815dc8bf7f84589cd79d5dcc03ef52e09fd87a925b4907d04147a"
+    },
+    {
+      "path": "references/FB-P02.patch",
+      "sha256": "719e8310611b132a3eeb538b364a256710033941ae2e704d3d9e79ab2631c25b"
+    },
+    {
+      "path": "verifiers/FB-F01.test.ts",
+      "sha256": "835ec8cb0518c300d053577782cb388f66038887dbe9352e4e8f99ea85110537"
+    },
+    {
+      "path": "verifiers/FB-F02.test.ts",
+      "sha256": "caeff4ec6aed6001787efd414b43056f79fbe099cb496f6e0dda11f9a567d82c"
+    },
+    {
+      "path": "verifiers/FB-F03.test.ts",
+      "sha256": "a9a02ebfbb3cc0c83f1661a0cf8e1f621cc17be414cbe310c14e6c49eb06489f"
+    },
+    {
+      "path": "verifiers/FB-F04.test.ts",
+      "sha256": "79b233a5753e5ca731d917d00b819275908cc8111ecbef3b3dc102d0e817b842"
+    },
+    {
+      "path": "verifiers/FB-F05.test.ts",
+      "sha256": "f27d61df90a662f7b20816a487055db01aa93b238308abd96370eccb6f8a5c26"
+    },
+    {
+      "path": "verifiers/FB-F06.test.ts",
+      "sha256": "936d065347a8fa533a10c498cf9fbf0936969434639f26dfc3ebc9956952e313"
+    },
+    {
+      "path": "verifiers/FB-F07.test.ts",
+      "sha256": "9d76fdb46a6a98c4f0cd7a58d2b2cd685f4be54fa25f0480bae98053e7fe2313"
+    },
+    {
+      "path": "verifiers/FB-F08.test.ts",
+      "sha256": "26d958875a19e39be1074e89bd327768db440ddc5524eb13761591077c92d2bb"
+    },
+    {
+      "path": "verifiers/FB-F09.test.ts",
+      "sha256": "15d019395c394235f5ef6f102ab5d8d3bb026dd91651ea17f29b9cc4c01d15dd"
+    },
+    {
+      "path": "verifiers/FB-F10.test.ts",
+      "sha256": "155eb7e68a33b5b607a7b35a00f1bfb01ec3966ade580c9d77b35d64cae34e91"
+    },
+    {
+      "path": "verifiers/FB-F11.test.ts",
+      "sha256": "ca0eeef5848162fa17ae93ce48ef070e034e0a56d386737bce653d0adc81ccac"
+    },
+    {
+      "path": "verifiers/FB-F12.test.ts",
+      "sha256": "8af0e0394c57225e7270b7a0398598939568e7bf087d78b2266657160129a4a7"
+    },
+    {
+      "path": "verifiers/FB-P01.logger-stub.js",
+      "sha256": "1754b2936801e5c953d6c797e35eb5d18c9417b7e57ed3e3a5e8652f083893b1"
+    },
+    {
+      "path": "verifiers/FB-P01.test.ts",
+      "sha256": "7cdddfa91f73fdabbe421f86f5b7a182782675d65ddc7cf07b6b9d7bcf7ef090"
+    },
+    {
+      "path": "verifiers/FB-P02.test.ts",
+      "sha256": "e92e9cd02a9fc354b862cd6174b201d7065e10c35f52f8dfde99366e8ec85707"
+    }
+  ],
+  "privateBundleSha256": "d7ef651a53868257036b810751150fc9daa95aec8016fd912d12558b2f73830f",
+  "publicArtifactHashes": [
+    {
+      "path": "benchmarks/agent-effectiveness/README.md",
+      "sha256": "afa0f205c2672e22678d6dd09531f598a076e584001a9e0387c22da1205d27b2"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/conditions/A.json",
+      "sha256": "055457bbcfbc1a68ac43ee0e7e3bed237f37e0caacb096bca95ead3cf76ee731"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/conditions/B.json",
+      "sha256": "c766c927cf20b275e93805c3a3329e711c796b154dac8743276942d0e5e9c485"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/pilot-validation.json",
+      "sha256": "9cd30af3ef629d2b9a379cc40e03b30d762a86c1ad1fc11d74ccdccb84227a8f"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/run-result.schema.json",
+      "sha256": "8340b523a22b590d0173990bc06f7639bfc2c982f01f7bf92b23f0a6c86b52af"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/analyze.ts",
+      "sha256": "45124462ec4654e05927d205cb3e8134e43d587b3749822666b6aa8fddf32ac8"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/cli.ts",
+      "sha256": "4f87c626303388915d676830c90ff7f7467beca972591a59359c9eb63ddd6095"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/codex.ts",
+      "sha256": "3774c2b679b384374f3dbf18aaf1bf0ecfdc2a92a82b642420d66ebdaf425bdb"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/config.ts",
+      "sha256": "6abee3b9db0c1ae73767eda3dbace8a47db3efcb148ca90aed0afb0c023f8949"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/events.ts",
+      "sha256": "5bb00b059ea96b84620a28171146885d8821a5bfd6d1b30734c66534d0ba43ef"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/freeze.ts",
+      "sha256": "040eb627c0ca9d1689703bb0c964d0f82bbda48f8c8b2fe03331f24e3b4f6803"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/git-metrics.ts",
+      "sha256": "15d0fe7339ec4fe9f0c49ee6eac8bed0c361bc3796a6aa32ce3093e67ad6a50a"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/hash.ts",
+      "sha256": "1eb49a688ca0e44757aa10007cc3d61c3010753ba803a8627b656b04ea7946f1"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/order.ts",
+      "sha256": "a7b70bf1fba84e46c2daff710373369fc39970812d069bfcc9eb4f2c3fbeec85"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/paths.ts",
+      "sha256": "3b2361b152a5c8f1ea1b828e79d0b1d97e8e2a6cffcf150e19bcecd8916cdcf1"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/preflight.ts",
+      "sha256": "551fd4303453495ba16f08a25ed9becd74532aa6f35b33534cb386925f122a78"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/private-bundle.ts",
+      "sha256": "166208113a1215b0f4d1a382515de180bbedf1de6b6a9312f6c9dfc78f63b41e"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/process.ts",
+      "sha256": "7ebdd7c0178cf6de3ef44aee27afafe834312aa0975b0d0a10b2280ad9a02371"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/reference-validation.ts",
+      "sha256": "a49b1d5235ffb94b3bb1ff600f79febdf86a2783919511727b14d4d8bba60be8"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/retry.ts",
+      "sha256": "48d5af41d7d1812dd06409008ff08fa8c301b705372512574d61827154ffe312"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/run.ts",
+      "sha256": "658e26ab07aaf325502f8382431f8134183bc2b42c667744004cfede8f73cb06"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/schema.ts",
+      "sha256": "c7cf52d9622ac9baa923afa9643770fe8985bd7356c37f2dcec9047400efc225"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/types.ts",
+      "sha256": "654058431112caf399769e4ecc23910066f24ba4f3bafb35065beca173878d01"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/validate.ts",
+      "sha256": "29b1db67c037f84dd3e6c29e8887495333f0f714139962ffd02d301820c56354"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/verifier.ts",
+      "sha256": "78244aa4976779219223e315245e07d753e9c0ba8243a3b75e4dd193de633f89"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/src/workspace.ts",
+      "sha256": "c083dc0c03a68f5d285b41274a044adc25aa7cd2091463158da5a2af173f73b7"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F01/prompt.txt",
+      "sha256": "9eb4f898b6c24ca66af0d13f2c654e378ecbbedee596f7e566e3f1722d82781a"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F02/prompt.txt",
+      "sha256": "eccaf11cb7a1979bf36050ba59d774582230b8e1414a95238bec1386c33c2892"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F03/prompt.txt",
+      "sha256": "746ea5781cf162b74a5d52d89cafcb66a81b7b26cee65fd624b5d7142bc5693b"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F04/prompt.txt",
+      "sha256": "5cbfe44e7d1fa149861acc9f664e9ed9534d1ef00f6510e5d95934d92ad2f872"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F05/prompt.txt",
+      "sha256": "cade3629118ed68aac00d8d21cbeb729d547cee5ed25b51e71a1c458a10fcd9a"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F06/prompt.txt",
+      "sha256": "5e569650c7a6beb0c7d6b73621b67bffdacf2e11acd42a75370e93e03799a98b"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F07/prompt.txt",
+      "sha256": "783629184d2ff65e56be76d083f8522f12ef21881ba7ec0ab46bb984bd881a1e"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F08/prompt.txt",
+      "sha256": "e051d904f67215a5cf35924cc7d67c0d1b6cdccdce51effbe75c08064f05501b"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F09/prompt.txt",
+      "sha256": "441fc0987b3370c6ab260056a7611428b06ccd28ab664c8cf312bd09c1034e9e"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F10/prompt.txt",
+      "sha256": "54404697cbb619454d1d040859c01cd9f668e8f7b107843ffb4317a1715ed44e"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F11/prompt.txt",
+      "sha256": "eb8890bce341d494a6801a0a9a42065a7dd3590a36d66e4d0bc957c0074528f0"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/final/FB-F12/prompt.txt",
+      "sha256": "f2e521c229571f62612411127e34e377be9b77cc0c1cb12241ef8afe9326be5e"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/pilot/FB-P01/prompt.txt",
+      "sha256": "762f5f58ea017421978fb52b11cad8936a600b1c7b5c281bac69647bf76699ed"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/pilot/FB-P02/prompt.txt",
+      "sha256": "a5b8c14bc8a324e7d3fd91cae929a0861ec7db014ee26331f2504be86099cc82"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tasks/tasks.json",
+      "sha256": "553c0b3e9b93d14966ab0914280376f91f25e911c7a6ca8bfa6d40c5fe40ad83"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tests/analysis.test.ts",
+      "sha256": "eaaf9a443d3ac5f1acf6c67f6eb1811557c534d416c077bbce164b94ffe0e2a5"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tests/events.test.ts",
+      "sha256": "1aced8df2087ad5e0b04da2f5453f2ec05d5be483bb22fde6683e3781095cb11"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tests/order-config.test.ts",
+      "sha256": "44aebe36cf78c7d650edc9bb2a27ca152da2b3fbff0b3b286767cb48ca12ca1a"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tests/run-classification.test.ts",
+      "sha256": "57a086543b72dd8fdd7641f6055bf364aa75a289dbb4642634c2c9416cfccc8b"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tests/schema-retry-timeout.test.ts",
+      "sha256": "c375ea86a68eafe29a7d4a60448fb8d69cf2f90a835c73da600cf9e223be02ba"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tests/tasks-workspace.test.ts",
+      "sha256": "eb57508571709c71c15389d9cff323ebce4e565c36fb282bf6f8dc6f74d54863"
+    },
+    {
+      "path": "benchmarks/agent-effectiveness/tsconfig.json",
+      "sha256": "c58cc66a5579d77f3ca2401ae81455031d457efb6c8f4dc8dcb2ef1a961ef94e"
+    }
+  ],
+  "randomization": {
+    "algorithm": "sha256-sort-and-pair-parity-v1",
+    "finalRunOrder": [
+      {
+        "condition": "A",
+        "pairPosition": 1,
+        "runOrder": 1,
+        "taskId": "FB-F04"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 2,
+        "runOrder": 2,
+        "taskId": "FB-F04"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 1,
+        "runOrder": 3,
+        "taskId": "FB-F02"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 2,
+        "runOrder": 4,
+        "taskId": "FB-F02"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 5,
+        "taskId": "FB-F07"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 6,
+        "taskId": "FB-F07"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 7,
+        "taskId": "FB-F09"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 8,
+        "taskId": "FB-F09"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 9,
+        "taskId": "FB-F06"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 10,
+        "taskId": "FB-F06"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 1,
+        "runOrder": 11,
+        "taskId": "FB-F01"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 2,
+        "runOrder": 12,
+        "taskId": "FB-F01"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 13,
+        "taskId": "FB-F05"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 14,
+        "taskId": "FB-F05"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 1,
+        "runOrder": 15,
+        "taskId": "FB-F10"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 2,
+        "runOrder": 16,
+        "taskId": "FB-F10"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 17,
+        "taskId": "FB-F08"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 18,
+        "taskId": "FB-F08"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 1,
+        "runOrder": 19,
+        "taskId": "FB-F03"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 2,
+        "runOrder": 20,
+        "taskId": "FB-F03"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 21,
+        "taskId": "FB-F12"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 22,
+        "taskId": "FB-F12"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 23,
+        "taskId": "FB-F11"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 24,
+        "taskId": "FB-F11"
+      }
+    ],
+    "pilotRunOrder": [
+      {
+        "condition": "A",
+        "pairPosition": 1,
+        "runOrder": 1,
+        "taskId": "FB-P01"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 2,
+        "runOrder": 2,
+        "taskId": "FB-P01"
+      },
+      {
+        "condition": "B",
+        "pairPosition": 1,
+        "runOrder": 3,
+        "taskId": "FB-P02"
+      },
+      {
+        "condition": "A",
+        "pairPosition": 2,
+        "runOrder": 4,
+        "taskId": "FB-P02"
+      }
+    ],
+    "seed": "swega-p17a-20260813"
+  },
+  "researchQuestion": "Does giving the same Codex coding agent access to SWEGA MCP improve performance on realistic software-engineering tasks?",
+  "schemaVersion": 1,
+  "solver": {
+    "approvalPolicy": "never",
+    "codexBinary": "/Applications/ChatGPT.app/Contents/Resources/codex",
+    "codexVersion": "codex-cli 0.147.0-alpha.6.6",
+    "disabledFeatures": [
+      "apps",
+      "plugins",
+      "browser_use",
+      "browser_use_external",
+      "browser_use_full_cdp_access",
+      "in_app_browser",
+      "computer_use",
+      "enable_mcp_apps",
+      "multi_agent",
+      "multi_agent_v2",
+      "network_proxy",
+      "plugin_sharing",
+      "skill_search",
+      "skill_env_var_dependency_prompt",
+      "image_generation",
+      "recommended_plugins",
+      "remote_plugin",
+      "standalone_web_search"
+    ],
+    "effort": "xhigh",
+    "ephemeral": true,
+    "model": "gpt-5.6-sol",
+    "networkPolicy": {
+      "browserAndWebSearchTools": "disabled",
+      "localStdioMcp": "condition-b-only",
+      "solverShellExternalNetwork": "empirically-blocked-not-os-firewalled"
+    },
+    "retryPolicy": {
+      "maximumRetries": 1,
+      "verifiedInfrastructureFailuresOnly": true
+    },
+    "sandbox": "workspace-write",
+    "terminationGraceMs": 10000,
+    "tokenCeiling": null,
+    "userConfigIgnored": true,
+    "wallClockTimeoutMs": 1800000
+  },
+  "source": {
+    "installCommand": [
+      "pnpm",
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts"
+    ],
+    "isolatedBaseCommit": "189c3bd35609aaa83ea30958779baf487345c3be",
+    "isolatedBaseTree": "dd85833814273f0722f0362515e5c2816bd8b665",
+    "packageManager": "pnpm@11.19.0 (pinned repository declares pnpm@11.7.0)",
+    "repository": "formbricks/formbricks",
+    "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+    "sourceArchiveSha256": "1013affb9fd8a310f70d6454b4a605587121ab1fc1296a42b132cebb533c6702",
+    "sourceRevision": "88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5",
+    "trackedFileCount": 4550
+  },
+  "swega": {
+    "chunks": 23430,
+    "compatibleEmbeddings": 23430,
+    "contextBudgetCharacters": 30000,
+    "embeddingDimensions": 512,
+    "embeddingModel": "qwen3-embedding:0.6b",
+    "embeddingProvider": "ollama",
+    "freezeDocumentationCommit": "8501f34",
+    "mcpTools": [
+      "swega_list_repositories",
+      "swega_get_repository",
+      "swega_get_context"
+    ],
+    "mcpTransport": "local-stdio",
+    "pgvectorVersion": "0.8.6",
+    "postgresVersion": "17.10",
+    "relationships": 14815,
+    "reranker": "disabled",
+    "runtimeCommit": "8814209"
+  }
+}

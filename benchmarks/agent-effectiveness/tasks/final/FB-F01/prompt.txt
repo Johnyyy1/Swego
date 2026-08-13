@@ -1,0 +1,1 @@
+Date answers must reject impossible calendar dates instead of relying on JavaScript's date rollover. Support the existing YYYY-MM-DD and DD-MM-YYYY formats, continue rejecting other formats, and correctly handle leap years. For example, 2024-02-29 is valid, while 2023-02-29, 2024-02-30, and 31-04-2026 are not. Add or update tests for the behavior.

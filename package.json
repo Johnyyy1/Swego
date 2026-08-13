@@ -23,7 +23,10 @@
     "db:generate": "bun run --cwd packages/db db:generate",
     "db:migrate": "bun --env-file=.env run --cwd packages/db db:migrate",
     "swega": "bun --env-file=.env run --cwd apps/cli start",
-    "swega:mcp": "bun --env-file=.env run --cwd apps/mcp start"
+    "swega:mcp": "bun --env-file=.env run --cwd apps/mcp start",
+    "benchmark:p17": "bun benchmarks/agent-effectiveness/src/cli.ts",
+    "benchmark:p17:test": "bun test benchmarks/agent-effectiveness/tests",
+    "benchmark:p17:typecheck": "tsc -p benchmarks/agent-effectiveness/tsconfig.json"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

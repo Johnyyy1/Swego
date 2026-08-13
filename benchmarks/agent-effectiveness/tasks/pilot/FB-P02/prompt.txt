@@ -1,0 +1,1 @@
+Only convert genuine YouTube video URLs into embed URLs. A YouTube video ID must be exactly 11 valid ID characters; shorter, longer, empty, or non-video paths and query values must return no embed URL. Existing supported watch, short-link, embed, and privacy-enhanced host formats must continue to work.

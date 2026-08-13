@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://swega.invalid/schemas/agent-effectiveness-run-result-v1.json",
+  "title": "SWEGA agent-effectiveness benchmark run result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "benchmarkVersion",
+    "taskId",
+    "taskSet",
+    "condition",
+    "runOrder",
+    "model",
+    "effort",
+    "codexVersion",
+    "sourceRevision",
+    "startedAt",
+    "durationMs",
+    "completionStatus",
+    "verifierPassed",
+    "testResults",
+    "filesModified",
+    "patchStats",
+    "toolMetrics",
+    "relevantFileMetrics",
+    "usageMetrics",
+    "swegaMetrics",
+    "infrastructureFailure",
+    "retryNumber",
+    "transcriptArtifact",
+    "patchArtifact",
+    "stderrArtifact",
+    "finalMessageArtifact",
+    "unavailableMetrics"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "benchmarkVersion": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "taskSet": { "enum": ["final", "pilot"] },
+    "condition": { "enum": ["A", "B"] },
+    "runOrder": { "type": "integer", "minimum": 0 },
+    "model": { "type": "string", "minLength": 1 },
+    "effort": { "type": "string", "minLength": 1 },
+    "codexVersion": { "type": "string", "minLength": 1 },
+    "sourceRevision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "completionStatus": {
+      "enum": [
+        "completed",
+        "timed_out",
+        "codex_error",
+        "infrastructure_failure"
+      ]
+    },
+    "verifierPassed": { "type": "boolean" },
+    "testResults": { "type": "array", "items": { "type": "object" } },
+    "filesModified": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "patchStats": {
+      "type": "object",
+      "required": ["filesChanged", "insertions", "deletions"],
+      "properties": {
+        "filesChanged": { "type": "integer", "minimum": 0 },
+        "insertions": { "type": "integer", "minimum": 0 },
+        "deletions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "toolMetrics": { "type": "object" },
+    "relevantFileMetrics": { "type": "object" },
+    "usageMetrics": { "type": "object" },
+    "swegaMetrics": { "type": "object" },
+    "infrastructureFailure": { "type": ["object", "null"] },
+    "retryNumber": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "transcriptArtifact": { "type": "string" },
+    "patchArtifact": { "type": "string" },
+    "stderrArtifact": { "type": "string" },
+    "finalMessageArtifact": { "type": "string" },
+    "unavailableMetrics": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  }
+}

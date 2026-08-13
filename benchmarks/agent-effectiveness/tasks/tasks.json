@@ -1,0 +1,114 @@
+[
+  {
+    "id": "FB-F01",
+    "set": "final",
+    "category": "validation-utility",
+    "difficulty": "easy",
+    "promptFile": "final/FB-F01/prompt.txt",
+    "promptSha256": "9eb4f898b6c24ca66af0d13f2c654e378ecbbedee596f7e566e3f1722d82781a"
+  },
+  {
+    "id": "FB-F02",
+    "set": "final",
+    "category": "sdk-cross-file",
+    "difficulty": "hard",
+    "promptFile": "final/FB-F02/prompt.txt",
+    "promptSha256": "eccaf11cb7a1979bf36050ba59d774582230b8e1414a95238bec1386c33c2892"
+  },
+  {
+    "id": "FB-F03",
+    "set": "final",
+    "category": "configuration",
+    "difficulty": "easy",
+    "promptFile": "final/FB-F03/prompt.txt",
+    "promptSha256": "746ea5781cf162b74a5d52d89cafcb66a81b7b26cee65fd624b5d7142bc5693b"
+  },
+  {
+    "id": "FB-F04",
+    "set": "final",
+    "category": "html-security",
+    "difficulty": "medium",
+    "promptFile": "final/FB-F04/prompt.txt",
+    "promptSha256": "5cbfe44e7d1fa149861acc9f664e9ed9534d1ef00f6510e5d95934d92ad2f872"
+  },
+  {
+    "id": "FB-F05",
+    "set": "final",
+    "category": "authorization",
+    "difficulty": "hard",
+    "promptFile": "final/FB-F05/prompt.txt",
+    "promptSha256": "cade3629118ed68aac00d8d21cbeb729d547cee5ed25b51e71a1c458a10fcd9a"
+  },
+  {
+    "id": "FB-F06",
+    "set": "final",
+    "category": "workflow-api",
+    "difficulty": "medium",
+    "promptFile": "final/FB-F06/prompt.txt",
+    "promptSha256": "5e569650c7a6beb0c7d6b73621b67bffdacf2e11acd42a75370e93e03799a98b"
+  },
+  {
+    "id": "FB-F07",
+    "set": "final",
+    "category": "react-accessibility",
+    "difficulty": "medium",
+    "promptFile": "final/FB-F07/prompt.txt",
+    "promptSha256": "783629184d2ff65e56be76d083f8522f12ef21881ba7ec0ab46bb984bd881a1e"
+  },
+  {
+    "id": "FB-F08",
+    "set": "final",
+    "category": "job-scheduling",
+    "difficulty": "medium",
+    "promptFile": "final/FB-F08/prompt.txt",
+    "promptSha256": "e051d904f67215a5cf35924cc7d67c0d1b6cdccdce51effbe75c08064f05501b"
+  },
+  {
+    "id": "FB-F09",
+    "set": "final",
+    "category": "database-schema",
+    "difficulty": "hard",
+    "promptFile": "final/FB-F09/prompt.txt",
+    "promptSha256": "441fc0987b3370c6ab260056a7611428b06ccd28ab664c8cf312bd09c1034e9e"
+  },
+  {
+    "id": "FB-F10",
+    "set": "final",
+    "category": "pagination-security",
+    "difficulty": "medium",
+    "promptFile": "final/FB-F10/prompt.txt",
+    "promptSha256": "54404697cbb619454d1d040859c01cd9f668e8f7b107843ffb4317a1715ed44e"
+  },
+  {
+    "id": "FB-F11",
+    "set": "final",
+    "category": "ai-error-handling",
+    "difficulty": "medium",
+    "promptFile": "final/FB-F11/prompt.txt",
+    "promptSha256": "eb8890bce341d494a6801a0a9a42065a7dd3590a36d66e4d0bc957c0074528f0"
+  },
+  {
+    "id": "FB-F12",
+    "set": "final",
+    "category": "file-upload",
+    "difficulty": "medium",
+    "promptFile": "final/FB-F12/prompt.txt",
+    "promptSha256": "f2e521c229571f62612411127e34e377be9b77cc0c1cb12241ef8afe9326be5e"
+  },
+  {
+    "id": "FB-P01",
+    "set": "pilot",
+    "category": "cache-validation",
+    "difficulty": "easy",
+    "promptFile": "pilot/FB-P01/prompt.txt",
+    "promptSha256": "762f5f58ea017421978fb52b11cad8936a600b1c7b5c281bac69647bf76699ed"
+  },
+  {
+    "id": "FB-P02",
+    "set": "pilot",
+    "category": "media-url-validation",
+    "difficulty": "easy",
+    "promptFile": "pilot/FB-P02/prompt.txt",
+    "promptSha256": "a5b8c14bc8a324e7d3fd91cae929a0861ec7db014ee26331f2504be86099cc82"
+  }
+]

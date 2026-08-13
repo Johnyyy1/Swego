@@ -2,3 +2,5 @@ bun.lock
 .next/
 node_modules/
 packages/db/drizzle/meta/
+# Canonical stable-JSON byte order is part of the benchmark freeze digest.
+benchmarks/agent-effectiveness/manifest.freeze.json

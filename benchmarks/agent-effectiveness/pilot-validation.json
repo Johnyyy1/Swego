@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "benchmarkVersion": "swega-agent-effectiveness-v1",
+  "finalMetricEligible": false,
+  "purpose": "Harness validation only; these outcomes must never enter final benchmark metrics.",
+  "runOrder": [
+    { "runOrder": 1, "taskId": "FB-P01", "condition": "A" },
+    { "runOrder": 2, "taskId": "FB-P01", "condition": "B" },
+    { "runOrder": 3, "taskId": "FB-P02", "condition": "B" },
+    { "runOrder": 4, "taskId": "FB-P02", "condition": "A" }
+  ],
+  "completedSolverRuns": [
+    {
+      "taskId": "FB-P01",
+      "condition": "A",
+      "durationMs": 521036,
+      "completionStatus": "completed",
+      "verifierPassed": true,
+      "filesModified": [
+        "packages/cache/src/utils/key.test.ts",
+        "packages/cache/src/utils/key.ts"
+      ],
+      "patchStats": { "filesChanged": 2, "insertions": 15, "deletions": 2 },
+      "usageMetrics": {
+        "inputTokens": 2656709,
+        "outputTokens": 15964,
+        "cachedInputTokens": 2546688,
+        "cacheWriteInputTokens": 0,
+        "reasoningOutputTokens": 7592,
+        "totalTokens": 2672673
+      }
+    }
+  ],
+  "infrastructureEvents": [
+    {
+      "affectedRuns": ["FB-P01/B", "FB-P02/B", "FB-P02/A"],
+      "kind": "codex-service",
+      "verified": true,
+      "detail": "Codex emitted structured error and turn.failed events reporting an account usage limit before any solver tool use.",
+      "storedResultClassification": "codex_error",
+      "correctedClassification": "infrastructure_failure",
+      "resolution": "The completion classifier now reads structured error events; a deterministic regression test covers this failure mode. Existing immutable pilot result artifacts were not rewritten."
+    }
+  ],
+  "treatmentValidation": {
+    "preflightMcpHandshakePassed": true,
+    "preLimitStructuredProbeCalledSwegaListRepositories": true,
+    "fullTreatmentSolverRunCompleted": false,
+    "blocker": "Codex account usage limit after the completed baseline pilot run"
+  },
+  "referenceValidation": {
+    "pilotTasksBaselineRejected": true,
+    "pilotTasksReferenceAccepted": true
+  },
+  "conclusion": "Workspace creation, a complete solver/edit/patch/grade/metrics/result path, verifier execution, structured event capture, deterministic ordering, treatment MCP connectivity, and infrastructure-failure capture were exercised. No pilot comparison is a benchmark conclusion."
+}

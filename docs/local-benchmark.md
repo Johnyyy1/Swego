@@ -1,5 +1,10 @@
 # Local benchmark database
 
+The frozen P17 Codex A/B experiment is implemented separately under
+[`benchmarks/agent-effectiveness`](../benchmarks/agent-effectiveness/README.md). Its solver workspaces,
+hidden graders, run ordering, metrics, and analysis tooling are benchmark-only infrastructure and do not
+change the production retrieval/context behavior described here.
+
 The controlled agent-effectiveness benchmark uses an isolated, local PostgreSQL
 17 database with pgvector. It does not use the development `.env` database URL
 or any hosted Neon instance.

@@ -1,0 +1,1 @@
+Make the S3 path-style environment flag accept the conventional case-insensitive boolean value `true` as well as `1`. Unset, `false`, `0`, and unrelated values must remain false. Ignore surrounding whitespace and keep the value exposed to the storage client as a boolean. Add focused tests for the accepted and rejected forms.

@@ -1,0 +1,1 @@
+Recurring cron schedules must reject an invalid IANA time-zone identifier during schedule validation, before the value reaches the queue engine. Valid zones such as `UTC`, `Europe/Prague`, and `America/New_York` must continue to work, and omitting the time zone must remain valid. Keep the jobs package's provider-neutral schedule contract and add regression tests.

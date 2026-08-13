@@ -1,0 +1,1 @@
+Cache-key construction must reject parts that are empty after trimming, including spaces, tabs, and newlines, while leaving non-empty key content unchanged. Keep the existing automatic prefix and error behavior, and add regression tests.

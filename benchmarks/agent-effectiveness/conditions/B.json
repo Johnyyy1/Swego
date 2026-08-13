@@ -1,0 +1,67 @@
+{
+  "additionalEnvironmentInstruction": null,
+  "condition": "B",
+  "ordinaryTools": [
+    "repository reads",
+    "repository search",
+    "file editing",
+    "shell",
+    "tests",
+    "git"
+  ],
+  "solver": {
+    "approvalPolicy": "never",
+    "codexBinary": "/Applications/ChatGPT.app/Contents/Resources/codex",
+    "codexVersion": "codex-cli 0.147.0-alpha.6.6",
+    "disabledFeatures": [
+      "apps",
+      "plugins",
+      "browser_use",
+      "browser_use_external",
+      "browser_use_full_cdp_access",
+      "in_app_browser",
+      "computer_use",
+      "enable_mcp_apps",
+      "multi_agent",
+      "multi_agent_v2",
+      "network_proxy",
+      "plugin_sharing",
+      "skill_search",
+      "skill_env_var_dependency_prompt",
+      "image_generation",
+      "recommended_plugins",
+      "remote_plugin",
+      "standalone_web_search"
+    ],
+    "effort": "xhigh",
+    "ephemeral": true,
+    "model": "gpt-5.6-sol",
+    "networkPolicy": {
+      "browserAndWebSearchTools": "disabled",
+      "localStdioMcp": "condition-b-only",
+      "solverShellExternalNetwork": "empirically-blocked-not-os-firewalled"
+    },
+    "retryPolicy": {
+      "maximumRetries": 1,
+      "verifiedInfrastructureFailuresOnly": true
+    },
+    "sandbox": "workspace-write",
+    "terminationGraceMs": 10000,
+    "tokenCeiling": null,
+    "userConfigIgnored": true,
+    "wallClockTimeoutMs": 1800000
+  },
+  "swegaMcp": {
+    "enabled": true,
+    "overrides": [
+      "-c",
+      "mcp_servers.swega.command=\"/Users/jonas/.bun/bin/bun\"",
+      "-c",
+      "mcp_servers.swega.args=[\"run\",\"swega:mcp\"]",
+      "-c",
+      "mcp_servers.swega.cwd=\"/Users/jonas/Documents/swega\"",
+      "-c",
+      "mcp_servers.swega.env={DATABASE_URL=\"postgresql://swega:swega@127.0.0.1:5433/swega_benchmark\",EMBEDDING_PROVIDER=\"ollama\",OLLAMA_URL=\"http://127.0.0.1:11434\",OLLAMA_EMBEDDING_MODEL=\"qwen3-embedding:0.6b\",EMBEDDING_DIMENSIONS=\"512\",RERANKER_PROVIDER=\"\"}"
+    ]
+  }
+}
