@@ -5,6 +5,7 @@ import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDatabase } from "@swega/db";
+import { createPgAgentContextService } from "@swega/agent-context";
 import {
   evaluateContextBenchmark,
   evaluateRetrievalBenchmark,
@@ -116,6 +117,48 @@ async function main(): Promise<void> {
       const reranker = arguments_.rerank
         ? requireConfiguredReranker(environment)
         : undefined;
+      if (arguments_.command === "context") {
+        const service = createPgAgentContextService({
+          database: database.db,
+          embeddings,
+          ...(reranker ? { reranker } : {}),
+          contextRelationships: arguments_.relationshipExpansion ?? "bounded",
+          retrieval: {
+            ...(arguments_.candidateLimit === undefined
+              ? {}
+              : { candidateLimit: arguments_.candidateLimit }),
+            ...(arguments_.pathLimit === undefined
+              ? {}
+              : { maxCandidatesPerPath: arguments_.pathLimit }),
+            ...(arguments_.fileEvidence === undefined
+              ? {}
+              : { fileEvidenceStrategy: arguments_.fileEvidence }),
+            ...(arguments_.intentRolePrior === undefined
+              ? {}
+              : { intentRolePriorStrategy: arguments_.intentRolePrior }),
+          },
+        });
+        const pack = await service.buildContext(
+          {
+            repositoryId: arguments_.repositoryId,
+            query: arguments_.query,
+            contextBudget: arguments_.contextBudget,
+            ...(arguments_.before ? { before: arguments_.before } : {}),
+            ...(arguments_.rerank ? { rerank: true } : {}),
+          },
+          {
+            primaryEvidenceLimit: arguments_.limit,
+            ...(arguments_.debug ? { debug: true } : {}),
+          },
+        );
+        console.log(
+          arguments_.json
+            ? formatEvidencePackJson(pack)
+            : formatEvidencePack(pack),
+        );
+        return;
+      }
+
       const strategies = createConfiguredRetrievalStrategies(
         database.db,
         embeddings,
@@ -134,7 +177,6 @@ async function main(): Promise<void> {
             ? {}
             : {
                 relationshipExpansionStrategy:
-                  arguments_.command === "context" ||
                   arguments_.command === "context-benchmark"
                     ? "none"
                     : arguments_.relationshipExpansion,
@@ -195,35 +237,6 @@ async function main(): Promise<void> {
           arguments_.json
             ? JSON.stringify(report, null, 2)
             : formatContextBenchmarkReport(report),
-        );
-        return;
-      }
-
-      if (arguments_.command === "context") {
-        const memory = arguments_.rerank
-          ? requireRerankedStrategy(strategies)
-          : strategies.hybrid;
-        const relationshipStrategy =
-          arguments_.relationshipExpansion ?? "bounded";
-        const builder = new EvidencePackBuilder(
-          memory,
-          new PgContextEvidenceSource(database.db),
-          relationshipStrategy === "bounded"
-            ? new PgRelationshipExpansion(database.db)
-            : undefined,
-        );
-        const pack = await builder.build({
-          repositoryId: arguments_.repositoryId,
-          query: arguments_.query,
-          limit: arguments_.limit,
-          contextBudget: arguments_.contextBudget,
-          ...(arguments_.before ? { before: arguments_.before } : {}),
-          ...(arguments_.debug ? { debug: true } : {}),
-        });
-        console.log(
-          arguments_.json
-            ? formatEvidencePackJson(pack)
-            : formatEvidencePack(pack),
         );
         return;
       }

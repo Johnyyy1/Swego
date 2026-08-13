@@ -149,6 +149,7 @@ export class EvidencePackBuilder {
       related,
       retrievalResults,
       intents,
+      input.debug === true,
     );
     const deduplicated = deduplicateCandidates(candidates, decisions);
     const budgeted = applyEvidenceBudget(
@@ -332,6 +333,7 @@ function buildCandidates(
   related: readonly MemorySearchResult[],
   retrievalResults: readonly MemorySearchResult[],
   intents: readonly QueryIntentSignal[],
+  debug: boolean,
 ): readonly EvidenceCandidate[] {
   const retrievalRank = new Map(
     retrievalResults.map((result, index) => [
@@ -357,6 +359,7 @@ function buildCandidates(
     retrieval: retrievalProvenance(
       result,
       retrievalRank.get(result.sourceMetadata.chunkId) ?? 0,
+      debug,
     ),
     relationships: relationshipProvenance(result),
     priority: anchorRank.get(result.sourceMetadata.chunkId) ?? 0,
@@ -377,6 +380,7 @@ function buildCandidates(
         ? retrievalProvenance(
             candidate.result,
             retrievalRank.get(candidate.result.sourceMetadata.chunkId) ?? 0,
+            debug,
           )
         : null,
       relationships: [],
@@ -394,6 +398,7 @@ function buildCandidates(
         ? retrievalProvenance(
             result,
             retrievalRank.get(result.sourceMetadata.chunkId) ?? 0,
+            debug,
           )
         : null,
       relationships: relationshipProvenance(result),
@@ -778,16 +783,21 @@ function toEvidenceItem(
 function retrievalProvenance(
   result: MemorySearchResult,
   rank: number,
+  debug: boolean,
 ): EvidenceRetrievalProvenance {
   return {
     rank,
-    finalRank: result.finalRank ?? null,
-    rerankerRank: result.rerankerRank ?? null,
-    rrfRank: result.rrfRank ?? null,
-    denseRank: result.denseRank ?? null,
-    lexicalRank: result.lexicalRank ?? null,
-    structuredRank: result.structuredRank ?? null,
     exactSymbolMatch: result.structuredExactMatch === true,
+    ...(debug
+      ? {
+          finalRank: result.finalRank ?? null,
+          rerankerRank: result.rerankerRank ?? null,
+          rrfRank: result.rrfRank ?? null,
+          denseRank: result.denseRank ?? null,
+          lexicalRank: result.lexicalRank ?? null,
+          structuredRank: result.structuredRank ?? null,
+        }
+      : {}),
   };
 }
 

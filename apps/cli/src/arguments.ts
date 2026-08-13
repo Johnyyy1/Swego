@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 
 import { z } from "zod";
+import { MAX_AGENT_CONTEXT_BUDGET } from "@swega/agent-context";
 import {
   DEFAULT_CONTEXT_BUDGET,
   DEFAULT_CONTEXT_PRIMARY_ANCHORS,
@@ -123,7 +124,11 @@ const contextAnchorLimitSchema = z.coerce
   .int()
   .positive()
   .max(MAX_CONTEXT_PRIMARY_ANCHORS);
-const contextBudgetSchema = z.coerce.number().int().min(256).max(1_000_000);
+const contextBudgetSchema = z.coerce
+  .number()
+  .int()
+  .min(256)
+  .max(MAX_AGENT_CONTEXT_BUDGET);
 const repositoryIdSchema = z.string().uuid();
 
 export function parseCliArguments(args: readonly string[]): CliArguments {

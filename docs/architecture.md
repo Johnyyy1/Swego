@@ -8,7 +8,9 @@ SWEGA will turn a repository's source-code history and development activity into
 
 ```text
 apps/cli/           Command-line delivery layer
+apps/mcp/           Local read-only MCP delivery layer
 apps/web/           Next.js delivery layer
+packages/agent-context/ Stable agent-facing application API
 packages/db/        PostgreSQL schema and Drizzle integration
 packages/documents/ Provider-independent document normalization and chunking
 packages/embeddings/Embedding-provider contract and concrete adapters
@@ -47,7 +49,7 @@ The database package accepts connection configuration instead of reading global 
 7. The retrieval package deterministically derives composable query intents and conservative source roles from the query and already-returned provenance. A weak, rank-only compatibility branch adjusts fused order without filtering candidates, changing SQL predicates, flattening chunk granularity, or persisting redundant metadata.
 8. When explicitly enabled, the retrieval package sends only the bounded, diversified candidate set through the provider-neutral reranker contract. It preserves dense, lexical, structured, file, relationship, pre-prior/final fusion, role, and reranker diagnostics. The initial llama.cpp adapter permits loopback endpoints only.
 9. The retrieval package can consume a few final ranked results as agent-facing anchors, batch-load bounded local structural context, reuse the one-hop relationship projection, and assemble a structured, provenance-rich Evidence Pack under a deterministic character budget. This context primitive does not change search ranking or generate a summary.
-10. Delivery layers expose search results or Evidence Packs without owning retrieval or context-assembly logic.
+10. The Agent Context Service is the stable programmatic boundary for repository discovery, bounded public requests, Evidence Packs, and safe application errors. CLI and MCP adapters call it without owning retrieval or context-assembly logic.
 11. The evaluation package consumes the stable retrieval and Evidence Pack interfaces with authored relevance judgments, computes reproducible retrieval/context metrics and intent/role failure diagnostics, and remains independent from production ranking implementations.
 
 The process boundaries, normalized source-data model, ingestion layers, structural repository-memory documents, embedding projection, hybrid retrieval, and bounded Evidence Pack assembly exist today. Repository contents and historical file versions remain authoritative in Git; documents, chunks, embeddings, full-text projections, relationship projections, retrieval rankings, and Evidence Packs are rebuildable derived data. No autonomous agent, answer generation, full semantic analyzer, sandbox, authentication, or billing design is implied by this setup.

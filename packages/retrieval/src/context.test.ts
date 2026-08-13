@@ -460,9 +460,14 @@ describe("Evidence Pack deduplication, isolation, and output", () => {
   });
 
   test("emits stable JSON and readable human output with debug provenance", async () => {
-    const pack = await builder([result("anchor", {})]).build(
-      baseInput({ debug: true }),
-    );
+    const pack = await builder([
+      result("anchor", {
+        denseRank: 2,
+        lexicalRank: 3,
+        structuredRank: 1,
+        rrfRank: 1,
+      }),
+    ]).build(baseInput({ debug: true }));
     const parsed = JSON.parse(formatEvidencePackJson(pack)) as {
       schemaVersion: number;
       cutoff: string;
@@ -473,9 +478,33 @@ describe("Evidence Pack deduplication, isolation, and output", () => {
       cutoff: cutoff.toISOString(),
     });
     expect(parsed.evidence).toHaveLength(1);
+    expect(pack.evidence[0]?.retrieval).toMatchObject({
+      rank: 1,
+      denseRank: 2,
+      lexicalRank: 3,
+      structuredRank: 1,
+      rrfRank: 1,
+    });
     expect(formatEvidencePack(pack)).toContain("Evidence Pack v1");
     expect(formatEvidencePack(pack)).toContain("Debug decisions");
     expect(formatEvidencePack(pack)).toContain("PRIMARY");
+  });
+
+  test("omits branch and fusion ranks from normal public output", async () => {
+    const pack = await builder([
+      result("anchor", {
+        denseRank: 2,
+        lexicalRank: 3,
+        structuredRank: 1,
+        rrfRank: 1,
+      }),
+    ]).build(baseInput());
+    expect(pack.evidence[0]?.retrieval).toEqual({
+      rank: 1,
+      exactSymbolMatch: false,
+    });
+    expect(formatEvidencePackJson(pack)).not.toContain("denseRank");
+    expect(pack.diagnostics).toBeUndefined();
   });
 });
 

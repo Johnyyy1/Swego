@@ -10,7 +10,14 @@ export interface Logger {
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-export function createJsonLogger(baseFields: LogFields = {}): Logger {
+export interface JsonLoggerOptions {
+  destination?: "standard" | "stderr";
+}
+
+export function createJsonLogger(
+  baseFields: LogFields = {},
+  options: JsonLoggerOptions = {},
+): Logger {
   const write = (level: LogLevel, event: string, fields: LogFields = {}) => {
     const entry = JSON.stringify({
       ...baseFields,
@@ -20,7 +27,7 @@ export function createJsonLogger(baseFields: LogFields = {}): Logger {
       event,
     });
 
-    if (level === "error") {
+    if (options.destination === "stderr" || level === "error") {
       console.error(entry);
     } else if (level === "warn") {
       console.warn(entry);
@@ -34,7 +41,7 @@ export function createJsonLogger(baseFields: LogFields = {}): Logger {
     info: (event, fields) => write("info", event, fields),
     warn: (event, fields) => write("warn", event, fields),
     error: (event, fields) => write("error", event, fields),
-    child: (fields) => createJsonLogger({ ...baseFields, ...fields }),
+    child: (fields) => createJsonLogger({ ...baseFields, ...fields }, options),
   };
 }
 

@@ -99,3 +99,9 @@ Agent-facing context is a consumer of `RepositoryMemory`, not another ranking st
 Context roles are query-relative assembly metadata and remain separate from source roles. Packs retain public source, revision, timestamp, path, line, symbol, retrieval-rank, and relationship provenance while omitting internal chunk/document identifiers. They are query-time, rebuildable outputs rather than persisted source entities. Repository and temporal predicates are enforced in every storage query and checked again before assembly.
 
 The development-only 25-case context benchmark selected five anchors after comparing two through five at the same 30,000-character budget. Against raw ranked chunks, the selected configuration improved required recall from 0.413 to 0.633, supporting recall from 0.320 to 0.420, and complete-pack rate from 0.160 to 0.440. It also improved precision from 0.104 to 0.153 and eliminated observed duplicates, at a measured 121.0 ms mean expansion cost. These results are directional for the pinned repository and do not justify multi-hop graph traversal or an LLM-generated summary.
+
+## Agent Context Service is the delivery boundary
+
+`@swega/agent-context` owns repository discovery, stable agent request validation, bounded Evidence Pack orchestration, serialization, and safe application errors. It consumes retrieval and database contracts while remaining independent of CLI parsing, MCP, stdout, HTTP, UI, and coding-agent vendors. Delivery adapters can expose a smaller protocol surface without duplicating context construction.
+
+The local MCP application is a strictly read-only stdio adapter with three tools. It uses the official modular Model Context Protocol TypeScript SDK, performs no model or repository work at startup, writes diagnostics only to stderr, and never starts external providers. MCP existence does not change Evidence Pack schema v1 or retrieval/context policy.

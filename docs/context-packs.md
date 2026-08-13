@@ -21,11 +21,13 @@ The builder lives in `@swega/retrieval` so future MCP or API adapters can call i
 
 - repository identity: SWEGA repository UUID plus provider, owner, name, URL, and default branch;
 - query, exact resolved cutoff, selected source revisions, and deterministic query-intent signals;
-- ordered evidence items with context role, inclusion reasons, source role, stable source reference, timestamps, path, revision, line range, language, structural symbol metadata, retrieval ranks, relationship provenance, and faithful source content;
+- ordered evidence items with context role, inclusion reasons, source role, stable source reference, timestamps, path, revision, line range, language, structural symbol metadata, compact retrieval provenance, relationship provenance, and faithful source content;
 - maximum, used, and remaining content characters; a deterministic four-characters-per-token estimate; truncation and rejection counts;
 - optional debug decisions and search/expansion/total timings.
 
 Internal document and chunk IDs drive safe lookup and deduplication but are not required public semantics in the pack. Stable paths, source references, commit SHAs, timestamps, and structural metadata provide public provenance.
+
+Normal public output retains final evidence rank and exact-symbol status but omits dense/lexical/structured/RRF/reranker ranks. Those detailed ranks remain available only with explicit debug output; raw scores are never added to the Evidence Pack contract. See [Agent Context API](agent-context-api.md) for external compatibility semantics.
 
 The context-role taxonomy is deliberately small:
 

@@ -22,7 +22,8 @@
     "db:check": "bun run --cwd packages/db db:check",
     "db:generate": "bun run --cwd packages/db db:generate",
     "db:migrate": "bun --env-file=.env run --cwd packages/db db:migrate",
-    "swega": "bun --env-file=.env run --cwd apps/cli start"
+    "swega": "bun --env-file=.env run --cwd apps/cli start",
+    "swega:mcp": "bun --env-file=.env run --cwd apps/mcp start"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

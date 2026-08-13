@@ -74,13 +74,14 @@ export interface EvidenceRelationshipProvenance {
 
 export interface EvidenceRetrievalProvenance {
   rank: number;
-  finalRank: number | null;
-  rerankerRank: number | null;
-  rrfRank: number | null;
-  denseRank: number | null;
-  lexicalRank: number | null;
-  structuredRank: number | null;
   exactSymbolMatch: boolean;
+  /** Detailed rank provenance is present only in explicit debug output. */
+  finalRank?: number | null;
+  rerankerRank?: number | null;
+  rrfRank?: number | null;
+  denseRank?: number | null;
+  lexicalRank?: number | null;
+  structuredRank?: number | null;
 }
 
 export interface EvidenceSourceProvenance {

@@ -2,7 +2,7 @@
 
 SWEGA is a repository-agnostic memory and intelligence layer for AI coding agents. It is intended to ingest source-code and development history, preserve it as searchable repository memory, and provide relevant historical context to downstream tools.
 
-The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, structural repository-memory generation, repository-scoped hybrid retrieval with temporal cutoffs, and bounded Evidence Packs for coding-agent context. Agent integrations will be added incrementally.
+The current implementation includes the normalized PostgreSQL model, bounded GitHub metadata ingestion, managed Git/source synchronization, structural repository-memory generation, repository-scoped hybrid retrieval with temporal cutoffs, bounded Evidence Packs, a stable Agent Context API, and a local read-only MCP server for coding agents.
 
 ## Prerequisites
 
@@ -64,11 +64,14 @@ bun run swega benchmark benchmarks/formbricks-smoke.json
 bun run swega benchmark benchmarks/formbricks-smoke.json --rerank
 bun run swega benchmark benchmarks/formbricks-smoke.json --json
 bun run swega context-benchmark benchmarks/formbricks-context-development.json
+bun run swega:mcp
 ```
 
 Ollama is the default embedding provider, using `http://localhost:11434` and `qwen3-embedding:0.6b`. No OpenAI API key is required. The adapter requests 512-dimensional embeddings to match SWEGA's pgvector projection. PostgreSQL supplies independent lexical and structural symbol/path pools; Reciprocal Rank Fusion and deterministic path diversification combine them with dense retrieval. A local deterministic analyzer adds a weak rank-only preference between composable query intents and conservative source roles; it makes no model call and never filters candidates. `--before` is enforced in PostgreSQL in all three branches. Optional `--rerank` sends the bounded 50-candidate default pool to an explicitly configured loopback llama.cpp reranker. Use `--debug` to show branch, intent/role, fusion, and reranker diagnostics; use `--intent-role-prior none|weak|moderate`, `--candidate-limit`, and `--path-limit` for measured experiments.
 
 `swega context` keeps search behavior unchanged and assembles its results into a versioned Evidence Pack. Five deterministic primary anchors are preserved, then bounded same-symbol/parent/neighbor context and depth-one import relationships are added under a 30,000-character default budget. Every item retains repository, revision, timestamp, path, line, symbol, source-role, context-role, and expansion provenance. Use `--context-budget`, `--limit 1..5`, `--before`, `--relationship-expansion none`, `--debug`, and `--json` to control or inspect the pack.
+
+`bun run swega:mcp` starts the lightweight stdio MCP adapter. It exposes only repository discovery, repository inspection, and bounded context retrieval; it cannot ingest, mutate files or memory, run commands, or access arbitrary filesystem paths. The server starts without contacting Ollama or llama.cpp. See [Agent Context API](docs/agent-context-api.md) and [local MCP server](docs/mcp.md) for contracts, client setup, provider behavior, and security details.
 
 The default embedding configuration is:
 
@@ -100,6 +103,7 @@ bun run build        # Create a production web build
 bun run db:check     # Validate Drizzle migration history
 bun run db:generate  # Generate migrations after schema changes
 bun run db:migrate   # Apply pending PostgreSQL migrations
+bun run swega:mcp    # Start the local read-only stdio MCP server
 ```
 
-See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [structural chunking](docs/structural-chunking.md), [retrieval design](docs/retrieval.md), [Evidence Packs](docs/context-packs.md), [local reranking](docs/reranking.md), [retrieval evaluation](docs/retrieval-evaluation.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.
+See [the architecture overview](docs/architecture.md), [GitHub ingestion flow](docs/ingestion.md), [Git ingestion flow](docs/git-ingestion.md), [repository-memory design](docs/repository-memory.md), [structural chunking](docs/structural-chunking.md), [retrieval design](docs/retrieval.md), [Evidence Packs](docs/context-packs.md), [Agent Context API](docs/agent-context-api.md), [local MCP server](docs/mcp.md), [local reranking](docs/reranking.md), [retrieval evaluation](docs/retrieval-evaluation.md), and [initial decisions](docs/decisions.md) for the intended dependency boundaries.
