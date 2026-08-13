@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   customType,
   foreignKey,
@@ -604,6 +605,29 @@ export const sourceRelationships = pgTable(
     targetPath: text("target_path").notNull(),
     sourceSymbol: text("source_symbol"),
     targetSymbol: text("target_symbol"),
+    importedName: text("imported_name"),
+    localName: text("local_name"),
+    exposedName: text("exposed_name"),
+    bindingKind: text("binding_kind")
+      .$type<
+        "named" | "default" | "namespace" | "side_effect" | "export_star"
+      >()
+      .notNull()
+      .default("named"),
+    isTypeOnly: boolean("is_type_only").notNull().default(false),
+    resolution: text("resolution")
+      .$type<"exact_symbol" | "exact_module">()
+      .notNull()
+      .default("exact_module"),
+    moduleResolutionKind: text("module_resolution_kind")
+      .$type<"relative" | "path_alias" | "base_url">()
+      .notNull()
+      .default("relative"),
+    targetSymbolKind: text("target_symbol_kind").$type<SourceSymbolKind>(),
+    targetStartLine: integer("target_start_line"),
+    targetEndLine: integer("target_end_line"),
+    configurationPath: text("configuration_path"),
+    configurationCommitSha: text("configuration_commit_sha"),
     language: text("language").notNull(),
     sourceCommitSha: text("source_commit_sha").notNull(),
     targetCommitSha: text("target_commit_sha").notNull(),
@@ -641,6 +665,26 @@ export const sourceRelationships = pgTable(
     check(
       "source_relationships_type_check",
       sql`${table.relationshipType} in ('imports', 'reexports')`,
+    ),
+    check(
+      "source_relationships_binding_kind_check",
+      sql`${table.bindingKind} in ('named', 'default', 'namespace', 'side_effect', 'export_star')`,
+    ),
+    check(
+      "source_relationships_resolution_check",
+      sql`${table.resolution} in ('exact_symbol', 'exact_module')`,
+    ),
+    check(
+      "source_relationships_module_resolution_kind_check",
+      sql`${table.moduleResolutionKind} in ('relative', 'path_alias', 'base_url')`,
+    ),
+    check(
+      "source_relationships_exact_target_check",
+      sql`(${table.resolution} = 'exact_symbol' and ${table.targetSymbol} is not null and ${table.targetSymbolKind} is not null and ${table.targetStartLine} >= 1 and ${table.targetEndLine} >= ${table.targetStartLine}) or (${table.resolution} = 'exact_module' and ${table.targetSymbol} is null and ${table.targetSymbolKind} is null and ${table.targetStartLine} is null and ${table.targetEndLine} is null)`,
+    ),
+    check(
+      "source_relationships_configuration_provenance_check",
+      sql`(${table.moduleResolutionKind} = 'relative' and ${table.configurationPath} is null and ${table.configurationCommitSha} is null) or (${table.moduleResolutionKind} <> 'relative' and ${table.configurationPath} is not null and ${table.configurationCommitSha} is not null)`,
     ),
     check(
       "source_relationships_temporal_range_check",

@@ -4,6 +4,7 @@ import {
   EvidencePackBuilder,
   type ContextEvidenceSource,
   type MemorySearchResult,
+  type RelationshipExpansion,
   type RepositoryMemory,
 } from "@swega/retrieval";
 
@@ -37,11 +38,29 @@ describe("context benchmark evaluation", () => {
         url: "https://example.test/fixture",
         defaultBranch: "main",
       }),
-      loadLocalContext: async () => [
+      loadLocalContext: async () => [],
+    };
+    const relationships: RelationshipExpansion = {
+      expand: async () => [
         {
-          anchorChunkId: primary.sourceMetadata.chunkId,
-          result: requiredSupport,
-          reason: "structural_neighbor",
+          ...requiredSupport,
+          relationshipType: "imports",
+          relationshipSourcePath: "src/primary.ts",
+          relationshipSourceSymbol: "primary",
+          relationshipTargetPath: "src/support.ts",
+          relationshipTargetSymbol: "support",
+          relationshipImportedName: "support",
+          relationshipLocalName: "support",
+          relationshipBindingKind: "named",
+          relationshipIsTypeOnly: false,
+          relationshipResolution: "exact_symbol",
+          relationshipModuleResolutionKind: "path_alias",
+          relationshipConfigurationPath: "tsconfig.json",
+          relationshipConfigurationCommitSha: "a".repeat(40),
+          relationshipDepth: 1,
+          relationshipReason: "imports @/support (path_alias, exact_symbol)",
+          relationshipRank: 1,
+          retrievedDirectly: false,
         },
       ],
     };
@@ -72,7 +91,7 @@ describe("context benchmark evaluation", () => {
     const report = await evaluateContextBenchmark(
       benchmark,
       memory,
-      new EvidencePackBuilder(memory, source),
+      new EvidencePackBuilder(memory, source, relationships),
     );
 
     expect(report.baseline.requiredEvidenceRecall).toBe(0.5);
@@ -84,6 +103,9 @@ describe("context benchmark evaluation", () => {
     expect(
       report.evidencePack.meanContextExpansionDurationMs,
     ).toBeGreaterThanOrEqual(0);
+    expect(report.evidencePack.relationshipDerivedEvidencePrecision).toBe(1);
+    expect(report.evidencePack.exactRelationshipTargetRate).toBe(1);
+    expect(report.evidencePack.moduleOnlyFallbackRate).toBe(0);
     expect(formatContextBenchmarkReport(report)).toContain("Evidence Pack");
     expect(formatContextBenchmarkReport(report)).toContain("Chars");
   });

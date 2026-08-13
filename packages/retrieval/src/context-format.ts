@@ -60,7 +60,7 @@ function formatEvidenceItem(item: EvidenceItem): string[] {
           `Relationship: ${item.relationships
             .map(
               (relationship) =>
-                `${relationship.type} (${relationship.sourcePath ?? "unknown"} -> ${relationship.targetPath ?? "unknown"})`,
+                `${relationship.type}/${relationship.resolution ?? "unknown"}/${relationship.moduleResolutionKind ?? "unknown"} (${relationship.sourcePath ?? "unknown"} -> ${relationship.targetPath ?? "unknown"})`,
             )
             .join(", ")}`,
         ]

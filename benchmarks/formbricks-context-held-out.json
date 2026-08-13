@@ -1,0 +1,404 @@
+{
+  "version": 1,
+  "name": "Formbricks Evidence Pack sealed held-out corpus",
+  "description": "Thirteen manually reviewed agent-context tasks sealed before TypeScript path-alias resolution and exact relationship-symbol targeting were implemented. The set is directional, not statistically comprehensive, and was not authored from SWEGA rankings.",
+  "split": "held_out",
+  "repositoryRevision": "88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5",
+  "groundTruthMethod": "Required and supporting evidence was authored by inspecting the pinned Git snapshot directly with git show, git grep, and git ls-tree. Required selectors are the minimum evidence needed to reason about each task. Existing SWEGA context or retrieval rankings were not inspected, and cases were selected to avoid trivial overlap with the context development corpus.",
+  "corpusAuthor": "OpenAI Codex (single-author source review)",
+  "reviewCount": 1,
+  "sealedAt": "2026-08-13T10:04:37.000Z",
+  "contextBudget": 30000,
+  "primaryAnchors": 5,
+  "cases": [
+    {
+      "id": "context-held-out-client-environment-state",
+      "query": "Trace the public client environment endpoint from legacy workspace ID resolution through cached state assembly and the optimized database read.",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "The route resolves the public identifier and calls getWorkspaceState; that cache boundary delegates the actual workspace, survey, and action-class read to getWorkspaceStateData.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/environment/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "GET",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/environment/lib/environmentState.ts",
+          "sourceType": "source_code",
+          "symbolName": "getWorkspaceState",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v1/client/[workspaceId]/environment/lib/data.ts",
+          "sourceType": "source_code",
+          "symbolName": "getWorkspaceStateData",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/lib/utils/resolve-client-id.ts",
+          "sourceType": "source_code",
+          "symbolName": "resolveClientApiIds",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-v2-team-creation-reexport",
+      "query": "How does the public v2 organization teams POST endpoint enforce organization and creator-role access before creating a team?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "api_endpoint",
+      "difficulty": "hard",
+      "notes": "The app route is a thin re-export. The module POST declaration contains authentication and role checks and delegates persistence to createTeam.",
+      "required": [
+        {
+          "path": "apps/web/modules/api/v2/organizations/[organizationId]/teams/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/api/v2/organizations/[organizationId]/teams/lib/teams.ts",
+          "sourceType": "source_code",
+          "symbolName": "createTeam",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/v2/organizations/[organizationId]/teams/route.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-link-survey-pin-authorization",
+      "query": "How is a link-survey PIN attempt rate limited, validated, and converted into a survey-bound signed token?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "authorization",
+      "difficulty": "medium",
+      "notes": "validateSurveyPinAction owns the rate limit and PIN comparison, while createLinkSurveyPinToken issues the short-lived survey-bound JWT returned on success.",
+      "required": [
+        {
+          "path": "apps/web/modules/survey/link/actions.ts",
+          "sourceType": "source_code",
+          "symbolName": "validateSurveyPinAction",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/survey/link/lib/pin-token.ts",
+          "sourceType": "source_code",
+          "symbolName": "createLinkSurveyPinToken",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/core/rate-limit/rate-limit-configs.ts",
+          "sourceType": "source_code",
+          "symbolName": "rateLimitConfigs",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-saml-authorize-flow",
+      "query": "Trace the SAML authorize endpoint through its public re-export, license gate, and lazy Jackson controller initialization.",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "implementation",
+      "difficulty": "hard",
+      "notes": "The public route re-exports GET, the module GET performs the SAML license and redirect flow, and the default-exported init function lazily constructs and caches Jackson controllers.",
+      "required": [
+        {
+          "path": "apps/web/modules/ee/auth/saml/api/authorize/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "GET",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/ee/auth/saml/lib/jackson.ts",
+          "sourceType": "source_code",
+          "symbolName": "default",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/app/api/auth/saml/authorize/route.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-opentelemetry-registration",
+      "query": "How does Next.js instrumentation decide when to load OpenTelemetry, and which HTTP and runtime instrumentations are disabled or filtered?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "configuration",
+      "difficulty": "medium",
+      "notes": "register owns runtime-conditional loading; nodeAutoInstrumentationConfig defines the exact auto-instrumentation exclusions and probe-path filtering consumed by the node SDK.",
+      "required": [
+        {
+          "path": "apps/web/instrumentation.ts",
+          "sourceType": "source_code",
+          "symbolName": "register",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/instrumentation-node-config.ts",
+          "sourceType": "source_code",
+          "symbolName": "nodeAutoInstrumentationConfig",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/instrumentation-node.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-team-workspace-permission-schema",
+      "query": "How are team membership and workspace permission levels modeled, and how is a user's highest workspace permission computed?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "database_schema",
+      "difficulty": "medium",
+      "notes": "The Prisma Team, TeamUser, and WorkspaceTeam models define the relations and permission enum; getWorkspacePermissionByUserId computes the strongest grant across memberships.",
+      "required": [
+        {
+          "path": "packages/database/schema/main.prisma",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/ee/teams/lib/roles.ts",
+          "sourceType": "source_code",
+          "symbolName": "getWorkspacePermissionByUserId",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/ee/teams/workspace-teams/types/team.ts",
+          "sourceType": "source_code",
+          "symbolName": "ZTeamPermission",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-safe-survey-media",
+      "query": "How does the survey renderer prevent unsafe stored image and video URLs from reaching DOM media sinks?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "ui_component",
+      "difficulty": "medium",
+      "notes": "ElementMedia validates every rendered sink and delegates supported-provider normalization to convertToEmbedUrl before constructing iframe URLs.",
+      "required": [
+        {
+          "path": "packages/surveys/src/components/general/element-media.tsx",
+          "sourceType": "source_code",
+          "symbolName": "ElementMedia",
+          "grade": 3
+        },
+        {
+          "path": "packages/surveys/src/lib/video-upload.ts",
+          "sourceType": "source_code",
+          "symbolName": "convertToEmbedUrl",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "packages/surveys/src/lib/video-upload.ts",
+          "sourceType": "source_code",
+          "symbolName": "checkForYoutubeUrl",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-enterprise-license-status-ui",
+      "query": "How does EnterpriseLicenseStatus render active, expired, unreachable, invalid, and instance-mismatch states, including its exact status type?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "ui_component",
+      "difficulty": "medium",
+      "notes": "The component contains badge, retry, and grace-period behavior; TLicenseStatus is the imported type that defines the exhaustive state vocabulary.",
+      "required": [
+        {
+          "path": "apps/web/app/(app)/workspaces/[workspaceId]/settings/organization/enterprise/components/EnterpriseLicenseStatus.tsx",
+          "sourceType": "source_code",
+          "symbolName": "EnterpriseLicenseStatus",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/ee/license-check/types/enterprise-license.ts",
+          "sourceType": "source_code",
+          "symbolName": "TLicenseStatus",
+          "grade": 3
+        }
+      ],
+      "supporting": []
+    },
+    {
+      "id": "context-held-out-cursor-pagination-tests",
+      "query": "Where is v3 ID cursor pagination tested for stable ordering, stale cursors, and malformed cursor rejection, and what implementation is exercised?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "tests",
+      "difficulty": "medium",
+      "notes": "The test file covers the observable paging contract and the paginateByIdCursor declaration implements ordering, cursor decoding, and next-cursor production.",
+      "required": [
+        {
+          "path": "apps/web/app/api/v3/lib/cursor-pagination.test.ts",
+          "sourceType": "source_code",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/api/v3/lib/cursor-pagination.ts",
+          "sourceType": "source_code",
+          "symbolName": "paginateByIdCursor",
+          "grade": 3
+        }
+      ],
+      "supporting": []
+    },
+    {
+      "id": "context-held-out-resolve-client-api-ids",
+      "query": "resolveClientApiIds",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "exact_symbol",
+      "difficulty": "easy",
+      "notes": "The exact symbol is the navigation target; its directly called lookup explains primary-versus-legacy workspace ID handling.",
+      "required": [
+        {
+          "path": "apps/web/lib/utils/resolve-client-id.ts",
+          "sourceType": "source_code",
+          "symbolName": "resolveClientApiIds",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/lib/utils/resolve-client-id.ts",
+          "sourceType": "source_code",
+          "symbolName": "findWorkspaceByIdOrLegacyEnvId",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-envoy-gateway-authorization",
+      "query": "Trace an internal Envoy auth request from its catch-all route through Envoy metadata parsing into the shared gateway authorization engine.",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "cross_file",
+      "difficulty": "hard",
+      "notes": "The route delegates to authorizeEnvoyRequest, which parses Envoy metadata and calls the generic authorizeGatewayRequest with Envoy-specific authorizers and response construction.",
+      "required": [
+        {
+          "path": "apps/web/app/api/(internal)/envoy-auth/[...path]/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "handler",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/envoy-auth/service.ts",
+          "sourceType": "source_code",
+          "symbolName": "authorizeEnvoyRequest",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/modules/gateway-auth/lib/request.ts",
+          "sourceType": "source_code",
+          "symbolName": "authorizeGatewayRequest",
+          "grade": 2
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/modules/envoy-auth/shared.ts",
+          "sourceType": "source_code",
+          "symbolName": "parseEnvoyRequestMetadata",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-csv-feedback-import",
+      "query": "How does the internal CSV feedback import endpoint validate the request and file before starting a bounded feedback-record import?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "feature_flow",
+      "difficulty": "hard",
+      "notes": "POST owns authentication, authorization, and request-shape handling; importCsvFile validates/parses the file, loads the source mapping, and delegates the bounded record import.",
+      "required": [
+        {
+          "path": "apps/web/app/api/(internal)/unify-feedback/sources/csv/import/route.ts",
+          "sourceType": "source_code",
+          "symbolName": "POST",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/lib/feedback-source/csv-file-import.ts",
+          "sourceType": "source_code",
+          "symbolName": "importCsvFile",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/lib/feedback-source/csv-file-import.ts",
+          "sourceType": "source_code",
+          "symbolName": "parseCsvImportFile",
+          "grade": 1
+        }
+      ]
+    },
+    {
+      "id": "context-held-out-app-shell-formbricks-provider",
+      "query": "How does the authenticated app shell initialize the Formbricks SDK for a user and register client-side route changes?",
+      "repositoryId": "a61b0198-8307-41b0-9b51-9c510793cefa",
+      "before": "2026-08-12T00:00:00.000Z",
+      "category": "implementation",
+      "difficulty": "medium",
+      "notes": "AppLayout conditionally supplies configured workspace and user identity; FormbricksProvider performs SDK setup, identification, attribute updates, and navigation tracking.",
+      "required": [
+        {
+          "path": "apps/web/app/(app)/layout.tsx",
+          "sourceType": "source_code",
+          "symbolName": "AppLayout",
+          "grade": 3
+        },
+        {
+          "path": "apps/web/app/formbricks/components/formbricks-provider.tsx",
+          "sourceType": "source_code",
+          "symbolName": "FormbricksProvider",
+          "grade": 3
+        }
+      ],
+      "supporting": [
+        {
+          "path": "apps/web/lib/constants.ts",
+          "sourceType": "source_code",
+          "grade": 1
+        }
+      ]
+    }
+  ]
+}

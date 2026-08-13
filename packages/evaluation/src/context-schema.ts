@@ -47,19 +47,34 @@ const contextBenchmarkCaseSchema = z
     }
   });
 
+const contextBenchmarkBaseSchema = z.object({
+  version: z.literal(1),
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  repositoryRevision: z.string().trim().min(1),
+  groundTruthMethod: z.string().trim().min(1),
+  contextBudget: z.number().int().min(256).max(1_000_000),
+  primaryAnchors: z.number().int().min(1).max(5).default(5),
+});
+
 export const contextBenchmarkSchema = z
-  .object({
-    version: z.literal(1),
-    name: z.string().trim().min(1),
-    description: z.string().trim().min(1),
-    split: z.literal("development"),
-    repositoryRevision: z.string().trim().min(1),
-    groundTruthMethod: z.string().trim().min(1),
-    contextBudget: z.number().int().min(256).max(1_000_000),
-    primaryAnchors: z.number().int().min(1).max(5).default(5),
-    cases: z.array(contextBenchmarkCaseSchema).min(20).max(30),
-  })
-  .strict()
+  .discriminatedUnion("split", [
+    contextBenchmarkBaseSchema
+      .extend({
+        split: z.literal("development"),
+        cases: z.array(contextBenchmarkCaseSchema).min(20).max(30),
+      })
+      .strict(),
+    contextBenchmarkBaseSchema
+      .extend({
+        split: z.literal("held_out"),
+        corpusAuthor: z.string().trim().min(1),
+        reviewCount: z.number().int().min(1),
+        sealedAt: z.iso.datetime({ offset: true }),
+        cases: z.array(contextBenchmarkCaseSchema).min(10).max(15),
+      })
+      .strict(),
+  ])
   .superRefine((benchmark, context) => {
     const ids = new Set<string>();
     benchmark.cases.forEach((benchmarkCase, index) => {

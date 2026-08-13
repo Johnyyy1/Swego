@@ -64,8 +64,8 @@ Dense scoring, lexical scoring, structured scoring, RRF, and optional reranking 
 
 ## Operational limits
 
-- Syntax-only traversal cannot resolve aliases, overload implementation relationships, inherited members, or cross-file references.
-- A separate syntax adapter extracts only high-confidence relative imports and re-exports for bounded candidate expansion. It does not change chunk boundaries or pretend package aliases and semantic references are resolved.
+- Structural chunking itself does not resolve project aliases, overload implementation relationships, inherited members, or cross-file references.
+- A separate index-time syntax/config adapter extracts high-confidence relative and configured local imports/re-exports for bounded expansion, then verifies exact targets against these structural chunks. It does not change chunk boundaries or pretend package-manager aliases and semantic references are resolved.
 - Anonymous callbacks are not assigned fabricated names.
 - Outer functions may overlap a separately indexed named nested function because both are useful retrieval units.
 - Unsupported languages retain textual chunking until another parser adapter is added.

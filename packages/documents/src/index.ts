@@ -17,7 +17,9 @@ export type {
   SourceSymbolKind,
 } from "./source-structure";
 export type {
+  ParsedSourceExport,
   ParsedSourceRelationship,
+  SourceRelationshipBindingKind,
   SourceRelationshipExtractor,
   SourceRelationshipParseInput,
   SourceRelationshipParseResult,
@@ -26,11 +28,18 @@ export {
   TypeScriptSourceRelationshipExtractor,
   typeScriptSourceRelationshipExtractor,
 } from "./typescript-relationships";
-export { extractSourceRelationships } from "./relationships";
+export {
+  extractSourceRelationships,
+  extractSourceRelationshipsWithDiagnostics,
+} from "./relationships";
 export type {
   RelationshipSourceFile,
   SourceRelationship,
+  SourceRelationshipDiagnostics,
+  SourceRelationshipExtraction,
+  SourceRelationshipResolution,
 } from "./relationships";
+export type { ModuleResolutionKind } from "./typescript-config";
 export {
   TypeScriptSourceStructureParser,
   typeScriptSourceStructureParser,

@@ -51,6 +51,21 @@ describe("relationship expansion anchors", () => {
     ).toBe("authenticate");
   });
 
+  test("does not treat a syntactic name as exact for module-only edges", () => {
+    const chunks = [
+      chunk("named", 1, "authenticateRequest", "function"),
+      chunk("query", 2, "unauthorizedHandler", "function"),
+    ];
+    expect(
+      selectRepresentativeRelationshipChunk(
+        chunks,
+        "authenticateRequest",
+        new Set(["unauthorized", "handler"]),
+        "exact_module",
+      )?.id,
+    ).toBe("query");
+  });
+
   test("reserves a bounded pool slot for relationship-only evidence", () => {
     const direct = ["direct-1", "direct-2", "direct-3", "direct-4"].map(
       (chunkId, index) => result(chunkId, { rrfRank: index + 1 }),

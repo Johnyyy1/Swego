@@ -1,5 +1,6 @@
 import {
   type EvidenceItem,
+  type EvidenceRelationshipProvenance,
   type EvidencePackBuilder,
   type MemorySearchResult,
   type RepositoryMemory,
@@ -18,6 +19,7 @@ interface ObservedEvidence {
   startLine: number | null;
   endLine: number | null;
   content: string;
+  relationships: readonly EvidenceRelationshipProvenance[];
 }
 
 export interface ContextMetrics {
@@ -31,6 +33,14 @@ export interface ContextMetrics {
   noiseRatio: number;
   evidenceItems: number;
   payloadCharacters: number;
+  relationshipDerivedItems: number;
+  relationshipDerivedLabeledItems: number;
+  relationshipDerivedEvidencePrecision: number;
+  symbolBearingRelationshipItems: number;
+  exactSymbolRelationshipItems: number;
+  exactRelationshipTargetRate: number;
+  moduleOnlyRelationshipItems: number;
+  moduleOnlyFallbackRate: number;
 }
 
 export interface ContextCaseStrategyReport {
@@ -70,7 +80,7 @@ export interface ContextBenchmarkReport {
   version: 1;
   benchmark: string;
   description: string;
-  split: "development";
+  split: ContextBenchmark["split"];
   repositoryRevision: string;
   groundTruthMethod: string;
   contextBudget: number;
@@ -236,6 +246,30 @@ function evaluateEvidence(
   ).size;
   const evidencePrecision =
     evidence.length === 0 ? 0 : relevantItems.length / evidence.length;
+  const relationshipDerived = evidence.filter(
+    (item) => item.relationships.length > 0,
+  );
+  const relationshipDerivedLabeled = relationshipDerived.filter((item) =>
+    [...benchmarkCase.required, ...benchmarkCase.supporting].some((target) =>
+      matchesEvidence(item, target),
+    ),
+  );
+  const symbolBearing = relationshipDerived.filter((item) =>
+    item.relationships.some((relationship) => relationship.importedName),
+  );
+  const exactSymbol = symbolBearing.filter((item) =>
+    item.relationships.some(
+      (relationship) =>
+        relationship.resolution === "exact_symbol" &&
+        relationship.targetSymbol !== null &&
+        relationship.targetSymbol === item.symbolName,
+    ),
+  );
+  const moduleOnly = relationshipDerived.filter((item) =>
+    item.relationships.every(
+      (relationship) => relationship.resolution === "exact_module",
+    ),
+  );
   return {
     strategy,
     metrics: {
@@ -256,6 +290,23 @@ function evaluateEvidence(
       noiseRatio: 1 - evidencePrecision,
       evidenceItems: evidence.length,
       payloadCharacters,
+      relationshipDerivedItems: relationshipDerived.length,
+      relationshipDerivedLabeledItems: relationshipDerivedLabeled.length,
+      relationshipDerivedEvidencePrecision: safeRatio(
+        relationshipDerivedLabeled.length,
+        relationshipDerived.length,
+      ),
+      symbolBearingRelationshipItems: symbolBearing.length,
+      exactSymbolRelationshipItems: exactSymbol.length,
+      exactRelationshipTargetRate: safeRatio(
+        exactSymbol.length,
+        symbolBearing.length,
+      ),
+      moduleOnlyRelationshipItems: moduleOnly.length,
+      moduleOnlyFallbackRate: safeRatio(
+        moduleOnly.length,
+        relationshipDerived.length,
+      ),
     },
     matchedRequired,
     missingRequired,
@@ -275,6 +326,23 @@ function aggregate(
       ? 0
       : reports.reduce((sum, report) => sum + select(report), 0) /
         reports.length;
+  const total = (select: (report: ContextCaseStrategyReport) => number) =>
+    reports.reduce((sum, report) => sum + select(report), 0);
+  const relationshipDerivedItems = total(
+    (report) => report.metrics.relationshipDerivedItems,
+  );
+  const relationshipDerivedLabeledItems = total(
+    (report) => report.metrics.relationshipDerivedLabeledItems,
+  );
+  const symbolBearingRelationshipItems = total(
+    (report) => report.metrics.symbolBearingRelationshipItems,
+  );
+  const exactSymbolRelationshipItems = total(
+    (report) => report.metrics.exactSymbolRelationshipItems,
+  );
+  const moduleOnlyRelationshipItems = total(
+    (report) => report.metrics.moduleOnlyRelationshipItems,
+  );
   return {
     requiredEvidenceRecall: average(
       (report) => report.metrics.requiredEvidenceRecall,
@@ -294,6 +362,32 @@ function aggregate(
     noiseRatio: average((report) => report.metrics.noiseRatio),
     evidenceItems: average((report) => report.metrics.evidenceItems),
     payloadCharacters: average((report) => report.metrics.payloadCharacters),
+    relationshipDerivedItems:
+      reports.length === 0 ? 0 : relationshipDerivedItems / reports.length,
+    relationshipDerivedLabeledItems:
+      reports.length === 0
+        ? 0
+        : relationshipDerivedLabeledItems / reports.length,
+    relationshipDerivedEvidencePrecision: safeRatio(
+      relationshipDerivedLabeledItems,
+      relationshipDerivedItems,
+    ),
+    symbolBearingRelationshipItems:
+      reports.length === 0
+        ? 0
+        : symbolBearingRelationshipItems / reports.length,
+    exactSymbolRelationshipItems:
+      reports.length === 0 ? 0 : exactSymbolRelationshipItems / reports.length,
+    exactRelationshipTargetRate: safeRatio(
+      exactSymbolRelationshipItems,
+      symbolBearingRelationshipItems,
+    ),
+    moduleOnlyRelationshipItems:
+      reports.length === 0 ? 0 : moduleOnlyRelationshipItems / reports.length,
+    moduleOnlyFallbackRate: safeRatio(
+      moduleOnlyRelationshipItems,
+      relationshipDerivedItems,
+    ),
     meanSearchDurationMs: average((report) => report.searchDurationMs),
     meanContextExpansionDurationMs: average(
       (report) => report.contextExpansionDurationMs,
@@ -360,6 +454,34 @@ function toObservedSearchResult(result: MemorySearchResult): ObservedEvidence {
     startLine: result.sourceMetadata.startLine,
     endLine: result.sourceMetadata.endLine,
     content: result.content,
+    relationships:
+      result.relationshipType && result.relationshipReason
+        ? [
+            {
+              type: result.relationshipType,
+              sourcePath: result.relationshipSourcePath ?? null,
+              sourceSymbol: result.relationshipSourceSymbol ?? null,
+              targetPath: result.relationshipTargetPath ?? result.path,
+              targetSymbol: result.relationshipTargetSymbol ?? null,
+              importedName: result.relationshipImportedName ?? null,
+              localName: result.relationshipLocalName ?? null,
+              exposedName: result.relationshipExposedName ?? null,
+              bindingKind: result.relationshipBindingKind ?? null,
+              isTypeOnly: result.relationshipIsTypeOnly ?? false,
+              resolution: result.relationshipResolution ?? null,
+              moduleResolutionKind:
+                result.relationshipModuleResolutionKind ?? null,
+              targetSymbolKind: result.relationshipTargetSymbolKind ?? null,
+              targetStartLine: result.relationshipTargetStartLine ?? null,
+              targetEndLine: result.relationshipTargetEndLine ?? null,
+              configurationPath: result.relationshipConfigurationPath ?? null,
+              configurationCommitSha:
+                result.relationshipConfigurationCommitSha ?? null,
+              depth: 1,
+              reason: result.relationshipReason,
+            },
+          ]
+        : [],
   };
 }
 
@@ -372,6 +494,7 @@ function toObservedEvidence(item: EvidenceItem): ObservedEvidence {
     startLine: item.source.startLine,
     endLine: item.source.endLine,
     content: item.content,
+    relationships: item.relationships,
   };
 }
 
@@ -391,4 +514,8 @@ function assertRepositoryIsolation(
 
 function characterLength(value: string): number {
   return [...value].length;
+}
+
+function safeRatio(numerator: number, denominator: number): number {
+  return denominator === 0 ? 0 : numerator / denominator;
 }

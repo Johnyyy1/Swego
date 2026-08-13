@@ -15,11 +15,7 @@ import type {
   EvidenceRetrievalProvenance,
   LocalContextCandidate,
 } from "./context-types";
-import type {
-  MemorySearchResult,
-  RepositoryMemory,
-  RetrievalRelationshipType,
-} from "./types";
+import type { MemorySearchResult, RepositoryMemory } from "./types";
 import type { RelationshipExpansion } from "./relationship-expansion";
 
 export const DEFAULT_CONTEXT_BUDGET = 30_000;
@@ -806,6 +802,18 @@ function relationshipProvenance(
       sourceSymbol: result.relationshipSourceSymbol ?? null,
       targetPath: result.relationshipTargetPath ?? result.path,
       targetSymbol: result.relationshipTargetSymbol ?? null,
+      importedName: result.relationshipImportedName ?? null,
+      localName: result.relationshipLocalName ?? null,
+      exposedName: result.relationshipExposedName ?? null,
+      bindingKind: result.relationshipBindingKind ?? null,
+      isTypeOnly: result.relationshipIsTypeOnly ?? false,
+      resolution: result.relationshipResolution ?? null,
+      moduleResolutionKind: result.relationshipModuleResolutionKind ?? null,
+      targetSymbolKind: result.relationshipTargetSymbolKind ?? null,
+      targetStartLine: result.relationshipTargetStartLine ?? null,
+      targetEndLine: result.relationshipTargetEndLine ?? null,
+      configurationPath: result.relationshipConfigurationPath ?? null,
+      configurationCommitSha: result.relationshipConfigurationCommitSha ?? null,
       depth: 1,
       reason: result.relationshipReason,
     },
@@ -816,7 +824,7 @@ function relationshipReason(
   result: MemorySearchResult,
   sourceRole: SourceRole,
 ): EvidenceReason {
-  const kind = relationshipReasonKind(result.relationshipType, sourceRole);
+  const kind = relationshipReasonKind(result, sourceRole);
   return {
     kind,
     detail:
@@ -826,9 +834,10 @@ function relationshipReason(
 }
 
 function relationshipReasonKind(
-  relationshipType: RetrievalRelationshipType | undefined,
+  result: MemorySearchResult,
   sourceRole: SourceRole,
 ): EvidenceReasonKind {
+  const relationshipType = result.relationshipType;
   if (isTestRole(sourceRole)) return "representative_test";
   if (sourceRole === "configuration") return "configuration_dependency";
   if (sourceRole === "database_schema" || sourceRole === "migration") {
@@ -837,7 +846,9 @@ function relationshipReasonKind(
   if (sourceRole === "type_definition") return "type_dependency";
   if (relationshipType === "imported_by") return "imported_by";
   if (relationshipType === "reexports") return "reexport_target";
-  return "imports_symbol";
+  return result.relationshipResolution === "exact_symbol"
+    ? "imports_symbol"
+    : "imports_module";
 }
 
 function relationshipContextRole(

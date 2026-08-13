@@ -8,11 +8,16 @@ export function formatContextBenchmarkReport(
 ): string {
   const lines = [
     report.benchmark,
-    `${report.caseCount} development cases; ${report.contextBudget} character budget; ${report.primaryAnchors} primary anchors`,
+    `${report.caseCount} ${report.split} cases; ${report.contextBudget} character budget; ${report.primaryAnchors} primary anchors`,
     "",
     "Strategy       Required  Supporting  Complete  Precision  Duplicate  Noise  Files    Chars  Budget  Search  Expand  Total ms",
     formatRow("Raw top-K", report.baseline),
     formatRow("Evidence Pack", report.evidencePack),
+    "",
+    "Relationship-derived Evidence Pack diagnostics",
+    `Labeled precision ${fixed(report.evidencePack.relationshipDerivedEvidencePrecision)} (${report.evidencePack.relationshipDerivedLabeledItems.toFixed(2)}/${report.evidencePack.relationshipDerivedItems.toFixed(2)} mean items per case)`,
+    `Exact target rate ${fixed(report.evidencePack.exactRelationshipTargetRate)} (${report.evidencePack.exactSymbolRelationshipItems.toFixed(2)}/${report.evidencePack.symbolBearingRelationshipItems.toFixed(2)} mean symbol-bearing items per case)`,
+    `Module-only fallback ${fixed(report.evidencePack.moduleOnlyFallbackRate)} (${report.evidencePack.moduleOnlyRelationshipItems.toFixed(2)} mean items per case)`,
     "",
     "Category changes (Evidence Pack minus raw top-K)",
     ...report.categories.map(

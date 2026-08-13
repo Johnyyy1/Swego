@@ -17,8 +17,9 @@ import {
   normalizePullRequestDocument,
   normalizeReviewDocument,
   normalizeSourceCodeDocument,
-  extractSourceRelationships,
+  extractSourceRelationshipsWithDiagnostics,
   type GeneratedMemoryDocument,
+  type SourceRelationshipDiagnostics,
 } from "@swega/documents";
 import {
   GitFileTooLargeError,
@@ -61,6 +62,8 @@ export interface BuildRepositoryMemoryResult extends MemoryPersistenceResult {
   excludedSourceFiles: number;
   admittedSourceChunks: number;
   sourceRelationships: number;
+  relationshipDiagnostics: SourceRelationshipDiagnostics;
+  relationshipExtractionDurationMs: number;
   structurallyChunkedSourceFiles: number;
   textuallyChunkedSourceFiles: number;
   sourceFileExclusions: Readonly<Record<SourceExclusionReason, number>>;
@@ -152,6 +155,9 @@ export async function buildRepositoryMemory(
     excludedSourceFiles: sourceCode.excluded,
     admittedSourceChunks: sourceCode.chunks,
     sourceRelationships: sourceCode.relationships.length,
+    relationshipDiagnostics: sourceCode.relationshipDiagnostics,
+    relationshipExtractionDurationMs:
+      sourceCode.relationshipExtractionDurationMs,
     structurallyChunkedSourceFiles: sourceCode.structural,
     textuallyChunkedSourceFiles: sourceCode.textual,
     sourceFileExclusions: sourceCode.exclusions,
@@ -165,6 +171,8 @@ export async function buildRepositoryMemory(
     excludedSourceFiles: result.excludedSourceFiles,
     admittedSourceChunks: result.admittedSourceChunks,
     sourceRelationships: result.sourceRelationships,
+    relationshipDiagnostics: result.relationshipDiagnostics,
+    relationshipExtractionDurationMs: result.relationshipExtractionDurationMs,
     structurallyChunkedSourceFiles: result.structurallyChunkedSourceFiles,
     textuallyChunkedSourceFiles: result.textuallyChunkedSourceFiles,
     sourceFileExclusions: result.sourceFileExclusions,
@@ -531,9 +539,16 @@ async function normalizeSourceFiles(options: NormalizeSourceFilesOptions) {
     admitted += 1;
   }
 
+  const relationshipExtractionStartedAt = performance.now();
+  const relationshipExtraction =
+    extractSourceRelationshipsWithDiagnostics(relationshipFiles);
   return {
     documents,
-    relationships: extractSourceRelationships(relationshipFiles),
+    relationships: relationshipExtraction.relationships,
+    relationshipDiagnostics: relationshipExtraction.diagnostics,
+    relationshipExtractionDurationMs: Math.round(
+      performance.now() - relationshipExtractionStartedAt,
+    ),
     admitted,
     excluded,
     exclusions,

@@ -77,7 +77,9 @@ Local expansion reads all anchor rows in one query and all eligible local chunks
 
 This operates on stored chunk boundaries. It does not fetch arbitrary `+/- N` lines or return whole files. Adjacent fallback chunks retain repository-memory's existing 120-line/12,000-character bound.
 
-Cross-file expansion reuses `source_relationships` through the existing `RelationshipExpansion` interface. It traverses depth exactly one, with at most two neighbors per anchor and at most ten relationship candidates for the five-anchor default. Stored `IMPORTS` and `REEXPORTS` plus the query-time `IMPORTED_BY` inverse support direct dependencies, re-export targets, callers, and representative tests when a test directly imports an anchor. Type/configuration/schema/test roles are classified from the resulting stored metadata; no semantic caller, inferred test counterpart, package alias, or schema relationship is invented.
+Cross-file expansion reuses `source_relationships` through the existing `RelationshipExpansion` interface. It traverses depth exactly one, with at most two neighbors per anchor and at most ten relationship candidates for the five-anchor default. Stored `IMPORTS` and `REEXPORTS` plus the query-time `IMPORTED_BY` inverse support relative and statically configured local dependencies, re-export targets, callers, and representative tests when a test directly imports an anchor. Type/configuration/schema/test roles are classified from stored metadata; no semantic caller, inferred test counterpart, package-manager resolution, or schema relationship is invented.
+
+An `exact_symbol` relationship selects its verified structural target before lexical/query heuristics. An `exact_module` relationship retains the prior representative-chunk fallback. JSON provenance distinguishes `imports_symbol` from `imports_module` and preserves imported/local/exposed names, binding/type-only state, module-resolution kind, target kind/range, and config path/revision. These are backward-compatible additions, so Evidence Pack schema version remains `1`.
 
 Candidate-generation relationship expansion and context expansion remain separate consumers of the same graph. The former asks whether a neighbor should enter a retrieval pool and remains search-default-off; the latter asks what one-hop evidence helps explain an already strong anchor and is context-default-on. `--relationship-expansion none` disables the context use explicitly.
 
@@ -105,7 +107,7 @@ and available_at <= :before
 and (superseded_at is null or superseded_at > :before)
 ```
 
-Relationship expansion independently filters both the edge and returned neighbor chunk under the same repository and interval. The builder then rejects any returned item whose repository differs or whose availability is after the cutoff. It never falls back to a current graph for a historical cutoff. Selected commit SHAs are exposed as `revisions`; different source entities may legitimately contribute different revisions.
+Relationship expansion independently filters both the edge and returned neighbor chunk under the same repository and interval. Alias-derived edge availability is the maximum of source, target, and every local config snapshot used during indexing. The builder then rejects any returned item whose repository differs or whose availability is after the cutoff. It never falls back to a current graph or future config for a historical cutoff. Selected commit SHAs are exposed as `revisions`; different source entities may legitimately contribute different revisions.
 
 ## Budget and ordering
 
@@ -135,7 +137,9 @@ Human output groups role, location, source role, retrieval/relationship provenan
 
 ## Development evaluation
 
-[`formbricks-context-development.json`](../benchmarks/formbricks-context-development.json) contains 25 manually reviewable tasks across implementation, exact navigation, feature flows, configuration, endpoints, authorization, database/schema, migrations, error handling, tests, UI, utilities, and cross-file behavior. Required and supporting targets were authored by inspecting Formbricks commit `88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5` directly. The existing sealed retrieval held-out corpus was not opened for this milestone, and no context held-out split was created.
+[`formbricks-context-development.json`](../benchmarks/formbricks-context-development.json) contains 25 manually reviewable tasks across implementation, exact navigation, feature flows, configuration, endpoints, authorization, database/schema, migrations, error handling, tests, UI, utilities, and cross-file behavior. Required and supporting targets were authored by inspecting Formbricks commit `88a38c081fc7536a4edf74f8b03f9cf9ce4ee2d5` directly.
+
+The alias/exact-symbol held-out corpus was authored from direct `git show`, `git grep`, and `git ls-tree` inspection of that revision without consulting SWEGA rankings. Thirteen realistic tasks were frozen before implementation in [`formbricks-context-held-out.json`](../benchmarks/formbricks-context-held-out.json); the adjacent SHA-256 file seals its bytes. The schema requires 10–15 held-out cases plus author, review count, and sealing timestamp. It is a single-author, single-reviewer directional evaluation, not a statistical generalization claim.
 
 Run the fair same-budget comparison with:
 
@@ -153,8 +157,9 @@ The baseline takes ordinary ranked chunks until the same 30,000-character budget
 - budget utilization and payload characters;
 - distinct relevant files;
 - search, context-expansion, and total latency.
+- relationship-derived labeled precision, exact-target landing rate, and module-only fallback rate. These use relationship-derived items as the unit; an exact landing additionally requires a symbol-bearing edge whose verified target equals the selected structural symbol. Unlabeled items are not claimed universally irrelevant.
 
-The final non-reranked development run produced:
+The recorded pre-alias non-reranked development run produced:
 
 | Strategy      | Required | Supporting | Complete | Precision | Duplicate | Noise | Relevant files |  Chars | Budget |   Search | Expansion |    Total |
 | ------------- | -------: | ---------: | -------: | --------: | --------: | ----: | -------------: | -----: | -----: | -------: | --------: | -------: |
@@ -163,15 +168,19 @@ The final non-reranked development run produced:
 
 Evidence Pack improved required recall by 0.220, supporting recall by 0.100, complete-pack rate by 0.280, and precision by 0.049 while eliminating observed duplicates and reducing noise by 0.049. Average selected content was approximately 20,880 characters, or an estimated 5,220 tokens. Context assembly added 121.0 ms on the measured local/database setup; search timings vary independently because the two strategies execute separately and are not treated as an algorithmic change.
 
-Category-level required-recall gains were strongest for utilities (+0.750), cross-file tasks (+0.500), implementation (+0.500), and +0.250 for endpoints, authorization, configuration, database/schema, and UI. Exact-symbol, error-handling, migration, test, and feature-flow required recall did not regress; their gains were zero in this small split. Remaining incomplete packs were concentrated in multi-hop flows, unresolved package aliases, and collaborators absent from the fifteen-result search input and one-hop relative-import graph.
+Category-level required-recall gains were strongest for utilities (+0.750), cross-file tasks (+0.500), implementation (+0.500), and +0.250 for endpoints, authorization, configuration, database/schema, and UI. Exact-symbol, error-handling, migration, test, and feature-flow required recall did not regress; their gains were zero in this small split. This is the recorded pre-alias baseline.
+
+The frozen alias/exact-symbol milestone results, including the sole sealed held-out run, relationship
+resolution rates, category regressions, latency, and environment limitations, are reported in
+[`formbricks-context-alias-symbol-report.md`](../benchmarks/formbricks-context-alias-symbol-report.md).
 
 These numbers characterize one repository and one author-reviewed development set. They are evidence for the selected v1 defaults, not a general benchmark claim.
 
 ## Limitations
 
-- Relationship support is limited to resolved relative TypeScript-family imports/re-exports. There is no semantic call graph, project alias resolution, inferred test matching, or schema/reference resolver.
+- Relationship support is limited to the documented relative/tsconfig/jsconfig local subset. Package-manager/workspace resolution, package-valued config inheritance, semantic call graphs, inferred test matching, and schema/reference resolution remain unsupported.
 - Local context is only as precise as stored structural chunks; unsupported languages use one adjacent bounded fallback chunk.
 - Five anchors trade some precision and budget headroom for materially better complete-pack coverage than two through four anchors on the development set.
 - Source snapshots must already exist at a historical cutoff; v1 does not reconstruct a missing Git tree or relationship graph at query time.
 - The pack contains faithful evidence, not an explanation or generated summary.
-- The development evaluation has no independent reviewer and no context held-out split.
+- The development and sealed context held-out evaluations have no independent reviewer.

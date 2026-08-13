@@ -65,6 +65,18 @@ export interface MemorySearchResult {
   relationshipSourceSymbol?: string | null;
   relationshipTargetPath?: string | null;
   relationshipTargetSymbol?: string | null;
+  relationshipImportedName?: string | null;
+  relationshipLocalName?: string | null;
+  relationshipExposedName?: string | null;
+  relationshipBindingKind?: RelationshipBindingKind;
+  relationshipIsTypeOnly?: boolean;
+  relationshipResolution?: RelationshipResolution;
+  relationshipModuleResolutionKind?: ModuleResolutionKind;
+  relationshipTargetSymbolKind?: SourceSymbolKind | null;
+  relationshipTargetStartLine?: number | null;
+  relationshipTargetEndLine?: number | null;
+  relationshipConfigurationPath?: string | null;
+  relationshipConfigurationCommitSha?: string | null;
   relationshipDepth?: 1;
   relationshipReason?: string;
   relationshipRank?: number;
@@ -86,6 +98,10 @@ export interface MemorySearchResult {
 }
 
 export type RetrievalRelationshipType = "imports" | "imported_by" | "reexports";
+export type RelationshipResolution = "exact_symbol" | "exact_module";
+export type ModuleResolutionKind = "relative" | "path_alias" | "base_url";
+export type RelationshipBindingKind =
+  "named" | "default" | "namespace" | "side_effect" | "export_star";
 
 export const relationshipExpansionStrategies = ["none", "bounded"] as const;
 export type RelationshipExpansionStrategy =

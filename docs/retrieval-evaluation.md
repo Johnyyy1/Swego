@@ -85,7 +85,13 @@ Intent-aware reports preserve the benchmark category and add predicted query int
 
 Existing Precision/Recall/MRR/nDCG definitions are unchanged. Candidate recall is separately named and never substituted for final Recall@K. Timing fields make diagnostic reports intentionally nondeterministic; ranking and metric fields remain reproducible for deterministic providers.
 
-Evidence Pack evaluation is intentionally separate from ranked retrieval evaluation. The checked-in 25-case development corpus compares raw top-ranked chunks and assembled context under the same exact character budget, reporting required/supporting recall, complete-pack rate, precision, duplicate ratio, noise, relevant-file diversity, payload, and stage latency without an opaque combined score. Its labels are development-only and were authored by direct source inspection at a pinned revision. See [Evidence Packs](context-packs.md) for the schema, methodology, anchor comparison, results, and limitations.
+Evidence Pack evaluation is intentionally separate from ranked retrieval evaluation. The checked-in 25-case development corpus compares raw top-ranked chunks and assembled context under the same exact character budget, reporting required/supporting recall, complete-pack rate, precision, duplicate ratio, noise, relevant-file diversity, payload, and stage latency without an opaque combined score. It also reports relationship-derived labeled precision, exact-target landing rate over symbol-bearing relationship items, and module-only fallback rate. Labels were authored by direct source inspection at a pinned revision.
+
+Context corpora use split-specific sealing rules: development accepts 20–30 cases; held-out accepts 10–15 and requires `corpusAuthor`, `reviewCount`, and `sealedAt`. The Formbricks alias/exact-symbol context held-out was checksumed before implementation and is evaluated once only after development analysis and design freeze. See [Evidence Packs](context-packs.md) for schema, methodology, comparisons, and limitations.
+
+The completed alias/exact-symbol development and sole sealed held-out results are recorded in the
+[milestone report](../benchmarks/formbricks-context-alias-symbol-report.md). The held-out result was
+not used for implementation or parameter changes.
 
 ## CLI usage
 
@@ -99,6 +105,7 @@ bun run swega benchmark benchmarks/formbricks-development.json --rerank --relati
 bun run swega benchmark benchmarks/formbricks-development.json --intent-role-prior weak
 bun run swega context-benchmark benchmarks/formbricks-context-development.json
 bun run swega context-benchmark benchmarks/formbricks-context-development.json --json
+bun run swega context-benchmark benchmarks/formbricks-context-held-out.json --json
 ```
 
 The benchmark command uses the configured database and embedding provider. Dense and hybrid evaluation therefore retains the normal projection-compatibility checks and requires the configured embedding service to be available. `--rerank` additionally requires `RERANKER_PROVIDER=llama.cpp`, evaluates `hybrid+rerank` against the same cases, and fails rather than silently falling back if that provider is unavailable.

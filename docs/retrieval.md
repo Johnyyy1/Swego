@@ -107,7 +107,7 @@ Use `--file-evidence none|max|multi-branch|bounded-top-n` to reproduce an approa
 
 ## Structural relationship expansion
 
-When explicitly enabled, reranked candidate generation expands at most one hop from bounded strong anchors after file evidence. The initial TypeScript-family adapter stores high-confidence resolved relative imports and re-exports; `IMPORTED_BY` is their query-time inverse. A separate rank-only relationship branch contributes at most 16 representative chunks and never enlarges the 50-candidate reranker pool. Expansion remains disabled by default after the development diagnostic showed predominantly unlabeled relationship-only candidates.
+When explicitly enabled, reranked candidate generation expands at most one hop from bounded strong anchors after file evidence. The TypeScript-family adapter stores high-confidence relative and configured local imports/re-exports with explicit `exact_symbol` or `exact_module` state; `IMPORTED_BY` is their query-time module-level inverse. Exact targets beat representative heuristics. A separate rank-only relationship branch contributes at most 16 representative chunks and never enlarges the 50-candidate reranker pool. Expansion remains disabled by default after the development diagnostic showed predominantly unlabeled relationship-only candidates.
 
 The complete taxonomy, 12-anchor/3-neighbor bounds, representative selection, language fallback, rebuild lifecycle, and historical semantics are documented in [Structural relationship expansion](structural-relationships.md). Use `--relationship-expansion none|bounded` for controlled comparisons.
 
@@ -148,7 +148,7 @@ Every result retains content and source provenance. Hybrid results may additiona
 - `fileEvidenceRank`, `fileEvidenceSources`, and rank-derived `fileEvidenceScore` for propagated representatives;
 - `representativeChunkReason` and `propagatedFromFileEvidence` for the bounded synthetic branch;
 - `rrfScore` and pre-diversification `rrfRank` for the fused score/order;
-- `relationshipType`, source/target path and symbol, depth, reason, rank, and `retrievedDirectly` when relationship evidence contributed;
+- relationship type, source/target path and symbol, import/re-export bindings, exact/module resolution, config provenance, depth, reason, rank, and `retrievedDirectly` when relationship evidence contributed;
 - `queryIntents` with confidence/evidence plus `sourceRole`, confidence/evidence, and the best `roleCompatibility` reason;
 - `rrfRankBeforeIntentRole`, `intentRoleRank`, and rank-derived `intentRoleScore` when the compatibility branch contributed;
 - `rerankerScore`, `rerankerRank`, and `finalRank` when reranking is enabled.

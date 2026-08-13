@@ -23,6 +23,8 @@ describeWithDatabase("relationship retrieval", () => {
   let otherRepositoryId: string;
   let sourceAnchor: MemorySearchResult;
   let targetAnchor: MemorySearchResult;
+  let aliasSourceAnchor: MemorySearchResult;
+  let futureTargetSourceAnchor: MemorySearchResult;
   const availableAt = new Date("2025-03-10T12:00:00.000Z");
 
   beforeAll(async () => {
@@ -87,14 +89,89 @@ describeWithDatabase("relationship retrieval", () => {
       content: auditContent,
       sourceReference: `git:${commitSha}:src/audit.ts`,
     });
+    const aliasConfigurationContent =
+      '{"compilerOptions":{"baseUrl":".","paths":{"@/*":["src/*"]}}}';
+    const aliasConfiguration = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "tsconfig.json",
+      commitSha,
+      committedAt: new Date("2025-03-12T12:00:00.000Z"),
+      content: aliasConfigurationContent,
+      sourceReference: `git:${commitSha}:tsconfig.json`,
+    });
+    const aliasTargetContent = "export function aliasTarget() { return true; }";
+    const aliasTarget = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "src/alias-target.ts",
+      commitSha,
+      committedAt: availableAt,
+      content: aliasTargetContent,
+      sourceReference: `git:${commitSha}:src/alias-target.ts`,
+    });
+    const aliasSourceContent = [
+      'import { aliasTarget } from "@/alias-target";',
+      "export function aliasConsumer() { return aliasTarget(); }",
+    ].join("\n");
+    const aliasSource = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "src/alias-consumer.ts",
+      commitSha,
+      committedAt: availableAt,
+      content: aliasSourceContent,
+      sourceReference: `git:${commitSha}:src/alias-consumer.ts`,
+    });
+    const futureTargetContent =
+      "export function futureTarget() { return true; }";
+    const futureTarget = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "src/future-target.ts",
+      commitSha,
+      committedAt: new Date("2025-03-14T12:00:00.000Z"),
+      content: futureTargetContent,
+      sourceReference: `git:${commitSha}:src/future-target.ts`,
+    });
+    const futureTargetSourceContent = [
+      'import { futureTarget } from "./future-target";',
+      "export function futureConsumer() { return futureTarget(); }",
+    ].join("\n");
+    const futureTargetSource = normalizeSourceCodeDocument({
+      repositoryId,
+      sourceEntityId: crypto.randomUUID(),
+      path: "src/future-consumer.ts",
+      commitSha,
+      committedAt: availableAt,
+      content: futureTargetSourceContent,
+      sourceReference: `git:${commitSha}:src/future-consumer.ts`,
+    });
     const relationships = extractSourceRelationships([
       { document: helper, content: helperContent },
       { document: audit, content: auditContent },
       { document: wrapper, content: wrapperContent },
+      { document: aliasConfiguration, content: aliasConfigurationContent },
+      { document: aliasTarget, content: aliasTargetContent },
+      { document: aliasSource, content: aliasSourceContent },
+      { document: futureTarget, content: futureTargetContent },
+      {
+        document: futureTargetSource,
+        content: futureTargetSourceContent,
+      },
     ]);
     await persistMemoryDocuments(
       database,
-      [helper, audit, wrapper],
+      [
+        helper,
+        audit,
+        wrapper,
+        aliasConfiguration,
+        aliasTarget,
+        aliasSource,
+        futureTarget,
+        futureTargetSource,
+      ],
       new Date(),
       {
         reconcileSourceCodeForRepositoryId: repositoryId,
@@ -134,6 +211,8 @@ describeWithDatabase("relationship retrieval", () => {
     );
     sourceAnchor = anchor(wrapper, "apiWrapper");
     targetAnchor = anchor(helper, "authenticateRequest");
+    aliasSourceAnchor = anchor(aliasSource, "aliasConsumer");
+    futureTargetSourceAnchor = anchor(futureTargetSource, "futureConsumer");
   });
 
   afterAll(async () => {
@@ -185,6 +264,37 @@ describeWithDatabase("relationship retrieval", () => {
     expect(
       await expand(sourceAnchor, new Date("2025-03-01T00:00:00.000Z")),
     ).toEqual([]);
+  });
+
+  test("does not expose an alias edge before the config snapshot", async () => {
+    expect(
+      await expand(aliasSourceAnchor, new Date("2025-03-11T00:00:00.000Z")),
+    ).toEqual([]);
+    expect(
+      await expand(aliasSourceAnchor, new Date("2025-03-13T00:00:00.000Z")),
+    ).toEqual([
+      expect.objectContaining({
+        path: "src/alias-target.ts",
+        relationshipResolution: "exact_symbol",
+        relationshipModuleResolutionKind: "path_alias",
+        relationshipConfigurationPath: "tsconfig.json",
+      }),
+    ]);
+  });
+
+  test("does not expose an edge before the target snapshot", async () => {
+    expect(
+      await expand(
+        futureTargetSourceAnchor,
+        new Date("2025-03-13T00:00:00.000Z"),
+      ),
+    ).toEqual([]);
+    expect(
+      await expand(
+        futureTargetSourceAnchor,
+        new Date("2025-03-15T00:00:00.000Z"),
+      ),
+    ).toEqual([expect.objectContaining({ path: "src/future-target.ts" })]);
   });
 
   function expand(anchor: MemorySearchResult, before: Date) {

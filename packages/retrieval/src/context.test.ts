@@ -168,6 +168,13 @@ describe("Evidence Pack expansion", () => {
     const dependency = relationshipResult("dependency", "imports", {
       path: "src/dependency.ts",
       relationshipTargetSymbol: "dependency",
+      relationshipResolution: "exact_symbol",
+      relationshipModuleResolutionKind: "path_alias",
+      relationshipImportedName: "dependency",
+      relationshipLocalName: "localDependency",
+      relationshipBindingKind: "named",
+      relationshipConfigurationPath: "tsconfig.json",
+      relationshipConfigurationCommitSha: "a".repeat(40),
     });
     const caller = relationshipResult("caller", "imported_by", {
       path: "src/caller.ts",
@@ -184,6 +191,39 @@ describe("Evidence Pack expansion", () => {
         item.relationships.map((edge) => edge.type),
       ),
     ).toEqual(["imports", "imported_by"]);
+    expect(
+      pack.evidence.flatMap((item) => item.relationships)[0],
+    ).toMatchObject({
+      resolution: "exact_symbol",
+      moduleResolutionKind: "path_alias",
+      importedName: "dependency",
+      localName: "localDependency",
+      configurationPath: "tsconfig.json",
+    });
+    expect(
+      pack.evidence.flatMap((item) =>
+        item.reasons.map((reason) => reason.kind),
+      ),
+    ).toContain("imports_symbol");
+  });
+
+  test("labels module-only imports without claiming an exact symbol", async () => {
+    const anchor = result("anchor", { path: "src/anchor.ts" });
+    const dependency = relationshipResult("dependency", "imports", {
+      path: "src/dependency.ts",
+      relationshipTargetSymbol: null,
+      relationshipResolution: "exact_module",
+      relationshipModuleResolutionKind: "relative",
+      relationshipBindingKind: "namespace",
+    });
+    const pack = await builder([anchor], { related: [dependency] }).build(
+      baseInput(),
+    );
+    expect(pack.evidence[1]?.reasons[0]?.kind).toBe("imports_module");
+    expect(pack.evidence[1]?.relationships[0]).toMatchObject({
+      resolution: "exact_module",
+      targetSymbol: null,
+    });
   });
 
   test("classifies a related type, configuration, schema, and representative test", async () => {
@@ -510,7 +550,10 @@ function relationshipResult(
     relationshipSourcePath: "src/anchor.ts",
     relationshipSourceSymbol: "anchor",
     relationshipTargetPath: related.path,
-    relationshipTargetSymbol: related.sourceMetadata.symbolName,
+    relationshipTargetSymbol:
+      overrides.relationshipTargetSymbol === undefined
+        ? related.sourceMetadata.symbolName
+        : overrides.relationshipTargetSymbol,
     relationshipDepth: 1,
     relationshipReason: `${type}: src/anchor.ts -> ${related.path}`,
     relationshipRank: 1,

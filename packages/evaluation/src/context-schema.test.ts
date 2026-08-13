@@ -29,6 +29,44 @@ describe("context benchmark schema", () => {
       "Duplicate context evidence target selector",
     );
   });
+
+  test("accepts a sealed 10-case held-out corpus with review provenance", () => {
+    const heldOut = {
+      ...fixture(),
+      split: "held_out" as const,
+      corpusAuthor: "Independent source reviewer",
+      reviewCount: 1,
+      sealedAt: "2025-03-14T00:00:00.000Z",
+      cases: fixture().cases.slice(0, 10),
+    };
+    expect(parseContextBenchmark(heldOut)).toMatchObject({
+      split: "held_out",
+      corpusAuthor: "Independent source reviewer",
+      reviewCount: 1,
+    });
+  });
+
+  test("rejects unsealed or oversized held-out corpora", () => {
+    const unsealed = {
+      ...fixture(),
+      split: "held_out",
+      cases: fixture().cases.slice(0, 10),
+    };
+    expect(() => parseContextBenchmark(unsealed)).toThrow(
+      ContextBenchmarkValidationError,
+    );
+
+    const oversized = {
+      ...unsealed,
+      corpusAuthor: "Reviewer",
+      reviewCount: 1,
+      sealedAt: "2025-03-14T00:00:00.000Z",
+      cases: fixture().cases.slice(0, 16),
+    };
+    expect(() => parseContextBenchmark(oversized)).toThrow(
+      ContextBenchmarkValidationError,
+    );
+  });
 });
 
 function fixture() {

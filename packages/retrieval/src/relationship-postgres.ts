@@ -7,7 +7,13 @@ import type {
   RelationshipExpansion,
   RelationshipExpansionInput,
 } from "./relationship-expansion";
-import type { MemorySearchResult, RetrievalRelationshipType } from "./types";
+import type {
+  MemorySearchResult,
+  ModuleResolutionKind,
+  RelationshipBindingKind,
+  RelationshipResolution,
+  RetrievalRelationshipType,
+} from "./types";
 
 interface RankedNeighbor {
   anchor: MemorySearchResult;
@@ -17,6 +23,18 @@ interface RankedNeighbor {
   targetPath: string;
   sourceSymbol: string | null;
   targetSymbol: string | null;
+  importedName: string | null;
+  localName: string | null;
+  exposedName: string | null;
+  bindingKind: RelationshipBindingKind;
+  isTypeOnly: boolean;
+  resolution: RelationshipResolution;
+  moduleResolutionKind: ModuleResolutionKind;
+  targetSymbolKind: (typeof sourceRelationships.$inferSelect)["targetSymbolKind"];
+  targetStartLine: number | null;
+  targetEndLine: number | null;
+  configurationPath: string | null;
+  configurationCommitSha: string | null;
   reason: string;
   relationshipId: string;
 }
@@ -39,6 +57,11 @@ export class PgRelationshipExpansion implements RelationshipExpansion {
       .where(
         and(
           eq(sourceRelationships.repositoryId, input.repositoryId),
+          eq(sourceRelationships.confidence, 1),
+          inArray(sourceRelationships.resolution, [
+            "exact_symbol",
+            "exact_module",
+          ]),
           lte(sourceRelationships.availableAt, input.before),
           or(
             isNull(sourceRelationships.supersededAt),
@@ -100,9 +123,12 @@ export class PgRelationshipExpansion implements RelationshipExpansion {
       const representative = selectRepresentativeRelationshipChunk(
         chunksByDocument.get(neighbor.neighborDocumentId) ?? [],
         neighbor.relationshipType === "imported_by"
-          ? neighbor.sourceSymbol
+          ? null
           : neighbor.targetSymbol,
         queryTerms,
+        neighbor.relationshipType === "imported_by"
+          ? "exact_module"
+          : neighbor.resolution,
       );
       if (!representative) return [];
       return [toResult(representative, neighbor, index + 1)];
@@ -134,6 +160,18 @@ function rankNeighbors(
               targetPath: edge.targetPath,
               sourceSymbol: edge.sourceSymbol,
               targetSymbol: edge.targetSymbol,
+              importedName: edge.importedName,
+              localName: edge.localName,
+              exposedName: edge.exposedName,
+              bindingKind: edge.bindingKind,
+              isTypeOnly: edge.isTypeOnly,
+              resolution: edge.resolution,
+              moduleResolutionKind: edge.moduleResolutionKind,
+              targetSymbolKind: edge.targetSymbolKind,
+              targetStartLine: edge.targetStartLine,
+              targetEndLine: edge.targetEndLine,
+              configurationPath: edge.configurationPath,
+              configurationCommitSha: edge.configurationCommitSha,
               reason: edge.reason,
               relationshipId: edge.id,
             },
@@ -148,10 +186,22 @@ function rankNeighbors(
               anchor,
               neighborDocumentId: edge.sourceDocumentId,
               relationshipType: "imported_by",
-              sourcePath: edge.sourcePath,
-              targetPath: edge.targetPath,
-              sourceSymbol: edge.sourceSymbol,
-              targetSymbol: edge.targetSymbol,
+              sourcePath: edge.targetPath,
+              targetPath: edge.sourcePath,
+              sourceSymbol: edge.targetSymbol,
+              targetSymbol: null,
+              importedName: edge.importedName,
+              localName: edge.localName,
+              exposedName: edge.exposedName,
+              bindingKind: edge.bindingKind,
+              isTypeOnly: edge.isTypeOnly,
+              resolution: "exact_module",
+              moduleResolutionKind: edge.moduleResolutionKind,
+              targetSymbolKind: null,
+              targetStartLine: null,
+              targetEndLine: null,
+              configurationPath: edge.configurationPath,
+              configurationCommitSha: edge.configurationCommitSha,
               reason: edge.reason,
               relationshipId: edge.id,
             },
@@ -194,6 +244,8 @@ function compareNeighbors(
     type === "imports" ? 0 : type === "reexports" ? 1 : 2;
   return (
     priority(left.relationshipType) - priority(right.relationshipType) ||
+    Number(right.resolution === "exact_symbol") -
+      Number(left.resolution === "exact_symbol") ||
     relationshipSymbolOverlap(right, queryTerms) -
       relationshipSymbolOverlap(left, queryTerms) ||
     Number(right.targetSymbol !== null) - Number(left.targetSymbol !== null) ||
@@ -230,12 +282,21 @@ export function selectRepresentativeRelationshipChunk<
   chunks: readonly T[],
   symbol: string | null,
   queryTerms: ReadonlySet<string>,
+  resolution: RelationshipResolution = "exact_symbol",
 ): T | null {
   return (
     [...chunks].sort(
       (left, right) =>
-        Number(right.symbolName === symbol && symbol !== null) -
-          Number(left.symbolName === symbol && symbol !== null) ||
+        Number(
+          resolution === "exact_symbol" &&
+            right.symbolName === symbol &&
+            symbol !== null,
+        ) -
+          Number(
+            resolution === "exact_symbol" &&
+              left.symbolName === symbol &&
+              symbol !== null,
+          ) ||
         symbolOverlap(right, queryTerms) - symbolOverlap(left, queryTerms) ||
         implementationWeight(right.symbolKind) -
           implementationWeight(left.symbolKind) ||
@@ -284,13 +345,22 @@ function toResult(
   return {
     ...documentChunkToMemorySearchResult(chunk),
     relationshipType: neighbor.relationshipType,
-    relationshipSourcePath: neighbor.anchor.path,
+    relationshipSourcePath: neighbor.sourcePath,
     relationshipSourceSymbol: neighbor.anchor.sourceMetadata.symbolName,
-    relationshipTargetPath: chunk.path,
-    relationshipTargetSymbol:
-      neighbor.relationshipType === "imported_by"
-        ? neighbor.sourceSymbol
-        : neighbor.targetSymbol,
+    relationshipTargetPath: neighbor.targetPath,
+    relationshipTargetSymbol: neighbor.targetSymbol,
+    relationshipImportedName: neighbor.importedName,
+    relationshipLocalName: neighbor.localName,
+    relationshipExposedName: neighbor.exposedName,
+    relationshipBindingKind: neighbor.bindingKind,
+    relationshipIsTypeOnly: neighbor.isTypeOnly,
+    relationshipResolution: neighbor.resolution,
+    relationshipModuleResolutionKind: neighbor.moduleResolutionKind,
+    relationshipTargetSymbolKind: neighbor.targetSymbolKind,
+    relationshipTargetStartLine: neighbor.targetStartLine,
+    relationshipTargetEndLine: neighbor.targetEndLine,
+    relationshipConfigurationPath: neighbor.configurationPath,
+    relationshipConfigurationCommitSha: neighbor.configurationCommitSha,
     relationshipDepth: 1,
     relationshipReason: `${neighbor.relationshipType}: ${neighbor.anchor.path ?? neighbor.anchor.sourceMetadata.sourceReference} -> ${chunk.path ?? chunk.sourceReference}; ${neighbor.reason}`,
     relationshipRank: rank,

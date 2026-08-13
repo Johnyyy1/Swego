@@ -30,6 +30,7 @@ export const evidenceReasonKinds = [
   "structural_neighbor",
   "fallback_line_context",
   "imports_symbol",
+  "imports_module",
   "imported_by",
   "reexport_target",
   "type_dependency",
@@ -51,6 +52,22 @@ export interface EvidenceRelationshipProvenance {
   sourceSymbol: string | null;
   targetPath: string | null;
   targetSymbol: string | null;
+  importedName: string | null;
+  localName: string | null;
+  exposedName: string | null;
+  bindingKind: NonNullable<
+    MemorySearchResult["relationshipBindingKind"]
+  > | null;
+  isTypeOnly: boolean;
+  resolution: NonNullable<MemorySearchResult["relationshipResolution"]> | null;
+  moduleResolutionKind: NonNullable<
+    MemorySearchResult["relationshipModuleResolutionKind"]
+  > | null;
+  targetSymbolKind: SourceSymbolKind | null;
+  targetStartLine: number | null;
+  targetEndLine: number | null;
+  configurationPath: string | null;
+  configurationCommitSha: string | null;
   depth: 1;
   reason: string;
 }
